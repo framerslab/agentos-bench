@@ -22,4 +22,7 @@ export type { IJudge, JudgeInput, JudgeOutput } from './judges/IJudge.js';
 export { DecayFidelity, buildSyntheticTrace } from './micro/DecayFidelity.js';
 export { HexacoEncodingBias } from './micro/HexacoEncodingBias.js';
 export { WorkingMemoryCapacity } from './micro/WorkingMemoryCapacity.js';
+export { SpreadingActivationPrecision, buildSyntheticGraph } from './micro/SpreadingActivationPrecision.js';
+export { ConsolidationSignalPreservation } from './micro/ConsolidationSignalPreservation.js';
+export { ScalingProfile } from './micro/ScalingProfile.js';
 export { MinimalWorkingMemoryBacking } from './micro/support/MinimalWorkingMemoryBacking.js';
