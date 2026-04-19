@@ -30,6 +30,14 @@ export { ResultStore } from './ResultStore.js';
 export type { ResultsSummary, SummaryEntry } from './ResultStore.js';
 export { BenchmarkRunner, resolveRunConfig } from './BenchmarkRunner.js';
 export type { BenchmarkRunnerOptions } from './BenchmarkRunner.js';
+export { compareRuns, formatComparisonMarkdown } from './compareRuns.js';
+export type {
+  CaseDelta,
+  ComparisonWinner,
+  RunComparison,
+  TypeComparison,
+  UnmatchedCases,
+} from './compareRuns.js';
 export {
   replay,
   replayViaObserve,

@@ -130,6 +130,55 @@ describe('LongMemEvalS full-cognitive path', () => {
     expect(caseMeta.replayStats?.turnsReplayed).toBe(2);
     expect(typeof caseMeta.recalledTraces).toBe('number');
     expect(typeof caseMeta.workingMemorySlots).toBe('number');
+
+    // The cognitive path must actually *encode* traces — not just run
+    // through without doing work. Every turn produces one encode call
+    // in observe mode, so observationsEmitted should match turnsReplayed.
+    expect(caseMeta.observationsEmitted).toBe(caseMeta.replayStats?.turnsReplayed);
+    expect(caseMeta.recalledTraces).toBeGreaterThan(0);
+  });
+
+  it('full-cognitive surfaces metadata that base-memory does not, proving the paths diverge', async () => {
+    const readerMock = new MockReader('claude-sonnet-4-6').on(
+      () => true,
+      () => ({ text: 'ok', tokensIn: 10, tokensOut: 5, model: 'claude-sonnet-4-6', latencyMs: 0 }),
+    );
+    const judgeMock = new MockReader('gpt-4o').on(
+      () => true,
+      () => ({ text: 'yes', tokensIn: 1, tokensOut: 1, model: 'gpt-4o', latencyMs: 0 }),
+    );
+
+    const runner = new BenchmarkRunner({
+      dataDir,
+      resultsDir,
+      judge: new LongMemEvalJudge({ reader: judgeMock }),
+    });
+
+    const cognitive = await runner.run(new LongMemEvalS({ reader: readerMock, variant: 's' }), {
+      reader: 'claude-sonnet-4-6',
+      memoryMode: 'full-cognitive',
+      replayMode: 'observe',
+    });
+    const base = await runner.run(new LongMemEvalS({ reader: readerMock, variant: 's' }), {
+      reader: 'claude-sonnet-4-6',
+      memoryMode: 'base-memory',
+      replayMode: 'ingest',
+    });
+
+    const cogMeta = cognitive.cases[0]!.metadata as Record<string, unknown>;
+    const baseMeta = base.cases[0]!.metadata as Record<string, unknown>;
+
+    // Contract: full-cognitive publishes both workingMemorySlots and
+    // observationsEmitted. base-memory publishes neither. If a future
+    // refactor blurs that boundary, the paths have collapsed and the
+    // benchmark can no longer distinguish cognitive contributions.
+    expect(cogMeta.memoryMode).toBe('full-cognitive');
+    expect(cogMeta.workingMemorySlots).toBeDefined();
+    expect(cogMeta.observationsEmitted).toBeDefined();
+
+    expect(baseMeta.memoryMode).toBe('base-memory');
+    expect(baseMeta.workingMemorySlots).toBeUndefined();
+    expect(baseMeta.observationsEmitted).toBeUndefined();
   });
 
   it('cleans up scratch cognitive brain files after the run', async () => {

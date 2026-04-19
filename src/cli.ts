@@ -348,6 +348,31 @@ export function buildCli(): Command {
     });
 
   program
+    .command('compare <baselineRun> <challengerRun>')
+    .description('Diff two run JSON files and print a Markdown-formatted comparison.')
+    .option('--out <path>', 'Write the Markdown to this file instead of stdout')
+    .action(async (baselineRun: string, challengerRun: string, opts) => {
+      const { compareRuns: compare, formatComparisonMarkdown } = await import('./core/compareRuns.js');
+      const fsp = await import('node:fs/promises');
+      const baseline = JSON.parse(await fsp.readFile(baselineRun, 'utf8')) as import(
+        './core/IBenchmark.js'
+      ).BenchResult;
+      const challenger = JSON.parse(await fsp.readFile(challengerRun, 'utf8')) as import(
+        './core/IBenchmark.js'
+      ).BenchResult;
+      const diff = compare(baseline, challenger);
+      const md = formatComparisonMarkdown(diff);
+      if (opts.out) {
+        await fsp.writeFile(opts.out, md);
+        // eslint-disable-next-line no-console
+        console.log(`Wrote ${opts.out}`);
+      } else {
+        // eslint-disable-next-line no-console
+        console.log(md);
+      }
+    });
+
+  program
     .command('leaderboard')
     .description('Regenerate LEADERBOARD.md from results/summary.json + competitor-numbers.')
     .option('--results-dir <path>', 'Results directory')
