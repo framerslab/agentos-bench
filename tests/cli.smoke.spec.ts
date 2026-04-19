@@ -138,6 +138,88 @@ describe('CLI smoke', () => {
     expect(run.config.adaptiveRetrieval).toBe(false);
   });
 
+  it('run accepts --ablate-signal and persists it on run.config', async () => {
+    await buildCli().parseAsync([
+      'node',
+      'agentos-bench',
+      'run',
+      'longmemeval-s',
+      '--memory',
+      'full-cognitive',
+      '--replay',
+      'ingest',
+      '--ablate-signal',
+      'similarity',
+      '--data-dir',
+      dataDir,
+      '--results-dir',
+      resultsDir,
+      '--dry-run',
+    ]);
+    const runs = await fs.readdir(path.join(resultsDir, 'runs'));
+    const run = JSON.parse(await fs.readFile(path.join(resultsDir, 'runs', runs[0]!), 'utf8'));
+    expect(run.config.ablateSignal).toBe('similarity');
+  });
+
+  it('run accepts --ablate-mechanism and persists it on run.config', async () => {
+    await buildCli().parseAsync([
+      'node',
+      'agentos-bench',
+      'run',
+      'longmemeval-s',
+      '--memory',
+      'full-cognitive',
+      '--replay',
+      'ingest',
+      '--ablate-mechanism',
+      'reconsolidation',
+      '--data-dir',
+      dataDir,
+      '--results-dir',
+      resultsDir,
+      '--dry-run',
+    ]);
+    const runs = await fs.readdir(path.join(resultsDir, 'runs'));
+    const run = JSON.parse(await fs.readFile(path.join(resultsDir, 'runs', runs[0]!), 'utf8'));
+    expect(run.config.ablateMechanism).toBe('reconsolidation');
+  });
+
+  it('run rejects unknown --ablate-mechanism values', async () => {
+    await expect(
+      buildCli().parseAsync([
+        'node',
+        'agentos-bench',
+        'run',
+        'longmemeval-s',
+        '--ablate-mechanism',
+        'not-a-real-mechanism',
+        '--data-dir',
+        dataDir,
+        '--results-dir',
+        resultsDir,
+        '--dry-run',
+      ]),
+    ).rejects.toThrow(/Expected one of/);
+  });
+
+  it('run rejects unknown --ablate-signal values', async () => {
+    await expect(
+      buildCli().parseAsync([
+        'node',
+        'agentos-bench',
+        'run',
+        'longmemeval-s',
+        '--ablate-signal',
+        'not-a-real-signal',
+        '--data-dir',
+        dataDir,
+        '--results-dir',
+        resultsDir,
+        '--dry-run',
+      ]),
+    ).rejects.toThrow(/Expected one of/);
+  });
+
   it('run --dry-run against full-cognitive exercises CognitiveMemoryManager', async () => {
     await buildCli().parseAsync([
       'node',

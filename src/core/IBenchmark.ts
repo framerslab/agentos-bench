@@ -172,6 +172,33 @@ export interface RunConfig {
   samplePerType?: number;
   /** Capture brain bytes + trace counts per case. Default: true. */
   trackFootprint?: boolean;
+  /**
+   * Name of a retrieval signal to zero for this run. When set, the
+   * matching weight in `CognitiveRetrievalOptions.scoringWeights` is
+   * forced to 0; the remaining five keep their default weights.
+   * Applies only to full-cognitive memory mode.
+   */
+  ablateSignal?:
+    | 'strength'
+    | 'similarity'
+    | 'recency'
+    | 'emotionalCongruence'
+    | 'graphActivation'
+    | 'importance';
+  /**
+   * Name of a cognitive mechanism to disable for this run. Passed
+   * through to `CognitiveMemoryConfig.cognitiveMechanisms.<name>.enabled
+   * = false` on the scratch manager.
+   */
+  ablateMechanism?:
+    | 'reconsolidation'
+    | 'retrievalInducedForgetting'
+    | 'involuntaryRecall'
+    | 'metacognitiveFOK'
+    | 'temporalGist'
+    | 'schemaEncoding'
+    | 'sourceConfidenceDecay'
+    | 'emotionRegulation';
 }
 
 /**
@@ -194,6 +221,8 @@ export interface BenchContext {
       | 'stratified'
       | 'samplePerType'
       | 'trackFootprint'
+      | 'ablateSignal'
+      | 'ablateMechanism'
     >
   > &
     Pick<
@@ -208,6 +237,8 @@ export interface BenchContext {
       | 'stratified'
       | 'samplePerType'
       | 'trackFootprint'
+      | 'ablateSignal'
+      | 'ablateMechanism'
     >;
   /** LLM-as-judge for external benchmarks. Micro-benchmarks ignore. */
   judge: IJudge;

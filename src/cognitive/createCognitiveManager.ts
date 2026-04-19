@@ -63,6 +63,20 @@ export interface CreateCognitiveManagerOptions {
    * char-hash stub so tests run offline.
    */
   embedder?: IEmbeddingManager;
+  /**
+   * Optional name of a cognitive mechanism to disable for this run.
+   * Passed through as `cognitiveMechanisms.<name>.enabled = false`
+   * on the resulting manager. Used for per-mechanism ablation studies.
+   */
+  disableMechanism?:
+    | 'reconsolidation'
+    | 'retrievalInducedForgetting'
+    | 'involuntaryRecall'
+    | 'metacognitiveFOK'
+    | 'temporalGist'
+    | 'schemaEncoding'
+    | 'sourceConfidenceDecay'
+    | 'emotionRegulation';
 }
 
 /**
@@ -107,6 +121,11 @@ export async function createCognitiveManager(
   const embeddingManager = opts.embedder ?? new CharHashEmbedder();
   const mood = opts.mood ?? NEUTRAL_MOOD;
 
+  const cognitiveMechanisms = opts.disableMechanism
+    ? ({ [opts.disableMechanism]: { enabled: false } } as
+        import('@framers/agentos').CognitiveMemoryConfig['cognitiveMechanisms'])
+    : undefined;
+
   const manager = new CognitiveMemoryManager();
   await manager.initialize({
     workingMemory,
@@ -118,6 +137,7 @@ export async function createCognitiveManager(
     moodProvider: () => mood,
     featureDetectionStrategy: 'keyword',
     brain,
+    cognitiveMechanisms,
     // Consolidation loop would spawn timers we don't want in a
     // short-lived per-case run. Disable it for benchmark cases.
     consolidation: { enabled: false } as unknown as import('@framers/agentos').CognitiveMemoryConfig['consolidation'],
