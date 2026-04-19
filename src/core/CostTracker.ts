@@ -35,11 +35,17 @@ export const MODEL_PRICES: Record<string, { promptPer1k: number; completionPer1k
 };
 
 /**
+ * Category of a cost event — which stage of the bench pipeline spent
+ * the tokens.
+ */
+export type CostCategory = 'reader' | 'embedding' | 'judge';
+
+/**
  * A single cost entry against a known category.
  */
 export interface CostEntry {
   /** What produced the cost (`reader` | `embedding` | `judge`). */
-  category: 'reader' | 'embedding' | 'judge';
+  category: CostCategory;
   /** Model identifier used for pricing lookup. */
   model: string;
   /** Prompt / input tokens. */
