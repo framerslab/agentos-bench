@@ -167,6 +167,41 @@ function parseFloatArg(v: string): number {
   return n;
 }
 
+/**
+ * Pretty-print a completed run's headline numbers plus a per-type
+ * accuracy breakdown when the benchmark produced one. Keeping this in
+ * the CLI (not the BenchmarkRunner) so the underlying run result stays
+ * a plain data object.
+ */
+function printRunSummary(result: import('./core/IBenchmark.js').BenchResult): void {
+  const acc = (result.accuracy * 100).toFixed(1);
+  const cpc = Number.isFinite(result.costPerCorrect)
+    ? `$${result.costPerCorrect.toFixed(4)}`
+    : '$∞';
+  // eslint-disable-next-line no-console
+  console.log(
+    `Done. accuracy=${acc}% passed=${result.passedCases}/${result.totalCases} ` +
+      `avg=${result.avgLatencyMs.toFixed(0)}ms p50=${result.p50LatencyMs.toFixed(0)}ms ` +
+      `p95=${result.p95LatencyMs.toFixed(0)}ms totalUsd=$${result.totalUsd.toFixed(4)} ` +
+      `costPerCorrect=${cpc}`,
+  );
+
+  const typeEntries = Object.entries(result.byType);
+  if (typeEntries.length > 1) {
+    // eslint-disable-next-line no-console
+    console.log('By type:');
+    const pad = Math.max(...typeEntries.map(([t]) => t.length));
+    for (const [type, stats] of typeEntries.sort((a, b) => b[1].accuracy - a[1].accuracy)) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `  ${type.padEnd(pad)}  n=${String(stats.n).padStart(3)}  acc=${(
+          stats.accuracy * 100
+        ).toFixed(1).padStart(5)}%  avgScore=${stats.avgScore.toFixed(3)}`,
+      );
+    }
+  }
+}
+
 export function buildCli(): Command {
   const program = new Command();
   program
@@ -272,10 +307,7 @@ export function buildCli(): Command {
       const benchmark = entry.build({ reader });
       const result = await runner.run(benchmark, runConfig);
 
-      // eslint-disable-next-line no-console
-      console.log(
-        `Done. accuracy=${(result.accuracy * 100).toFixed(1)}% passed=${result.passedCases}/${result.totalCases} avgLatency=${result.avgLatencyMs.toFixed(0)}ms totalUsd=$${result.totalUsd.toFixed(4)} costPerCorrect=$${Number.isFinite(result.costPerCorrect) ? result.costPerCorrect.toFixed(4) : '∞'}`,
-      );
+      printRunSummary(result);
     });
 
   program
