@@ -49,4 +49,5 @@ export { WorkingMemoryCapacity } from './micro/WorkingMemoryCapacity.js';
 export { SpreadingActivationPrecision, buildSyntheticGraph } from './micro/SpreadingActivationPrecision.js';
 export { ConsolidationSignalPreservation } from './micro/ConsolidationSignalPreservation.js';
 export { ScalingProfile } from './micro/ScalingProfile.js';
+export { SignalAblation, ndcgAtK } from './micro/SignalAblation.js';
 export { MinimalWorkingMemoryBacking } from './micro/support/MinimalWorkingMemoryBacking.js';

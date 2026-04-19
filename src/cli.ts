@@ -33,6 +33,7 @@ import {
   LongMemEvalS,
   MockReader,
   ScalingProfile,
+  SignalAblation,
   SpreadingActivationPrecision,
   WorkingMemoryCapacity,
   createReader,
@@ -87,6 +88,12 @@ const BENCHMARKS: BenchEntry[] = [
     family: 'micro',
     description: 'Retrieval scoring P50/P95 at 1k/10k (100k with AGENTOS_BENCH_SCALING_FULL)',
     build: () => new ScalingProfile(),
+  },
+  {
+    id: 'signal-ablation',
+    family: 'micro',
+    description: 'Prove each of the 6 retrieval signals is load-bearing (NDCG delta per ablation)',
+    build: () => new SignalAblation(),
   },
   {
     id: 'longmemeval-s',
