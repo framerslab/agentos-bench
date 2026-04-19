@@ -42,6 +42,10 @@ import {
   replayViaIngest,
 } from '../../core/ConversationReplay.js';
 import { percentile, stdDev } from '../../core/statsUtil.js';
+import {
+  computeRetrievalMetrics,
+  type MemoryFootprint,
+} from '../../core/metrics/index.js';
 import type { IReader } from '../../readers/IReader.js';
 import { createCognitiveManager } from '../../cognitive/createCognitiveManager.js';
 import { loadLongMemEvalDataset, type LongMemEvalVariant } from './dataset.js';
@@ -152,6 +156,12 @@ export class LongMemEvalS implements IBenchmark {
       runMetadata.observationsEmitted = out.observationsEmitted;
       runMetadata.retrievedEvidence = out.retrievedEvidence;
       runMetadata.retrievalPolicy = retrievalPolicy;
+      // v2 metric inputs — consumed by scoreCase via attachPerCaseMetrics.
+      runMetadata.encodeMsSamples = out.encodeMsSamples;
+      runMetadata.peakWorkingMemorySlots = out.peakWorkingMemorySlots;
+      runMetadata.retrieveDiagnostics = out.retrieveDiagnostics;
+      runMetadata.traceCount = out.traceCount;
+      runMetadata.brainBytes = out.brainBytes;
     }
 
     const response = await this.opts.reader.invoke({
@@ -213,7 +223,7 @@ export class LongMemEvalS implements IBenchmark {
       tag: c.id,
     });
 
-    return {
+    const baseResult: CaseResult = {
       ...run,
       score: judgment.score,
       passed: judgment.correct,
@@ -222,6 +232,77 @@ export class LongMemEvalS implements IBenchmark {
         rubricVersion: judgment.rubricVersion,
         reasoning: judgment.reasoning,
       },
+    };
+
+    return this.attachPerCaseMetrics(c, run, baseResult);
+  }
+
+  /**
+   * Attach v2 metric fields to a scored case result. Returns the
+   * input result unchanged for paths that don't produce metrics
+   * inputs (e.g. memory-mode=none runs emit no encodeMsSamples).
+   */
+  private attachPerCaseMetrics(
+    c: BenchCase,
+    run: CaseRun,
+    base: CaseResult,
+  ): CaseResult {
+    const md = (run.metadata ?? {}) as Record<string, unknown>;
+    const retrievedEvidence =
+      (md.retrievedEvidence as Array<{ sessionId?: string }> | undefined) ?? [];
+    const goldSessionIds =
+      (c.metadata?.answerSessionIds as string[] | undefined) ?? [];
+    const k = retrievedEvidence.length > 0 ? retrievedEvidence.length : 10;
+
+    const retrievalMetrics = computeRetrievalMetrics({
+      goldSessionIds,
+      retrievedSessionIds: retrievedEvidence.map((e) => e.sessionId),
+      k,
+    });
+
+    const encodeMsSamples = (md.encodeMsSamples as number[] | undefined) ?? [];
+    const diagnostics = md.retrieveDiagnostics as
+      | import('@framers/agentos').CognitiveRetrievalResult['diagnostics']
+      | undefined;
+    const replayDurationMs =
+      (md.replayStats as { durationMs?: number } | undefined)?.durationMs ?? 0;
+
+    const encodeMsMean =
+      encodeMsSamples.length === 0
+        ? 0
+        : encodeMsSamples.reduce((s, v) => s + v, 0) / encodeMsSamples.length;
+
+    const latencyBreakdown = diagnostics
+      ? {
+          encodeMs: encodeMsMean,
+          retrieveMs: diagnostics.totalTimeMs ?? 0,
+          vectorSearchMs: diagnostics.vectorSearchTimeMs ?? 0,
+          scoringMs: diagnostics.scoringTimeMs ?? 0,
+          replayMs: replayDurationMs,
+        }
+      : undefined;
+
+    const peakSlots = (md.peakWorkingMemorySlots as number | undefined) ?? 0;
+    const encodeCalls = (md.observationsEmitted as number | undefined) ?? 0;
+    const traceCount = (md.traceCount as number | undefined) ?? 0;
+    const brainBytes = (md.brainBytes as number | undefined) ?? 0;
+
+    const memoryFootprint: MemoryFootprint | undefined =
+      md.brainBytes !== undefined
+        ? {
+            brainBytes,
+            traceCount,
+            peakWorkingMemorySlots: peakSlots,
+            encodeCalls,
+          }
+        : undefined;
+
+    return {
+      ...base,
+      retrievalMetrics,
+      latencyBreakdown,
+      memoryFootprint,
+      goldSessionIds,
     };
   }
 
