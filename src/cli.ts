@@ -26,7 +26,10 @@ import {
   ConsolidationSignalPreservation,
   DecayFidelity,
   HexacoEncodingBias,
+  Locomo,
   LongMemEvalJudge,
+  LongMemEvalM,
+  LongMemEvalOracle,
   LongMemEvalS,
   MockReader,
   ScalingProfile,
@@ -88,8 +91,26 @@ const BENCHMARKS: BenchEntry[] = [
   {
     id: 'longmemeval-s',
     family: 'external',
-    description: 'LongMemEval-S (500 cases, ~115k-token haystacks) — memoryMode=none baseline in v1',
+    description: 'LongMemEval-S (500 cases, ~115k-token haystacks)',
     build: ({ reader }) => new LongMemEvalS({ reader: createReader(reader), variant: 's' }),
+  },
+  {
+    id: 'longmemeval-m',
+    family: 'external',
+    description: 'LongMemEval-M (~500 sessions per haystack) — medium-difficulty variant',
+    build: ({ reader }) => new LongMemEvalM({ reader: createReader(reader) }),
+  },
+  {
+    id: 'longmemeval-oracle',
+    family: 'external',
+    description: 'LongMemEval-Oracle (evidence-only) — isolates reader quality from retrieval',
+    build: ({ reader }) => new LongMemEvalOracle({ reader: createReader(reader) }),
+  },
+  {
+    id: 'locomo',
+    family: 'external',
+    description: 'LOCOMO (Maharana et al. 2024, 10 convos × ~300 turns, QA task only in v1)',
+    build: ({ reader }) => new Locomo({ reader: createReader(reader) }),
   },
 ];
 
