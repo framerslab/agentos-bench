@@ -71,10 +71,15 @@ export async function renderLeaderboard(opts: LeaderboardOptions): Promise<strin
   for (const benchId of EXTERNAL_BENCHMARK_ORDER) {
     const section = buildExternalSection(benchId, summary);
     if (section) sections.push(section);
+    const retrievalSection = buildRetrievalSection(benchId, summary);
+    if (retrievalSection) sections.push(retrievalSection);
   }
 
   const micro = buildMicroSection(summary);
   if (micro) sections.push(micro);
+
+  const latencyAppendix = buildLatencyAppendix(summary);
+  if (latencyAppendix) sections.push(latencyAppendix);
 
   sections.push(buildFooter());
 
@@ -164,6 +169,57 @@ function buildExternalSection(benchId: string, summary: ResultsSummary): string 
   );
 
   return [...header, ...body].join('\n');
+}
+
+function buildRetrievalSection(benchId: string, summary: ResultsSummary): string | null {
+  const withMetrics = Object.values(summary.latest).filter(
+    (e) => e.benchmarkId === benchId && e.retrievalMetrics && e.retrievalMetrics.sampleSize > 0,
+  );
+  if (withMetrics.length === 0) return null;
+
+  const k = withMetrics[0]!.retrievalMetrics!.k;
+  const header = [
+    `### ${sectionTitle(benchId)} — Retrieval Quality (AgentOS only, K=${k})`,
+    '',
+    '| Config | Memory | Replay | Recall@K | Precision@K | NDCG@K | MRR | N |',
+    '|---|---|---|---:|---:|---:|---:|---:|',
+  ];
+  const body = withMetrics
+    .sort((a, b) => (b.retrievalMetrics!.meanNdcgAtK) - (a.retrievalMetrics!.meanNdcgAtK))
+    .map((r) => {
+      const m = r.retrievalMetrics!;
+      return `| ${r.reader}/${r.memoryMode}/${r.replayMode} | ${r.memoryMode} | ${r.replayMode} | ${m.meanRecallAtK.toFixed(3)} | ${m.meanPrecisionAtK.toFixed(3)} | ${m.meanNdcgAtK.toFixed(3)} | ${m.meanMrr.toFixed(3)} | ${m.sampleSize} |`;
+    });
+  return [...header, ...body].join('\n');
+}
+
+function buildLatencyAppendix(summary: ResultsSummary): string | null {
+  const withBreakdown = Object.values(summary.latest).filter((e) => e.latencyBreakdown);
+  if (withBreakdown.length === 0) return null;
+  const latest = withBreakdown.sort((a, b) => a.startedAt.localeCompare(b.startedAt)).at(-1)!;
+  const lb = latest.latencyBreakdown!;
+  const fp = latest.memoryFootprint;
+
+  const lines: string[] = [
+    '## Latency & Footprint (latest AgentOS run)',
+    '',
+    `Benchmark: \`${latest.benchmarkId}\` — ${latest.reader} / ${latest.memoryMode} / ${latest.replayMode}`,
+    '',
+    `- Encode   p50/p95/p99: ${lb.encode.p50.toFixed(1)}/${lb.encode.p95.toFixed(1)}/${lb.encode.p99.toFixed(1)} ms (n=${lb.encode.n})`,
+    `- Retrieve p50/p95/p99: ${lb.retrieve.p50.toFixed(1)}/${lb.retrieve.p95.toFixed(1)}/${lb.retrieve.p99.toFixed(1)} ms (n=${lb.retrieve.n})`,
+    `- Vector search p50/p95: ${lb.vectorSearch.p50.toFixed(1)}/${lb.vectorSearch.p95.toFixed(1)} ms`,
+    `- Scoring p50/p95:       ${lb.scoring.p50.toFixed(1)}/${lb.scoring.p95.toFixed(1)} ms`,
+    `- Replay p50/p95:        ${lb.replay.p50.toFixed(0)}/${lb.replay.p95.toFixed(0)} ms`,
+  ];
+  if (fp) {
+    lines.push(
+      `- Brain size mean/p95:   ${(fp.meanBrainBytes / 1024).toFixed(0)} KB / ${(fp.p95BrainBytes / 1024).toFixed(0)} KB`,
+      `- Mean trace count:      ${fp.meanTraceCount.toFixed(0)}`,
+      `- Peak WM slots (max):   ${fp.maxPeakWorkingMemorySlots}`,
+      `- Total encode calls:    ${fp.totalEncodeCalls}`,
+    );
+  }
+  return lines.join('\n');
 }
 
 function buildMicroSection(summary: ResultsSummary): string | null {
