@@ -88,9 +88,15 @@ export async function replayViaIngest(
   for (const session of sessions) {
     const body = formatSessionAsMarkdown(session);
     turns += session.turns.length;
+    // `Memory.remember` accepts tags/entities but not a free-form metadata
+    // object — encode session ID and date as tags so provenance survives
+    // ingestion and can be queried back out later.
     await mem.remember(body, {
-      metadata: { sessionId: session.sessionId, sessionDate: session.date },
-    } as unknown as Parameters<Memory['remember']>[1]);
+      type: 'episodic',
+      scope: 'user',
+      scopeId: 'bench',
+      tags: [`session:${session.sessionId}`, `date:${session.date}`],
+    });
     traces += 1;
   }
 

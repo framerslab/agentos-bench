@@ -23,6 +23,10 @@
  * @module agentos-bench/benchmarks/longmemeval/LongMemEvalS
  */
 
+import path from 'node:path';
+import { promises as fs } from 'node:fs';
+import { Memory } from '@framers/agentos';
+import type { ScoredTrace } from '@framers/agentos';
 import type {
   BenchCase,
   BenchContext,
@@ -31,7 +35,7 @@ import type {
   CaseRun,
   IBenchmark,
 } from '../../core/IBenchmark.js';
-import { buildHaystackContext } from '../../core/ConversationReplay.js';
+import { buildHaystackContext, replayViaIngest } from '../../core/ConversationReplay.js';
 import { percentile, stdDev } from '../../core/statsUtil.js';
 import type { IReader } from '../../readers/IReader.js';
 import { loadLongMemEvalDataset, type LongMemEvalVariant } from './dataset.js';
@@ -48,6 +52,8 @@ export interface LongMemEvalAdapterOptions {
   variant: LongMemEvalVariant;
   /** Maximum reader answer tokens. Defaults to 256 — answers are usually short. */
   maxAnswerTokens?: number;
+  /** How many recalled memory traces to fold into the reader's prompt. */
+  recallTopK?: number;
 }
 
 /**
@@ -89,17 +95,33 @@ export class LongMemEvalS implements IBenchmark {
     const start = Date.now();
     const mode = ctx.config.memoryMode;
 
-    if (mode !== 'none') {
-      // Memory-backed modes are scheduled for the v2 implementation step.
-      // Surfacing the limitation as a case-level error preserves the rest
-      // of the run rather than aborting the benchmark.
+    let system: string;
+    const runMetadata: Record<string, unknown> = {
+      memoryMode: mode,
+      replayMode: ctx.config.replayMode,
+      caseType: c.type,
+    };
+
+    if (mode === 'none') {
+      system = buildNoMemorySystemPrompt(c);
+    } else if (mode === 'base-memory') {
+      const { prompt, replayStats, recallCount } = await runBaseMemoryCase(
+        c,
+        ctx,
+        this.opts.recallTopK ?? 10,
+      );
+      system = prompt;
+      runMetadata.replayStats = replayStats;
+      runMetadata.recalledTraces = recallCount;
+    } else {
+      // full-cognitive path is still scheduled for the next step — surface
+      // as a per-case error so the runner preserves the rest of the run.
       throw new Error(
-        `LongMemEvalS: memoryMode '${mode}' not yet implemented — run with memoryMode='none' ` +
-          `for the haystack-in-context baseline. v2 will wire Memory / CognitiveMemoryManager.`,
+        `LongMemEvalS: memoryMode '${mode}' not yet implemented — use 'none' or ` +
+          `'base-memory' for now. full-cognitive lands in the next step.`,
       );
     }
 
-    const system = buildNoMemorySystemPrompt(c);
     const response = await this.opts.reader.invoke({
       system,
       user: c.question,
@@ -122,11 +144,7 @@ export class LongMemEvalS implements IBenchmark {
       tokensIn: response.tokensIn,
       tokensOut: response.tokensOut,
       usd,
-      metadata: {
-        memoryMode: mode,
-        replayMode: ctx.config.replayMode,
-        caseType: c.type,
-      },
+      metadata: runMetadata,
     };
   }
 
@@ -235,4 +253,67 @@ function buildNoMemorySystemPrompt(c: BenchCase): string {
   ].join(' ');
   const dateHeader = c.questionDate ? `\n\n[Question asked on ${c.questionDate}]` : '';
   return `${header}${dateHeader}\n\n--- Conversation History ---\n${haystack}\n--- End History ---`;
+}
+
+interface BaseMemoryCaseOutput {
+  prompt: string;
+  replayStats: { sessionsReplayed: number; turnsReplayed: number; durationMs: number };
+  recallCount: number;
+}
+
+/**
+ * Run one case through the base-memory path:
+ *  1. Open a fresh SQLite-backed {@link Memory} under ctx.scratchDir.
+ *  2. Replay the haystack via `Memory.remember` (one trace per session).
+ *  3. Recall the top-K relevant traces for the question.
+ *  4. Build the reader system prompt from the recalled traces.
+ *  5. Close the Memory and delete its SQLite file (best-effort).
+ *
+ * No embedding function is wired in this adapter — recall falls back to
+ * Memory's FTS5 path, which is sufficient for a functional end-to-end
+ * pipeline. Real benchmark sweeps should pair this adapter with an
+ * embedder via a subclass or config extension before publishing numbers.
+ */
+async function runBaseMemoryCase(
+  c: BenchCase,
+  ctx: BenchContext,
+  recallTopK: number,
+): Promise<BaseMemoryCaseOutput> {
+  const brainPath = path.join(
+    ctx.scratchDir,
+    `bench-${c.id.replace(/[^a-zA-Z0-9-_]/g, '_')}.sqlite`,
+  );
+  const mem = await Memory.create({ path: brainPath, selfImprove: false });
+  try {
+    const replayStats = await replayViaIngest(c.haystack, mem);
+    const recalled = await mem.recall(c.question, { limit: recallTopK });
+    return {
+      prompt: buildBaseMemoryPrompt(c, recalled),
+      replayStats: {
+        sessionsReplayed: replayStats.sessionsReplayed,
+        turnsReplayed: replayStats.turnsReplayed,
+        durationMs: replayStats.durationMs,
+      },
+      recallCount: recalled.length,
+    };
+  } finally {
+    await mem.close().catch(() => {});
+    await fs.rm(brainPath, { force: true }).catch(() => {});
+  }
+}
+
+function buildBaseMemoryPrompt(c: BenchCase, recalled: ScoredTrace[]): string {
+  const header = [
+    'You are being evaluated on long-term conversation memory.',
+    'Use the relevant memory excerpts below to answer the question.',
+    'Be concise. If the excerpts do not contain the answer, say "I don\'t know".',
+  ].join(' ');
+  const dateHeader = c.questionDate ? `\n\n[Question asked on ${c.questionDate}]` : '';
+  const body =
+    recalled.length > 0
+      ? recalled
+          .map((r, i) => `#${i + 1} (score ${r.score.toFixed(3)})\n${r.trace.content}`)
+          .join('\n\n')
+      : '(no relevant memories surfaced)';
+  return `${header}${dateHeader}\n\n--- Retrieved Memory ---\n${body}\n--- End Memory ---`;
 }
