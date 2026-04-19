@@ -40,6 +40,8 @@ export type {
 } from './compareRuns.js';
 export { estimateRunCost } from './estimateRunCost.js';
 export type { CostEstimate, EstimateRunCostInput } from './estimateRunCost.js';
+export { rescoreRunCosts } from './rescoreRunCosts.js';
+export type { RescoreOptions } from './rescoreRunCosts.js';
 export {
   replay,
   replayViaObserve,

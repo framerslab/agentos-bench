@@ -88,7 +88,7 @@ export class CostTracker {
    * propagate it into {@link CaseRun.usd}.
    */
   record(entry: Omit<CostEntry, 'usd'>): number {
-    const price = MODEL_PRICES[entry.model];
+    const price = resolvePrice(entry.model);
     let usd = 0;
     if (!price) {
       if (!this.warnedModels.has(entry.model)) {
@@ -167,4 +167,29 @@ export class CostTracker {
       eventCount: 0,
     };
   }
+}
+
+/**
+ * Look up a price entry. Falls back to a base-model match when the
+ * provider echoes back a versioned name (`gpt-4o-2024-11-20` →
+ * `gpt-4o`, `claude-sonnet-4-6-20260315` → `claude-sonnet-4-6`).
+ */
+function resolvePrice(
+  model: string,
+): { promptPer1k: number; completionPer1k: number } | undefined {
+  const direct = MODEL_PRICES[model];
+  if (direct) return direct;
+
+  // Try progressively shorter prefixes split on `-`. Covers
+  // `gpt-4o-2024-11-20` → `gpt-4o` (2 parts) and
+  // `claude-sonnet-4-6-20260315` → `claude-sonnet-4-6` (4 parts).
+  // Stops at 2 parts because single-segment prefixes (`gpt`, `claude`)
+  // are too generic and never appear as MODEL_PRICES keys.
+  const parts = model.split('-');
+  for (let i = parts.length - 1; i >= 2; i--) {
+    const candidate = parts.slice(0, i).join('-');
+    const match = MODEL_PRICES[candidate];
+    if (match) return match;
+  }
+  return undefined;
 }
