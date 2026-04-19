@@ -694,6 +694,23 @@ export function buildCli(): Command {
       console.log(`Wrote ${outPath}`);
     });
 
+  program
+    .command('sweep-report')
+    .description('Render a narrative SWEEP_REPORT.md consolidating every tracked cell.')
+    .option('--results-dir <path>', 'Results directory')
+    .option('--filename <name>', 'Output filename', 'SWEEP_REPORT.md')
+    .option('--label <text>', 'Optional sweep label (e.g. "Phase 0.1 smoke")')
+    .action(async (opts) => {
+      const { renderSweepReport } = await import('./reporting/sweepReport.js');
+      const outPath = await renderSweepReport({
+        resultsDir: resolveResultsDir(opts.resultsDir),
+        filename: opts.filename,
+        label: opts.label,
+      });
+      // eslint-disable-next-line no-console
+      console.log(`Wrote ${outPath}`);
+    });
+
   return program;
 }
 
