@@ -170,23 +170,37 @@ export class BenchmarkRunner {
     c: BenchCase,
     ctx: BenchContext,
   ): Promise<CaseResult> {
+    // Bump CASE_RUN_SCHEMA_VERSION whenever CaseRun.metadata shape
+    // changes so stale entries from prior bench versions don't leak
+    // into new aggregates (e.g. v1 runs lacked encodeMsSamples /
+    // retrievalMetrics, and an aggregate over a mixed cache produces
+    // nonsense). Bumping invalidates old entries — next run rescores.
+    const CASE_RUN_SCHEMA_VERSION = 'v2';
     const runKeyParts = [
       'case-run',
+      CASE_RUN_SCHEMA_VERSION,
       benchmark.id,
       benchmark.version,
       c.id,
       ctx.config.reader,
       ctx.config.memoryMode,
       ctx.config.replayMode,
+      // Ablation flags change the retrieval behaviour, so they must
+      // participate in the cache key.
+      ctx.config.ablateSignal ?? '',
+      ctx.config.ablateMechanism ?? '',
     ];
     const resultKeyParts = [
       'case-result',
+      CASE_RUN_SCHEMA_VERSION,
       benchmark.id,
       benchmark.version,
       c.id,
       ctx.config.reader,
       ctx.config.memoryMode,
       ctx.config.replayMode,
+      ctx.config.ablateSignal ?? '',
+      ctx.config.ablateMechanism ?? '',
       ctx.judge.model,
       ctx.judge.rubricVersion,
     ];
