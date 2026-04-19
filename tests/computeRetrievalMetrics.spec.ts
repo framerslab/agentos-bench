@@ -22,6 +22,34 @@ describe('computeRetrievalMetrics', () => {
     expect(r!.mrr).toBe(1);
     expect(r!.precisionAtK).toBeCloseTo(1 / 3, 6);
     expect(r!.hits).toBe(1);
+    expect(r!.goldSessionsHit).toBe(1);
+  });
+
+  it('caps recallAtK at 1 when multiple chunks from the same gold session appear', () => {
+    // Regression: before session-level fix, this returned recallAtK > 1
+    // because chunkHits (=10) was divided by goldCount (=1).
+    const r = computeRetrievalMetrics({
+      goldSessionIds: ['A'],
+      retrievedSessionIds: ['A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A'],
+      k: 10,
+    });
+    expect(r!.recallAtK).toBe(1);
+    expect(r!.precisionAtK).toBe(1); // chunk-level: 10/10
+    expect(r!.ndcgAtK).toBe(1);
+    expect(r!.goldSessionsHit).toBe(1);
+    expect(r!.hits).toBe(10);
+  });
+
+  it('ndcgAtK stays bounded [0, 1] when chunks duplicate a gold session', () => {
+    const r = computeRetrievalMetrics({
+      goldSessionIds: ['A', 'B'],
+      retrievedSessionIds: ['A', 'A', 'A', 'B', 'A'],
+      k: 5,
+    });
+    expect(r!.ndcgAtK).toBeGreaterThanOrEqual(0);
+    expect(r!.ndcgAtK).toBeLessThanOrEqual(1);
+    expect(r!.recallAtK).toBe(1); // both A and B hit
+    expect(r!.goldSessionsHit).toBe(2);
   });
 
   it('matches hand-computed NDCG@4 for gold=[A,B], retrieved=[A,C,B,D]', () => {
