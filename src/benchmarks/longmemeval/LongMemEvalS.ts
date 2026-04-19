@@ -114,7 +114,24 @@ export class LongMemEvalS implements IBenchmark {
   }
 
   async loadTestCases(ctx: BenchContext): Promise<BenchCase[]> {
-    return loadLongMemEvalDataset(ctx.dataDir, this.opts.variant);
+    const allCases = await loadLongMemEvalDataset(ctx.dataDir, this.opts.variant);
+    const perType = ctx.config.samplePerType;
+    // Stratified sampling: take up to `samplePerType` cases from each
+    // case type, preserving dataset order within a type. Caps at the
+    // available case count when the type has fewer than N cases.
+    if (ctx.config.stratified && typeof perType === 'number' && perType > 0) {
+      const groups = new Map<string, BenchCase[]>();
+      for (const c of allCases) {
+        const g = groups.get(c.type) ?? [];
+        if (g.length < perType) g.push(c);
+        groups.set(c.type, g);
+      }
+      // Flatten, preserving a stable type-order by case-type name.
+      return Array.from(groups.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .flatMap(([, cases]) => cases);
+    }
+    return allCases;
   }
 
   async runCase(c: BenchCase, ctx: BenchContext): Promise<CaseRun> {
