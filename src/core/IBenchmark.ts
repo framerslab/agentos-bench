@@ -19,6 +19,13 @@ import type { IJudge } from '../judges/IJudge.js';
 import type { Cache } from './Cache.js';
 import type { CostTracker } from './CostTracker.js';
 import type { MemoryRetrievalProfile } from '@framers/agentos';
+import type {
+  RetrievalMetrics,
+  LatencyBreakdown,
+  StratifiedAccuracy,
+  MemoryFootprint,
+  TokensPerCorrect,
+} from './metrics/index.js';
 
 // ---------------------------------------------------------------------------
 // Dimensions
@@ -208,7 +215,9 @@ export interface CaseRun {
 }
 
 /**
- * Scored per-case result.
+ * Scored per-case result. The metrics-framework (v2) fields below are all
+ * optional and populated only by benchmarks that surface them — historical
+ * runs without these fields re-render via {@link compareRuns} unchanged.
  */
 export interface CaseResult extends CaseRun {
   /** Normalized score (0–1). */
@@ -217,6 +226,45 @@ export interface CaseResult extends CaseRun {
   passed: boolean;
   /** Judge reasoning or assertion detail. */
   scoreMetadata?: Record<string, unknown>;
+
+  /**
+   * Session-level retrieval-quality metrics for this case. `null` when
+   * the case has no gold-session IDs (excluded from aggregate means).
+   * Absent for benchmarks that do not run cognitive retrieval.
+   */
+  retrievalMetrics?: RetrievalMetrics | null;
+
+  /** Per-case memory-operation timings (ms). */
+  latencyBreakdown?: {
+    /** Mean wall time per encode call across the case's replay. */
+    encodeMs: number;
+    /** End-to-end retrieve() time (CognitiveRetrievalResult.diagnostics.totalTimeMs). */
+    retrieveMs: number;
+    /** Vector-search subslice (CognitiveRetrievalResult.diagnostics.vectorSearchTimeMs). */
+    vectorSearchMs: number;
+    /** Scoring subslice (CognitiveRetrievalResult.diagnostics.scoringTimeMs). */
+    scoringMs: number;
+    /** Haystack replay duration (CognitiveMemoryManager ingest/observe). */
+    replayMs: number;
+  };
+
+  /** Per-case memory footprint snapshot. */
+  memoryFootprint?: MemoryFootprint;
+
+  /** Per-category token breakdown for this case. */
+  tokens?: {
+    readerIn: number;
+    readerOut: number;
+    judgeIn: number;
+    judgeOut: number;
+    embeddingIn: number;
+  };
+
+  /**
+   * Gold answer-session IDs, passed through from `case.metadata.answerSessionIds`
+   * so CSV export can render the ground-truth without re-loading the dataset.
+   */
+  goldSessionIds?: string[];
 }
 
 /**
@@ -254,6 +302,44 @@ export interface BenchResult {
   /** ISO timestamps. */
   startedAt: string;
   completedAt: string;
+
+  // -------------------------------------------------------------------------
+  // Metrics framework (v2) aggregates — all optional, populated by benchmarks
+  // that instrument them. Old run JSONs re-render without these fields.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Aggregate retrieval quality across all cases that had gold IDs.
+   * `sampleSize` is the count used in the means (cases with `null`
+   * retrievalMetrics are excluded).
+   */
+  retrievalMetrics?: {
+    meanRecallAtK: number;
+    meanPrecisionAtK: number;
+    meanNdcgAtK: number;
+    meanMrr: number;
+    k: number;
+    sampleSize: number;
+  };
+
+  /** Per-operation latency percentiles (p50/p95/p99). */
+  latencyBreakdown?: LatencyBreakdown;
+
+  /** Weighted + unweighted accuracy across case types. */
+  stratifiedAccuracy?: StratifiedAccuracy;
+
+  /** Memory footprint distribution across cases. */
+  memoryFootprint?: {
+    meanBrainBytes: number;
+    p95BrainBytes: number;
+    meanTraceCount: number;
+    maxPeakWorkingMemorySlots: number;
+    totalEncodeCalls: number;
+  };
+
+  /** Tokens per correct answer, per category. */
+  tokensPerCorrect?: TokensPerCorrect;
+
   /** Per-case results. */
   cases: CaseResult[];
 }
