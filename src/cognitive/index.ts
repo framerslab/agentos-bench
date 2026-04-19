@@ -19,3 +19,5 @@ export {
   createOpenAIEmbedderFromEnv,
 } from './OpenAIEmbedder.js';
 export type { OpenAIEmbedderOptions } from './OpenAIEmbedder.js';
+export { CachedEmbedder } from './CachedEmbedder.js';
+export type { CachedEmbedderOptions, CacheStats } from './CachedEmbedder.js';

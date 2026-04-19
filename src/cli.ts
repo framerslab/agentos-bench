@@ -37,6 +37,7 @@ import {
   SignalAblation,
   SpreadingActivationPrecision,
   WorkingMemoryCapacity,
+  CachedEmbedder,
   createOpenAIEmbedderFromEnv,
   createReader,
   estimateRunCost,
@@ -453,10 +454,19 @@ export function buildCli(): Command {
       // Optional real embedder for the full-cognitive path. When the
       // flag is absent the adapter falls back to CharHashEmbedder,
       // which is fine for smoke tests but not for publishable numbers.
-      const embedder: IEmbeddingManager | undefined =
-        opts.embedderModel && !opts.dryRun
-          ? createOpenAIEmbedderFromEnv(opts.embedderModel as string)
-          : undefined;
+      // A persistent on-disk embedding cache wraps the real embedder
+      // so re-runs reuse previously-embedded chunks at zero cost.
+      let embedder: IEmbeddingManager | undefined;
+      if (opts.embedderModel && !opts.dryRun) {
+        const inner = createOpenAIEmbedderFromEnv(opts.embedderModel as string);
+        embedder = new CachedEmbedder(inner, {
+          cacheDir: path.join(
+            resolveDataDir(opts.dataDir),
+            '.embedding-cache',
+          ),
+          modelId: opts.embedderModel as string,
+        });
+      }
 
       const runner = new BenchmarkRunner({
         dataDir: resolveDataDir(opts.dataDir),
