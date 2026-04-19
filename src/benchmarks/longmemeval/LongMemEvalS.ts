@@ -41,9 +41,13 @@ import {
   buildHaystackContext,
   replayViaIngest,
 } from '../../core/ConversationReplay.js';
-import { percentile, stdDev } from '../../core/statsUtil.js';
+import { mean, percentile, stdDev } from '../../core/statsUtil.js';
 import {
   computeRetrievalMetrics,
+  computeLatencyBreakdown,
+  computeStratifiedAccuracy,
+  computeTokenEfficiency,
+  LONGMEMEVAL_S_PRIORS,
   type MemoryFootprint,
 } from '../../core/metrics/index.js';
 import type { IReader } from '../../readers/IReader.js';
@@ -330,6 +334,81 @@ export class LongMemEvalS implements IBenchmark {
       };
     }
 
+    // --- v2 aggregate metrics ---
+
+    const scoredWithGold = results.filter(
+      (r) => r.retrievalMetrics !== null && r.retrievalMetrics !== undefined,
+    );
+    const aggregateRetrievalMetrics =
+      scoredWithGold.length === 0
+        ? undefined
+        : {
+            meanRecallAtK: mean(scoredWithGold.map((r) => r.retrievalMetrics!.recallAtK)),
+            meanPrecisionAtK: mean(scoredWithGold.map((r) => r.retrievalMetrics!.precisionAtK)),
+            meanNdcgAtK: mean(scoredWithGold.map((r) => r.retrievalMetrics!.ndcgAtK)),
+            meanMrr: mean(scoredWithGold.map((r) => r.retrievalMetrics!.mrr)),
+            k: scoredWithGold[0]!.retrievalMetrics!.k,
+            sampleSize: scoredWithGold.length,
+          };
+
+    // Flatten per-case latency samples into per-op arrays. encodeMs is a
+    // per-case MEAN (one entry per case, not per encode), so the aggregate
+    // is mean-of-means — good enough for the leaderboard pitch.
+    const encodeMsAll = results
+      .map((r) => r.latencyBreakdown?.encodeMs ?? 0)
+      .filter((v) => v > 0);
+    const retrieveMsAll = results
+      .map((r) => r.latencyBreakdown?.retrieveMs ?? 0)
+      .filter((v) => v > 0);
+    const vectorSearchMsAll = results
+      .map((r) => r.latencyBreakdown?.vectorSearchMs ?? 0)
+      .filter((v) => v > 0);
+    const scoringMsAll = results
+      .map((r) => r.latencyBreakdown?.scoringMs ?? 0)
+      .filter((v) => v > 0);
+    const replayMsAll = results
+      .map((r) => r.latencyBreakdown?.replayMs ?? 0)
+      .filter((v) => v > 0);
+
+    const aggregateLatencyBreakdown =
+      results.some((r) => r.latencyBreakdown !== undefined)
+        ? computeLatencyBreakdown({
+            encodeMs: encodeMsAll,
+            retrieveMs: retrieveMsAll,
+            vectorSearchMs: vectorSearchMsAll,
+            scoringMs: scoringMsAll,
+            replayMs: replayMsAll,
+          })
+        : undefined;
+
+    const stratifiedAccuracy = computeStratifiedAccuracy(
+      results,
+      this.opts.variant === 's' ? LONGMEMEVAL_S_PRIORS : {},
+    );
+
+    const footprintSamples = results
+      .map((r) => r.memoryFootprint)
+      .filter((fp): fp is MemoryFootprint => fp !== undefined);
+    const brainBytesSorted = footprintSamples
+      .map((fp) => fp.brainBytes)
+      .filter((v) => v > 0)
+      .sort((a, b) => a - b);
+    const aggregateMemoryFootprint =
+      footprintSamples.length === 0
+        ? undefined
+        : {
+            meanBrainBytes: mean(brainBytesSorted),
+            p95BrainBytes: percentile(brainBytesSorted, 95),
+            meanTraceCount: mean(footprintSamples.map((fp) => fp.traceCount)),
+            maxPeakWorkingMemorySlots: Math.max(
+              0,
+              ...footprintSamples.map((fp) => fp.peakWorkingMemorySlots),
+            ),
+            totalEncodeCalls: footprintSamples.reduce((s, fp) => s + fp.encodeCalls, 0),
+          };
+
+    const tokensPerCorrect = computeTokenEfficiency(ctx.costTracker, passed);
+
     return {
       benchmarkId: this.id,
       benchmarkVersion: this.version,
@@ -348,6 +427,11 @@ export class LongMemEvalS implements IBenchmark {
       costPerCorrect: passed > 0 ? ctx.costTracker.totals.totalUsd / passed : 0,
       startedAt: new Date().toISOString(),
       completedAt: new Date().toISOString(),
+      retrievalMetrics: aggregateRetrievalMetrics,
+      latencyBreakdown: aggregateLatencyBreakdown,
+      stratifiedAccuracy,
+      memoryFootprint: aggregateMemoryFootprint,
+      tokensPerCorrect,
       cases: results,
     };
   }
