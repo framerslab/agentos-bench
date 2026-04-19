@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { splitForEmbedding } from '../src/benchmarks/longmemeval/LongMemEvalS.js';
 
-const SAFE = 24_000;
+const SAFE = 12_000;
 
 describe('splitForEmbedding', () => {
   it('returns input unchanged when under the cap', () => {
@@ -32,7 +32,7 @@ describe('splitForEmbedding', () => {
 
   it('prefers splitting at newlines near the midpoint', () => {
     // A newline exists 100 chars before midpoint; splitter should use it.
-    const half = Math.floor(SAFE / 2) + 6000;
+    const half = Math.floor(SAFE / 2) + 1000;
     const text = 'a'.repeat(half - 100) + '\n' + 'b'.repeat(half);
     const out = splitForEmbedding(text);
     expect(out.length).toBe(2);
@@ -41,7 +41,7 @@ describe('splitForEmbedding', () => {
   });
 
   it('falls back to whitespace split when no newline is near the midpoint', () => {
-    const half = Math.floor(SAFE / 2) + 6000;
+    const half = Math.floor(SAFE / 2) + 1000;
     // Plain text, all letters and spaces; splitter must pick a space.
     const text = 'a'.repeat(half) + ' ' + 'b'.repeat(half);
     const out = splitForEmbedding(text);

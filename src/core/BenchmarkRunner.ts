@@ -207,10 +207,16 @@ export class BenchmarkRunner {
 
     // Step 1 — produce or recall the answer.
     let run = await ctx.cache.get<CaseRun>('case-run', ...runKeyParts);
+    // Don't honour cached error responses — the error may be transient
+    // (rate limit, network blip) or may be fixed in a later code change
+    // (e.g. embedder chunk-splitting). Force a rerun for cached errors.
+    if (run?.error) run = undefined;
     if (!run) {
+      let errored = false;
       try {
         run = await benchmark.runCase(c, ctx);
       } catch (err: unknown) {
+        errored = true;
         run = {
           caseId: c.id,
           actualOutput: '',
@@ -221,7 +227,11 @@ export class BenchmarkRunner {
           error: err instanceof Error ? err.message : String(err),
         };
       }
-      await ctx.cache.set('case-run', run, ...runKeyParts);
+      // Only cache successful runs — errored ones retry next time so
+      // future code fixes actually get exercised.
+      if (!errored) {
+        await ctx.cache.set('case-run', run, ...runKeyParts);
+      }
     }
 
     // Step 2 — score it.
