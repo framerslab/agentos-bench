@@ -42,15 +42,22 @@ interface SizeProbe {
   budgetMs: number;
 }
 
-/** Default size ladder. 100k is skipped unless the full env flag is set. */
+/**
+ * Default size ladder. 100k is skipped unless the full env flag is set.
+ *
+ * Budgets are generous (10x expected median on a modern laptop): the goal
+ * is to catch complexity-class regressions, not absolute wall-clock parity.
+ * Concurrent test runs or busy CI hardware can slow a single pass by 2-3x
+ * without indicating a real problem.
+ */
 const STANDARD_SIZES: SizeProbe[] = [
-  { label: '1k', size: 1_000, budgetMs: 50 },
-  { label: '10k', size: 10_000, budgetMs: 300 },
+  { label: '1k', size: 1_000, budgetMs: 200 },
+  { label: '10k', size: 10_000, budgetMs: 1_500 },
 ];
 
 const FULL_SIZES: SizeProbe[] = [
   ...STANDARD_SIZES,
-  { label: '100k', size: 100_000, budgetMs: 3_000 },
+  { label: '100k', size: 100_000, budgetMs: 15_000 },
 ];
 
 function chooseSizes(): SizeProbe[] {

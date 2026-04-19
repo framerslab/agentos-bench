@@ -215,10 +215,19 @@ export function buildCli(): Command {
 
   program
     .command('leaderboard')
-    .description('Regenerate results/LEADERBOARD.md (stub until generator ships).')
-    .action(() => {
+    .description('Regenerate LEADERBOARD.md from results/summary.json + competitor-numbers.')
+    .option('--results-dir <path>', 'Results directory')
+    .option('--filename <name>', 'Output filename', 'LEADERBOARD.md')
+    .option('--note <text>', 'Optional header note appended under the title')
+    .action(async (opts) => {
+      const { renderLeaderboard } = await import('./reporting/MarkdownLeaderboard.js');
+      const outPath = await renderLeaderboard({
+        resultsDir: resolveResultsDir(opts.resultsDir),
+        filename: opts.filename,
+        headerNote: opts.note,
+      });
       // eslint-disable-next-line no-console
-      console.log('Leaderboard generator not yet implemented — coming alongside MarkdownLeaderboard.');
+      console.log(`Wrote ${outPath}`);
     });
 
   return program;

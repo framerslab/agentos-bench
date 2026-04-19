@@ -38,6 +38,9 @@ export { createReader, OpenAIHttpReader, AnthropicHttpReader } from './readers/c
 // --- External benchmarks ---
 export * from './benchmarks/longmemeval/index.js';
 
+// --- Reporting ---
+export * from './reporting/index.js';
+
 // --- Micro-benchmarks ---
 export { DecayFidelity, buildSyntheticTrace } from './micro/DecayFidelity.js';
 export { HexacoEncodingBias } from './micro/HexacoEncodingBias.js';
