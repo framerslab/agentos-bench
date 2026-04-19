@@ -360,6 +360,31 @@ interface FullCognitiveOutput {
      */
     sessionId?: string;
   }>;
+  /** Per-call encode wall time (ms). One entry per successful encode. */
+  encodeMsSamples: number[];
+  /** Max working-memory slot count sampled during replay. */
+  peakWorkingMemorySlots: number;
+  /**
+   * Retrieval diagnostics emitted by CognitiveMemoryManager.retrieve;
+   * used by downstream metric helpers (computeLatencyBreakdown) for
+   * per-case vectorSearchMs / scoringMs / totalTimeMs attribution.
+   */
+  retrieveDiagnostics: import('@framers/agentos').CognitiveRetrievalResult['diagnostics'];
+  /**
+   * Post-replay trace count in the manager's in-memory cache. Captured
+   * before cleanup via the agentos public `getTraceCount()`.
+   */
+  traceCount: number;
+  /**
+   * SQLite brain file path — used by memory-footprint probes to
+   * measure bytes-on-disk before the file is deleted on case close.
+   */
+  brainPath: string;
+  /**
+   * Brain file size in bytes, measured before `close()` deletes the
+   * file. Zero when the brain was never materialised.
+   */
+  brainBytes: number;
 }
 
 /**
@@ -428,6 +453,16 @@ export async function runFullCognitiveCase(
       sessionId: extractBenchSessionTag(t.tags),
     }));
 
+    // Snapshot footprint fields BEFORE close() deletes the brain file.
+    const traceCount = handle.manager.getTraceCount?.() ?? 0;
+    let brainBytes = 0;
+    try {
+      const stat = await fs.stat(brainPath);
+      brainBytes = stat.size;
+    } catch {
+      // brain file may not exist (e.g., close was called prematurely)
+    }
+
     return {
       prompt: buildFullCognitivePrompt(c, reader_chunks),
       replayStats: {
@@ -439,6 +474,12 @@ export async function runFullCognitiveCase(
       workingMemorySlots: wmSlots,
       observationsEmitted: replayStats.observationsEmitted,
       retrievedEvidence,
+      encodeMsSamples: replayStats.encodeMsSamples,
+      peakWorkingMemorySlots: replayStats.peakWorkingMemorySlots,
+      retrieveDiagnostics: retrieval.diagnostics,
+      traceCount,
+      brainPath,
+      brainBytes,
     };
   } finally {
     await handle.close();
@@ -485,11 +526,46 @@ async function replayForCognitive(
   c: BenchCase,
   handle: { manager: import('@framers/agentos').CognitiveMemoryManager },
   mode: 'observe' | 'ingest',
-): Promise<{ sessionsReplayed: number; turnsReplayed: number; durationMs: number; observationsEmitted: number }> {
+): Promise<{
+  sessionsReplayed: number;
+  turnsReplayed: number;
+  durationMs: number;
+  observationsEmitted: number;
+  /** Per-call encode wall time (ms). One entry per successful encode. */
+  encodeMsSamples: number[];
+  /** Max working-memory slot count sampled during replay. */
+  peakWorkingMemorySlots: number;
+}> {
   const start = Date.now();
   const neutralMood = { valence: 0, arousal: 0, dominance: 0 };
   let turns = 0;
   let encodeCalls = 0;
+  const encodeMsSamples: number[] = [];
+  let peakWorkingMemorySlots = 0;
+
+  const sampleSlots = (): void => {
+    const slots = handle.manager.getWorkingMemory?.().getSlotCount?.() ?? 0;
+    if (slots > peakWorkingMemorySlots) peakWorkingMemorySlots = slots;
+  };
+
+  const timedEncode = async (
+    content: string,
+    tags: string[],
+  ): Promise<void> => {
+    const t0 = Date.now();
+    await handle.manager.encode(content, neutralMood, '', {
+      type: 'episodic',
+      scope: 'user',
+      scopeId: 'bench',
+      tags,
+    });
+    encodeMsSamples.push(Date.now() - t0);
+    encodeCalls += 1;
+    // Sample working-memory slots every 10 encodes — peak is stable
+    // within a window, so finer sampling adds no signal but doubles
+    // the observation overhead.
+    if (encodeCalls % 10 === 0) sampleSlots();
+  };
 
   if (mode === 'observe') {
     for (const session of c.haystack) {
@@ -497,18 +573,7 @@ async function replayForCognitive(
       for (const turn of session.turns) {
         turns += 1;
         if (!turn.content.trim()) continue;
-        await handle.manager.encode(
-          `${turn.role}: ${turn.content}`,
-          neutralMood,
-          '',
-          {
-            type: 'episodic',
-            scope: 'user',
-            scopeId: 'bench',
-            tags: [sessionTag],
-          },
-        );
-        encodeCalls += 1;
+        await timedEncode(`${turn.role}: ${turn.content}`, [sessionTag]);
       }
     }
   } else {
@@ -521,25 +586,22 @@ async function replayForCognitive(
         // Prefix each chunk with its session date so temporal-reasoning
         // questions ("how many days between X and Y") have the answer in
         // the chunk text itself, not just the dropped-out metadata.
-        const dated = session.date
-          ? `[${session.date}] ${chunk}`
-          : chunk;
-        await handle.manager.encode(dated, neutralMood, '', {
-          type: 'episodic',
-          scope: 'user',
-          scopeId: 'bench',
-          tags: [sessionTag],
-        });
-        encodeCalls += 1;
+        const dated = session.date ? `[${session.date}] ${chunk}` : chunk;
+        await timedEncode(dated, [sessionTag]);
       }
     }
   }
+
+  // Final sample so the peak covers the end of replay.
+  sampleSlots();
 
   return {
     sessionsReplayed: c.haystack.length,
     turnsReplayed: turns,
     durationMs: Date.now() - start,
     observationsEmitted: encodeCalls,
+    encodeMsSamples,
+    peakWorkingMemorySlots,
   };
 }
 
