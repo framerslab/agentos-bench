@@ -16,7 +16,27 @@
  */
 
 export * from './core/index.js';
+
+// --- Judges ---
 export type { IJudge, JudgeInput, JudgeOutput } from './judges/IJudge.js';
+export { LongMemEvalJudge } from './judges/LongMemEvalJudge.js';
+export type { LongMemEvalJudgeOptions } from './judges/LongMemEvalJudge.js';
+export {
+  buildJudgePrompt,
+  parseJudgeReply,
+  RUBRIC_SOURCE,
+  RUBRIC_VERSION,
+} from './judges/rubrics/longmemeval.js';
+export type { LongMemEvalQuestionType } from './judges/rubrics/longmemeval.js';
+
+// --- Readers ---
+export type { IReader, ReaderRequest, ReaderResponse } from './readers/IReader.js';
+export { MockReader } from './readers/MockReader.js';
+export type { MockHandler, MockRoute } from './readers/MockReader.js';
+export { createReader, OpenAIHttpReader, AnthropicHttpReader } from './readers/createReader.js';
+
+// --- External benchmarks ---
+export * from './benchmarks/longmemeval/index.js';
 
 // --- Micro-benchmarks ---
 export { DecayFidelity, buildSyntheticTrace } from './micro/DecayFidelity.js';

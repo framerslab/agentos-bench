@@ -1,0 +1,237 @@
+#!/usr/bin/env node
+/**
+ * @file cli.ts
+ * @description Command-line interface for `@framers/agentos-bench`.
+ *
+ * Subcommands:
+ *   - `run <benchmark-id> [--reader <model>] [--memory <mode>] [--replay <mode>] [--sample N]`
+ *   - `list`    — enumerate built-in benchmarks
+ *   - `setup`   — prepare dataset caches (placeholder — downloads via HF hub in v2)
+ *   - `leaderboard` — regenerate results/LEADERBOARD.md (stub until leaderboard generator ships)
+ *
+ * Environment variables:
+ *   - `AGENTOS_BENCH_DATA_DIR`    (default: ./data)
+ *   - `AGENTOS_BENCH_RESULTS_DIR` (default: ./results)
+ *   - `AGENTOS_BENCH_TIER`        micro | s | m | full  (informational for now)
+ *   - `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`
+ *
+ * @module agentos-bench/cli
+ */
+
+import path from 'node:path';
+import { Command } from 'commander';
+
+import {
+  BenchmarkRunner,
+  ConsolidationSignalPreservation,
+  DecayFidelity,
+  HexacoEncodingBias,
+  LongMemEvalJudge,
+  LongMemEvalS,
+  MockReader,
+  ScalingProfile,
+  SpreadingActivationPrecision,
+  WorkingMemoryCapacity,
+  createReader,
+  type IBenchmark,
+  type MemoryMode,
+  type ReaderModel,
+  type ReplayMode,
+  type RunConfig,
+} from './index.js';
+
+interface BenchEntry {
+  id: string;
+  family: 'external' | 'micro';
+  description: string;
+  /** Build an instance — takes any CLI context needed (reader, variant). */
+  build: (ctx: { reader: ReaderModel }) => IBenchmark;
+}
+
+const BENCHMARKS: BenchEntry[] = [
+  {
+    id: 'decay-fidelity',
+    family: 'micro',
+    description: 'Ebbinghaus decay curve conformance at 1d/5d/10d/30d/60d probes',
+    build: () => new DecayFidelity(),
+  },
+  {
+    id: 'hexaco-encoding-bias',
+    family: 'micro',
+    description: 'HEXACO traits bias encoding in the documented direction',
+    build: () => new HexacoEncodingBias(),
+  },
+  {
+    id: 'working-memory-capacity',
+    family: 'micro',
+    description: 'Baddeley 5-9 slot capacity + LRU-by-activation eviction',
+    build: () => new WorkingMemoryCapacity(),
+  },
+  {
+    id: 'spreading-activation-precision',
+    family: 'micro',
+    description: 'Anderson spreading activation contains ≥80% of seed cluster',
+    build: () => new SpreadingActivationPrecision(),
+  },
+  {
+    id: 'consolidation-signal-preservation',
+    family: 'micro',
+    description: 'Flashbulb-immunity invariant across reconsolidation, RIF, emotion regulation',
+    build: () => new ConsolidationSignalPreservation(),
+  },
+  {
+    id: 'scaling-profile',
+    family: 'micro',
+    description: 'Retrieval scoring P50/P95 at 1k/10k (100k with AGENTOS_BENCH_SCALING_FULL)',
+    build: () => new ScalingProfile(),
+  },
+  {
+    id: 'longmemeval-s',
+    family: 'external',
+    description: 'LongMemEval-S (500 cases, ~115k-token haystacks) — memoryMode=none baseline in v1',
+    build: ({ reader }) => new LongMemEvalS({ reader: createReader(reader), variant: 's' }),
+  },
+];
+
+function resolveDataDir(override?: string): string {
+  return path.resolve(override ?? process.env.AGENTOS_BENCH_DATA_DIR ?? path.join(process.cwd(), 'data'));
+}
+
+function resolveResultsDir(override?: string): string {
+  return path.resolve(
+    override ?? process.env.AGENTOS_BENCH_RESULTS_DIR ?? path.join(process.cwd(), 'results'),
+  );
+}
+
+function parseInteger(v: string): number {
+  const n = Number.parseInt(v, 10);
+  if (!Number.isFinite(n) || n < 0) throw new Error(`Expected non-negative integer, got ${v}`);
+  return n;
+}
+
+function parseFloatArg(v: string): number {
+  const n = Number.parseFloat(v);
+  if (!Number.isFinite(n) || n < 0) throw new Error(`Expected non-negative number, got ${v}`);
+  return n;
+}
+
+export function buildCli(): Command {
+  const program = new Command();
+  program
+    .name('agentos-bench')
+    .description('Benchmark AgentOS memory against LongMemEval, LOCOMO, BEAM, and micro-benchmarks.')
+    .version('0.1.0');
+
+  program
+    .command('list')
+    .description('List built-in benchmarks with their families.')
+    .action(() => {
+      const pad = Math.max(...BENCHMARKS.map((b) => b.id.length));
+      for (const b of BENCHMARKS) {
+        // eslint-disable-next-line no-console
+        console.log(`${b.id.padEnd(pad)}  [${b.family}]  ${b.description}`);
+      }
+    });
+
+  program
+    .command('run <benchmarkId>')
+    .description('Run a benchmark and persist results.')
+    .option('-r, --reader <model>', 'Reader model (e.g. claude-sonnet-4-6, gpt-4o)', 'claude-sonnet-4-6')
+    .option('-m, --memory <mode>', "Memory mode: full-cognitive | base-memory | none", 'none')
+    .option('-p, --replay <mode>', 'Replay mode: observe | ingest', 'ingest')
+    .option('-n, --sample <n>', 'Run only the first N cases', parseInteger)
+    .option('-c, --concurrency <n>', 'Parallel case execution', parseInteger, 3)
+    .option('--max-usd <amount>', 'Abort if projected USD exceeds this cap', parseFloatArg)
+    .option('--data-dir <path>', 'Dataset cache directory')
+    .option('--results-dir <path>', 'Results directory')
+    .option('--judge-model <model>', 'Judge LLM (external benchmarks only)', 'gpt-4o')
+    .option('--dry-run', 'Use MockReader / mock judge (no API calls)')
+    .action(async (benchmarkId: string, opts) => {
+      const entry = BENCHMARKS.find((b) => b.id === benchmarkId);
+      if (!entry) {
+        // eslint-disable-next-line no-console
+        console.error(`Unknown benchmark '${benchmarkId}'. Run 'agentos-bench list' to see options.`);
+        process.exitCode = 1;
+        return;
+      }
+
+      const runConfig: RunConfig = {
+        reader: opts.reader as ReaderModel,
+        memoryMode: opts.memory as MemoryMode,
+        replayMode: opts.replay as ReplayMode,
+        sampleN: opts.sample,
+        concurrency: opts.concurrency,
+        maxUsd: opts.maxUsd,
+      };
+
+      const judge = opts.dryRun
+        ? new LongMemEvalJudge({
+            reader: new MockReader(opts.judgeModel).on(
+              () => true,
+              () => ({ text: 'no', tokensIn: 0, tokensOut: 1, model: opts.judgeModel, latencyMs: 0 }),
+            ),
+          })
+        : entry.family === 'external'
+          ? new LongMemEvalJudge({ reader: createReader(opts.judgeModel as ReaderModel) })
+          : ({
+              model: 'noop',
+              rubricVersion: '0',
+              async judge() {
+                throw new Error('judge invoked on a micro-benchmark');
+              },
+            } as const);
+
+      const runner = new BenchmarkRunner({
+        dataDir: resolveDataDir(opts.dataDir),
+        resultsDir: resolveResultsDir(opts.resultsDir),
+        judge,
+      });
+
+      // eslint-disable-next-line no-console
+      console.log(
+        `Running ${entry.id} reader=${runConfig.reader} memory=${runConfig.memoryMode} replay=${runConfig.replayMode}${runConfig.sampleN ? ` sample=${runConfig.sampleN}` : ''}`,
+      );
+
+      const benchmark = entry.build({ reader: runConfig.reader });
+      const result = await runner.run(benchmark, runConfig);
+
+      // eslint-disable-next-line no-console
+      console.log(
+        `Done. accuracy=${(result.accuracy * 100).toFixed(1)}% passed=${result.passedCases}/${result.totalCases} avgLatency=${result.avgLatencyMs.toFixed(0)}ms totalUsd=$${result.totalUsd.toFixed(4)} costPerCorrect=$${Number.isFinite(result.costPerCorrect) ? result.costPerCorrect.toFixed(4) : '∞'}`,
+      );
+    });
+
+  program
+    .command('setup')
+    .description('Prepare dataset caches (placeholder — HuggingFace download lands in v2).')
+    .action(() => {
+      // eslint-disable-next-line no-console
+      console.log(
+        'Dataset auto-download not yet implemented. Place LongMemEval JSONs at ' +
+          `${path.join(resolveDataDir(), 'longmemeval/')} manually for now. ` +
+          'Source: huggingface.co/datasets/xiaowu0162/longmemeval',
+      );
+    });
+
+  program
+    .command('leaderboard')
+    .description('Regenerate results/LEADERBOARD.md (stub until generator ships).')
+    .action(() => {
+      // eslint-disable-next-line no-console
+      console.log('Leaderboard generator not yet implemented — coming alongside MarkdownLeaderboard.');
+    });
+
+  return program;
+}
+
+// Invoke only when executed as a script.
+const isMain = import.meta.url === `file://${process.argv[1]}`;
+if (isMain) {
+  buildCli()
+    .parseAsync(process.argv)
+    .catch((err: unknown) => {
+      // eslint-disable-next-line no-console
+      console.error(err instanceof Error ? err.message : err);
+      process.exitCode = 1;
+    });
+}
