@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { splitForEmbedding } from '../src/benchmarks/longmemeval/LongMemEvalS.js';
 
-const SAFE = 12_000;
+const SAFE = 6_000;
 
 describe('splitForEmbedding', () => {
   it('returns input unchanged when under the cap', () => {
