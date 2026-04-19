@@ -191,8 +191,8 @@ function buildFooter(): string {
   return [
     '## Methodology notes',
     '',
-    '- Our `memory` column shows the AgentOS memory mode under test: `full-cognitive` uses `CognitiveMemoryManager` with all eight cognitive mechanisms; `base-memory` uses the standalone `Memory` facade; `none` is the haystack-in-context baseline.',
-    '- Our `replay` column shows how the haystack was fed to memory: `observe` delivers turn-by-turn via `CognitiveMemoryManager.observe()`; `ingest` stores sessions as documents via `Memory.remember()`.',
+    '- Our `memory` column shows the AgentOS memory mode under test: `full-cognitive` uses `CognitiveMemoryManager` with all eight cognitive mechanisms active (reconsolidation, RIF, involuntary recall, metacognitive FOK, temporal gist, schema encoding, source confidence decay, emotion regulation); `base-memory` uses the standalone `Memory` facade; `none` is the haystack-in-context baseline.',
+    '- Our `replay` column shows how the haystack was fed to memory: `observe` drives per-turn `CognitiveMemoryManager.encode()` calls (matching live-conversation cadence); `ingest` collapses each session into one `encode()` call. The observer / reflector pipeline only activates when an LLM invoker is configured; benchmark runs typically ship without one to keep costs bounded, so both modes exercise the encoding + decay + scoring stack directly.',
     '- Per-case scoring uses the upstream rubric (see `RUBRIC_SOURCE` in `src/judges/rubrics/`).',
     '- Judge model is GPT-4o unless otherwise noted, to avoid same-family self-preference bias when the reader is also Claude.',
     '- Cost-per-correct divides total USD (reader + embedding + judge) by passed cases; it is the primary efficiency metric once accuracy is competitive.',

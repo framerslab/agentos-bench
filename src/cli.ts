@@ -39,6 +39,7 @@ import {
   WorkingMemoryCapacity,
   createReader,
   type IBenchmark,
+  type IReader,
   type MemoryMode,
   type ReaderModel,
   type ReplayMode,
@@ -49,8 +50,12 @@ interface BenchEntry {
   id: string;
   family: 'external' | 'micro';
   description: string;
-  /** Build an instance — takes any CLI context needed (reader, variant). */
-  build: (ctx: { reader: ReaderModel }) => IBenchmark;
+  /**
+   * Build the benchmark instance. `reader` is an already-constructed
+   * {@link IReader} — real (OpenAI / Anthropic HTTP client) in
+   * production runs, {@link MockReader} under `--dry-run`.
+   */
+  build: (ctx: { reader: IReader }) => IBenchmark;
 }
 
 const BENCHMARKS: BenchEntry[] = [
@@ -100,43 +105,43 @@ const BENCHMARKS: BenchEntry[] = [
     id: 'longmemeval-s',
     family: 'external',
     description: 'LongMemEval-S (500 cases, ~115k-token haystacks)',
-    build: ({ reader }) => new LongMemEvalS({ reader: createReader(reader), variant: 's' }),
+    build: ({ reader }) => new LongMemEvalS({ reader, variant: 's' }),
   },
   {
     id: 'longmemeval-m',
     family: 'external',
     description: 'LongMemEval-M (~500 sessions per haystack) — medium-difficulty variant',
-    build: ({ reader }) => new LongMemEvalM({ reader: createReader(reader) }),
+    build: ({ reader }) => new LongMemEvalM({ reader }),
   },
   {
     id: 'longmemeval-oracle',
     family: 'external',
     description: 'LongMemEval-Oracle (evidence-only) — isolates reader quality from retrieval',
-    build: ({ reader }) => new LongMemEvalOracle({ reader: createReader(reader) }),
+    build: ({ reader }) => new LongMemEvalOracle({ reader }),
   },
   {
     id: 'locomo',
     family: 'external',
     description: 'LOCOMO (Maharana et al. 2024, 10 convos × ~300 turns, QA task only in v1)',
-    build: ({ reader }) => new Locomo({ reader: createReader(reader) }),
+    build: ({ reader }) => new Locomo({ reader }),
   },
   {
     id: 'beam-500k',
     family: 'external',
     description: 'BEAM 500k tier (placeholder — upstream schema not yet public)',
-    build: ({ reader }) => new Beam({ reader: createReader(reader), tier: '500k' }),
+    build: ({ reader }) => new Beam({ reader, tier: '500k' }),
   },
   {
     id: 'beam-1m',
     family: 'external',
     description: 'BEAM 1M tier (placeholder — upstream schema not yet public)',
-    build: ({ reader }) => new Beam({ reader: createReader(reader), tier: '1m' }),
+    build: ({ reader }) => new Beam({ reader, tier: '1m' }),
   },
   {
     id: 'beam-10m',
     family: 'external',
     description: 'BEAM 10M tier — frontier, Hindsight SOTA (placeholder until schema is published)',
-    build: ({ reader }) => new Beam({ reader: createReader(reader), tier: '10m' }),
+    build: ({ reader }) => new Beam({ reader, tier: '10m' }),
   },
 ];
 
@@ -215,7 +220,13 @@ export function buildCli(): Command {
         ? new LongMemEvalJudge({
             reader: new MockReader(opts.judgeModel).on(
               () => true,
-              () => ({ text: 'no', tokensIn: 0, tokensOut: 1, model: opts.judgeModel, latencyMs: 0 }),
+              () => ({
+                text: 'yes',
+                tokensIn: 0,
+                tokensOut: 1,
+                model: opts.judgeModel,
+                latencyMs: 0,
+              }),
             ),
           })
         : entry.family === 'external'
@@ -228,6 +239,25 @@ export function buildCli(): Command {
               },
             } as const);
 
+      // Reader construction: real HTTP client for production runs,
+      // scripted MockReader for --dry-run so offline smoke tests do not
+      // require API keys. Micro-benchmarks ignore the reader (they do
+      // synthetic assertions), so the mock default is harmless.
+      const reader = opts.dryRun
+        ? new MockReader(opts.reader as string).on(
+            () => true,
+            () => ({
+              text: '[dry-run mock answer]',
+              tokensIn: 0,
+              tokensOut: 1,
+              model: opts.reader as string,
+              latencyMs: 0,
+            }),
+          )
+        : entry.family === 'micro'
+          ? new MockReader(opts.reader as string)
+          : createReader(opts.reader as ReaderModel);
+
       const runner = new BenchmarkRunner({
         dataDir: resolveDataDir(opts.dataDir),
         resultsDir: resolveResultsDir(opts.resultsDir),
@@ -236,10 +266,10 @@ export function buildCli(): Command {
 
       // eslint-disable-next-line no-console
       console.log(
-        `Running ${entry.id} reader=${runConfig.reader} memory=${runConfig.memoryMode} replay=${runConfig.replayMode}${runConfig.sampleN ? ` sample=${runConfig.sampleN}` : ''}`,
+        `Running ${entry.id} reader=${runConfig.reader} memory=${runConfig.memoryMode} replay=${runConfig.replayMode}${opts.dryRun ? ' (dry-run)' : ''}${runConfig.sampleN ? ` sample=${runConfig.sampleN}` : ''}`,
       );
 
-      const benchmark = entry.build({ reader: runConfig.reader });
+      const benchmark = entry.build({ reader });
       const result = await runner.run(benchmark, runConfig);
 
       // eslint-disable-next-line no-console
