@@ -1,8 +1,8 @@
 # AgentOS Memory Benchmark Leaderboard
 
-Last updated: 2026-04-19T07:04:32.066Z
+Last updated: 2026-04-19T07:37:30.095Z
 
-First real external-benchmark row — GPT-4o reader + GPT-4o judge + text-embedding-3-small + full-cognitive + ingest, 20-case sample.
+Per-turn-pair chunking (2026-04-19) lifted gpt-4o accuracy 40% -> 70% on the 20-case pilot while cutting cost 5.5x. Oracle + gpt-5-mini rows landing in follow-up commits.
 
 Our rows are produced by `@framers/agentos-bench` against the linked source datasets.
 Competitor rows are lifted verbatim from their published sources (see per-row citations).
@@ -12,7 +12,7 @@ Methodologies may differ; every row footnotes its reader LLM so comparisons stay
 Target to beat: **96.2%** (agentmemory (JordanMcCann)).
 | System | Reader | Memory | Replay | Accuracy | Avg latency | $/correct | Source |
 |---|---|---|---|---:|---:|---:|---|
-| AgentOS (`@framers/agentos`) | gpt-4o | full-cognitive | ingest | 40.0% | 14543 ms | $0.1716 | — |
+| AgentOS (`@framers/agentos`) | gpt-4o | full-cognitive | ingest | 70.0% | 58896 ms | $0.0210 | — |
 | agentmemory (JordanMcCann) | GPT-4o | — | — | 96.2% | — | — | [link](https://github.com/JordanMcCann/agentmemory) |
 | Mastra Observational Memory | GPT-5-mini | — | — | 94.9% | — | — | [link](https://mastra.ai/research/observational-memory) |
 | Supermemory | Unspecified (see source) | — | — | 92.0% | — | — | [link](https://supermemory.ai/research/) |

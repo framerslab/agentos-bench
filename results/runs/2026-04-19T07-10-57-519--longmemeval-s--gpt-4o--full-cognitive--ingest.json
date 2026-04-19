@@ -1,0 +1,1634 @@
+{
+  "benchmarkId": "longmemeval-s",
+  "benchmarkVersion": "1.0.0",
+  "config": {
+    "reader": "gpt-4o",
+    "memoryMode": "full-cognitive",
+    "replayMode": "ingest",
+    "sampleN": 20,
+    "concurrency": 4,
+    "maxUsd": 3
+  },
+  "totalCases": 20,
+  "passedCases": 14,
+  "accuracy": 0.7,
+  "avgScore": 0.7,
+  "scoreStdDev": 0.47016234598162715,
+  "byType": {
+    "single-session-user": {
+      "n": 20,
+      "accuracy": 0.7,
+      "avgScore": 0.7
+    }
+  },
+  "avgLatencyMs": 58895.65,
+  "p50LatencyMs": 55267,
+  "p95LatencyMs": 74333.15000000001,
+  "totalReaderTokens": 96077,
+  "totalUsd": 0.29347250000000014,
+  "costPerCorrect": 0.020962321428571438,
+  "startedAt": "2026-04-19T07:10:57.519Z",
+  "completedAt": "2026-04-19T07:15:58.998Z",
+  "cases": [
+    {
+      "caseId": "e47becba",
+      "actualOutput": "You graduated with a degree in Business Administration.",
+      "latencyMs": 66651,
+      "tokensIn": 3629,
+      "tokensOut": 9,
+      "usd": 0.0091625,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 54,
+          "turnsReplayed": 550,
+          "durationMs": 65555
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 277,
+        "retrievedEvidence": [
+          {
+            "id": "mt_7c0fb27d-f528-420f-b224-9acbc7e71995",
+            "score": 0.333502879168876,
+            "snippet": "user: I graduated with a degree in Business Administration, which has definitely helped me in my new role. Do you have any advice on how to stay organized when it comes to paperwork and documentation, especially when it comes to tracking expenses and reimbursements?\nassistant: Co"
+          },
+          {
+            "id": "mt_9e9f344d-ec08-4a74-9f2d-f02031c4626b",
+            "score": 0.3108276445945997,
+            "snippet": "user: I think it was a combination of their silly jokes and ridiculous advice that just had me laughing out loud. They were answering a question about how to deal with a noisy neighbor, and their suggestions were just so over-the-top and absurd that I couldn't help but crack up. "
+          },
+          {
+            "id": "mt_07de68db-eb79-4451-b837-4993796b5769",
+            "score": 0.3035453040894866,
+            "snippet": "user: Make it longer\nassistant: Case Study: Grade A Steakhouse Virtual Ghost Kitchen\n\nIntroduction:\nGrade A Steakhouse is a virtual ghost kitchen that delivers high-quality steak dinners right to customers' doors. Our mission is to provide an unforgettable experience by bringing "
+          },
+          {
+            "id": "mt_b868685e-7b3b-414d-95b5-37fa25a133b1",
+            "score": 0.30095162168307277,
+            "snippet": "user: I'm happy to help you with that! However, I don't see your company's diversity and inclusion statement in the chat history. Could you please share it with me? I'll be happy to provide you with feedback on its effectiveness in conveying your commitment to diversity and inclu"
+          },
+          {
+            "id": "mt_1d4f663f-1fd4-4d15-92fd-d83014aaa7b4",
+            "score": 0.2969509155452029,
+            "snippet": "user: I'll definitely consider these tips when communicating our diversity and inclusion goals and progress to our stakeholders. Speaking of which, I'd like to get some feedback on our company's diversity and inclusion statement. Do you think it's effective in conveying our commi"
+          },
+          {
+            "id": "mt_e5dcdd60-4d14-43a7-87ce-adf984c5327c",
+            "score": 0.29636254595798633,
+            "snippet": "user: continue\nassistant: place orders, and appreciated the prompt and efficient delivery. The new design and features also helped customers to better understand the menu offerings and make informed choices. Overall, the redesign helped to improve the customer experience and incr"
+          },
+          {
+            "id": "mt_2040a72c-99d2-40a8-b034-0495c96629f4",
+            "score": 0.2950378819206219,
+            "snippet": "user: Pretend you are a teacher lecturing a class about topic 4, plan a class around that.\nassistant: Sure, here's a sample lesson plan for teaching Topic 4: Radiation Delivery Systems in Radiation Therapy:\n\nTitle: Radiation Delivery Systems in Radiation Therapy\n\nObjectives:\n\n* T"
+          },
+          {
+            "id": "mt_8928b1a7-3a93-4c9c-9962-e2d89df63f20",
+            "score": 0.29384960794224535,
+            "snippet": "user: I'm looking for some sports news updates. By the way, the World Series just ended, and I was rooting for the Astros all the way. I'm still on a high from their win! Can you give me some analysis on their performance this season?\nassistant: Congratulations on the Astros' Wor"
+          },
+          {
+            "id": "mt_85bc63a4-a209-4cdf-99ab-bf4e5af8ff5e",
+            "score": 0.2931024000803497,
+            "snippet": "assistant: To the esteemed Hiring Manager,\n\nI, a humble practitioner of the arcane arts, do humbly beseech thee to take mine application into thy most gracious consideration for the position of Senior Motion Designer at Dash. Verily, I possess a wealth of wisdom in the manipulati"
+          },
+          {
+            "id": "mt_1d59b297-b63d-4871-a25a-b0e726ef43b0",
+            "score": 0.2929527711986151,
+            "snippet": "user: Thank you\nassistant: You're welcome! I'm glad I could help. If you have any other questions, feel free to ask."
+          }
+        ]
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes"
+      }
+    },
+    {
+      "caseId": "118b2229",
+      "actualOutput": "Based on the information you provided earlier, your daily commute takes 45 minutes each way.",
+      "latencyMs": 73787,
+      "tokensIn": 5388,
+      "tokensOut": 18,
+      "usd": 0.013649999999999999,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 47,
+          "turnsReplayed": 497,
+          "durationMs": 73171
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 250,
+        "retrievedEvidence": [
+          {
+            "id": "mt_ea5fd2a8-ed75-4861-8715-c5b5de51b79c",
+            "score": 0.4408025963265621,
+            "snippet": "user: I think I'll try the Pomodoro Technique to help me stay focused. I've heard it's really effective. By the way, can you help me calculate how much time I spend on my commute to work? I want to make sure I'm allocating enough time for my morning routine.\nassistant: The Pomodo"
+          },
+          {
+            "id": "mt_5205a202-4d79-4736-9192-82381d4d69fa",
+            "score": 0.39160633530582784,
+            "snippet": "user: I've been listening to audiobooks during my daily commute, which takes 45 minutes each way.\nassistant: That's a great way to make the most of your commute time! An hour each way is a significant amount of time that can be utilized for personal development, entertainment, or"
+          },
+          {
+            "id": "mt_039d2e3e-42ff-4653-880d-ee3106748e3c",
+            "score": 0.37451831824003573,
+            "snippet": "user: I like the Eisenhower Matrix, it's a helpful tool. I'll definitely try to apply it to my daily tasks. Speaking of daily tasks, I need to plan my commute to work. Can you help me find the bus schedule for the 7:45 AM bus on Mondays and Tuesdays, and the 8:00 AM bus on Wednes"
+          },
+          {
+            "id": "mt_66108612-1d79-493c-bb98-8b209d097b68",
+            "score": 0.36118168433487685,
+            "snippet": "user: I'm considering signing up for a cycling event in two months, a 20-mile ride along the coast. Do you have any tips on how to prepare for it, especially since I've only been doing shorter rides on the weekends?\nassistant: Congratulations on considering a cycling event! Prepa"
+          },
+          {
+            "id": "mt_e3c939fb-d38f-49a6-9a21-790a588f0e68",
+            "score": 0.3372985107183038,
+            "snippet": "user: I'm looking for some new fiction audiobook recommendations. I've been enjoying audiobooks a lot lately, especially during my daily commute.\nassistant: Audiobooks are a great way to make the most of your commute time! I'd be happy to recommend some fantastic fiction audioboo"
+          },
+          {
+            "id": "mt_ecafe72f-5440-45b1-93fa-0c03ea7eb376",
+            "score": 0.3354412925359128,
+            "snippet": "user: I'll definitely follow those tips to keep my office chair in good condition. Speaking of productivity, I've been thinking about rearranging my home office to improve my workflow. Do you have any general tips or principles for designing a functional and efficient home office"
+          },
+          {
+            "id": "mt_15750426-cd24-4b17-9b8c-7814a7ba0994",
+            "score": 0.33131003320381247,
+            "snippet": "user: What's the best way to get around Melbourne without a car? I'm planning to rely on public transport and walk or bike whenever possible.\nassistant: Melbourne has a comprehensive public transport system, and it's easy to get around without a car. Here's a breakdown of your op"
+          },
+          {
+            "id": "mt_d415a4e7-a349-47b4-b03e-e3da75b08448",
+            "score": 0.3228516388847959,
+            "snippet": "user: I'll try to find the bus schedule online. By the way, I was thinking of meal prepping this weekend for the entire week. Do you have any healthy lunch ideas that are easy to prepare and can be reheated at work?\nassistant: Meal prepping is a great idea! It's a fantastic way t"
+          },
+          {
+            "id": "mt_e8088d57-4bab-4099-a476-923608723d5c",
+            "score": 0.32078003283846535,
+            "snippet": "user: I'll make sure to set reminders for my upcoming events. By the way, do you have any tips on how to stay focused and avoid procrastination during work hours?\nassistant: Staying focused and avoiding procrastination are essential skills for productivity. Here are some tips to "
+          },
+          {
+            "id": "mt_140f516b-2b9c-4242-9412-53e1d870f46a",
+            "score": 0.3204471711566193,
+            "snippet": "user: I'm also looking for some bike maintenance tips, especially for hybrid bikes like my Trek FX 3.\nassistant: Bike maintenance is essential to keep your trusty steed running smoothly and prolong its lifespan. Here are some valuable bike maintenance tips, specifically tailored "
+          }
+        ]
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      }
+    },
+    {
+      "caseId": "51a45a95",
+      "actualOutput": "You redeemed a $5 coupon on coffee creamer from your email inbox.",
+      "latencyMs": 84710,
+      "tokensIn": 4129,
+      "tokensOut": 15,
+      "usd": 0.0104725,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 51,
+          "turnsReplayed": 529,
+          "durationMs": 83505
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 266,
+        "retrievedEvidence": [
+          {
+            "id": "mt_5f803c4a-e44c-4397-8160-e6a5aa37a326",
+            "score": 0.4256544028232086,
+            "snippet": "user: I actually redeemed a $5 coupon on coffee creamer last Sunday, which was a nice surprise since I didn't know I had it in my email inbox.\nassistant: That's awesome! Redeeming a surprise coupon is always a great feeling, especially when it's on something you need or regularly"
+          },
+          {
+            "id": "mt_0b994ab1-f93a-4577-be48-3e0a9ec9bd40",
+            "score": 0.34994059768306995,
+            "snippet": "user: I'm trying to organize my coupons and receipts, do you have any tips on the best way to do that?\nassistant: The eternal quest for coupon and receipt organization! I'm happy to help. Here are some tips to help you tame the chaos:\n\n**Coupon Organization:**\n\n1. **Coupon Binder"
+          },
+          {
+            "id": "mt_b22d5cba-51f6-4a63-9755-107550ab0826",
+            "score": 0.3407387975010509,
+            "snippet": "user: Would you like to provide an example post caption?\nassistant: Of course! Here's an example of a post caption that an influencer can use when sharing content related to our campaign:\n\n\"💫 Transform your skincare routine with @dermelect's age-defying solutions! 🌟 I've been u"
+          },
+          {
+            "id": "mt_5ccd42af-aecc-4a10-8d9c-7bf11d7d8965",
+            "score": 0.3350472856005586,
+            "snippet": "user: I shop at Target pretty frequently, maybe every other week. I like buying household items, toiletries, and sometimes clothes for my kids. I've also been using their Cartwheel app for a few weeks now and have saved around $20 total on various household items.\nassistant: You'"
+          },
+          {
+            "id": "mt_c7570853-788c-461a-9f49-fc57c46adc1f",
+            "score": 0.3313807025710134,
+            "snippet": "user: I like the idea of using a binder with labeled sections. I've been using the Cartwheel app from Target and it's been really helpful for saving money on household items.\nassistant: The Cartwheel app is a fantastic tool for saving money on household items and more at Target. "
+          },
+          {
+            "id": "mt_42b6d89e-9b73-4a50-8b81-3d1d40ae8472",
+            "score": 0.32262234790214894,
+            "snippet": "user: I think the Cartwheel app is really user-friendly and easy to navigate. I like how it's organized by category and how I can easily browse through the offers and add them to my list. One thing I wish they would add is a way to sort the offers by expiration date, so I can pri"
+          },
+          {
+            "id": "mt_efc66661-40ce-45fb-bf7d-d34886e3ffa7",
+            "score": 0.32094933893822347,
+            "snippet": "user: I've also been trying to keep track of Luna's expenses, like the 12 packets of 2kg Whiskas food I got from Petco in bulk about 10 days ago. Do you have any tips on how to organize pet expenses and stay on top of her veterinary care?\nassistant: Pet expense tracking - a cruci"
+          },
+          {
+            "id": "mt_cf2aaa16-ac59-4f1a-8a28-11f2879afe3f",
+            "score": 0.31966492360660936,
+            "snippet": "user: How would you like to compensate your influencers?\nassistant: We would like to compensate our influencers using a combination of the following methods:\n\n1. Product Gifting: Provide influencers with a selection of Dermelect products tailored to their needs and preferences. T"
+          },
+          {
+            "id": "mt_88b7b677-2cf7-4709-b8e3-c64231e1694a",
+            "score": 0.31524146794984514,
+            "snippet": "user: I think the notification system is decent, but sometimes I feel like I get too many notifications. I'd prefer if they gave me the option to customize the types of notifications I receive, like only getting notifications for offers that are expiring soon or for specific cate"
+          },
+          {
+            "id": "mt_888ab535-7e67-46ad-88ed-7989f27e0521",
+            "score": 0.31407380139285856,
+            "snippet": "user: Hi! I'm looking for some tips on how to improve my social media presence for my business. I just attended a workshop on digital marketing at a co-working space downtown today, and I'm interested in learning more about creating effective ad campaigns on Facebook and Instagra"
+          }
+        ]
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      }
+    },
+    {
+      "caseId": "58bf7951",
+      "actualOutput": "You attended a production of \"The Glass Menagerie\" at the local community theater.",
+      "latencyMs": 73546,
+      "tokensIn": 3309,
+      "tokensOut": 17,
+      "usd": 0.0084425,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 62,
+          "turnsReplayed": 616,
+          "durationMs": 72899
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 311,
+        "retrievedEvidence": [
+          {
+            "id": "mt_b03d7e8d-78c9-41e0-be42-8ef583afa40c",
+            "score": 0.4192455122007836,
+            "snippet": "user: I'll definitely try those suggestions. By the way, I recently went to a play at the local community theater and was impressed by the lead actress's performance - she reminded me of my friend Emily, who's also an aspiring actress.\nassistant: That's great to hear! It's always"
+          },
+          {
+            "id": "mt_193d8f09-4673-40e2-97b4-73392e436bc2",
+            "score": 0.3825820741486521,
+            "snippet": "user: I was thinking of getting Emily to audition for a role, I'll definitely encourage her to give it a shot. The play I attended was actually a production of The Glass Menagerie, have you heard of it?\nassistant: The Glass Menagerie is a classic play by Tennessee Williams, one o"
+          },
+          {
+            "id": "mt_1470f5a4-0317-4b98-98e9-90b5ea2d928d",
+            "score": 0.37735569752908094,
+            "snippet": "user: I'll definitely try those suggestions. I've been thinking about taking some acting classes to improve my skills, especially after my recent audition for a role in \"The Crucible\" didn't go well.\nassistant: Sorry to hear that your audition didn't go as well as you had hoped. "
+          },
+          {
+            "id": "mt_12daa404-d484-4a5c-bfe1-82ac408c4f9d",
+            "score": 0.3586067573342148,
+            "snippet": "user: I'm thinking of focusing on scene study and character development. I've always struggled with really getting into character and making my performances feel authentic. I'd love to work on that and get more comfortable with analyzing scripts and developing a character's backs"
+          },
+          {
+            "id": "mt_294661b2-a797-49f2-93ee-cb47c23fccac",
+            "score": 0.3572156297931826,
+            "snippet": "user: I've been thinking of taking some acting classes myself, do you know of any local studios or instructors that offer classes for adults?\nassistant: I'm glad you're considering taking acting classes! Unfortunately, as a large language model, I don't have access to specific lo"
+          },
+          {
+            "id": "mt_3cc39779-2c21-45e6-9348-c27fb4a33e8e",
+            "score": 0.340144607960553,
+            "snippet": "user: I'm looking for some recommendations for local Italian restaurants. I recently tried the new place downtown and it was pretty good, but I'd love to explore other options.\nassistant: I'd be happy to help you with that! However, I have to clarify that I'm a large language mod"
+          },
+          {
+            "id": "mt_cefefcb5-eb12-487c-ae65-5e3c42e54f46",
+            "score": 0.3273412464739556,
+            "snippet": "user: I've also been really enjoying All American on The CW. It's a great mix of drama and football, with a really talented cast. Have you heard of it before, AI?\nassistant: Yes, I'm familiar with All American! It's a sports drama TV series that follows Spencer James, a high scho"
+          },
+          {
+            "id": "mt_4b3d75a5-98ae-40b0-befc-e8b4bb1f7a27",
+            "score": 0.32641034030619076,
+            "snippet": "user: I'm looking for some game recommendations. I just finished the main storyline of The Last of Us Part II on my PS4, which took me around 20 hours to finish. It was an amazing experience, and I'm looking for something similar. Do you have any suggestions?\nassistant: What an i"
+          },
+          {
+            "id": "mt_ea4d5a28-c9ef-4b8b-9bac-1c413de6ed83",
+            "score": 0.3246873636182483,
+            "snippet": "user: I'm excited to try out the pottery wheel and learn more about displaying my ceramic vase. Thanks for the helpful resources and tips!\nassistant: You're welcome! I'm thrilled to have been able to help. Remember, practice makes perfect, so don't be discouraged if your first fe"
+          },
+          {
+            "id": "mt_28dded53-9e73-4dac-acaa-6d53590e5aa2",
+            "score": 0.32271053211028616,
+            "snippet": "user: Yeah, I did discover some new shows that I really love on The CW after the merger. But it's still tough to let go of my old favorites.\nassistant: I understand how you feel. It's always tough when one of our favorite shows gets cancelled. However, we have to remember that th"
+          }
+        ]
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "yes"
+      }
+    },
+    {
+      "caseId": "1e043500",
+      "actualOutput": "I don't know.",
+      "latencyMs": 50734,
+      "tokensIn": 4509,
+      "tokensOut": 4,
+      "usd": 0.011312500000000001,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 53,
+          "turnsReplayed": 510,
+          "durationMs": 49975
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 257,
+        "retrievedEvidence": [
+          {
+            "id": "mt_6b63bf0d-ba28-44f4-a681-323206757d30",
+            "score": 0.4012528614401744,
+            "snippet": "user: What's a good music streaming service that can help me discover new music and artists, especially in the ambient and lo-fi genres? Also, by the way, I've been listening to this one playlist on Spotify that I created, called Summer Vibes, and it's got all these chill tracks "
+          },
+          {
+            "id": "mt_812ee707-6372-4596-bc40-344d1ef347a0",
+            "score": 0.35946980475577983,
+            "snippet": "user: I'm still a bit concerned about keeping track of my shows across different platforms. Can you suggest a way to organize my streaming services and keep them synced?\nassistant: I completely understand! Managing multiple streaming services can be overwhelming. Here are some ti"
+          },
+          {
+            "id": "mt_09c217fb-31b9-4e4f-a687-53f9fe89375e",
+            "score": 0.3468457794578308,
+            "snippet": "user: I think I'll try out TV Time, it sounds pretty convenient. Can you tell me more about how to set up the app and what features it has?\nassistant: TV Time is an excellent choice! It's a user-friendly app that makes tracking your TV shows a breeze. Here's a step-by-step guide "
+          },
+          {
+            "id": "mt_35b5df16-8bfb-4a2d-bdc5-4382a2bf7870",
+            "score": 0.3369916040297283,
+            "snippet": "user: I need some help organizing my TV show watchlist. I've got a bunch of shows I'm keeping up with across different platforms, and I'm worried I'll forget what episode I'm on. Can you help me find a way to keep track of them all? By the way, speaking of TV shows, I also watch "
+          },
+          {
+            "id": "mt_5e188745-2fc1-40cf-921f-b2afa264796f",
+            "score": 0.3359367645584936,
+            "snippet": "user: I've been listening to so much music lately, but I've also been really into podcasts. Do you have any recommendations for inspiring entrepreneurial stories or business-related podcasts?\nassistant: Podcasts are an excellent way to stay informed, entertained, and inspired!\n\nI"
+          },
+          {
+            "id": "mt_8d767580-7e73-4a83-9f14-342434b5b593",
+            "score": 0.32977604433522917,
+            "snippet": "user: I just remembered that I attended a music festival last month with some friends, and we saw some great acts, including The Lumineers and The 1975. It was an amazing experience!\nassistant: That sounds like an incredible experience! The Lumineers and The 1975 are both amazing"
+          },
+          {
+            "id": "mt_fbf0db5f-ff8f-47fe-9791-0bce2f7bca90",
+            "score": 0.3237967413374189,
+            "snippet": "user: I'll definitely check out some of these channels. By the way, do you know any good music festivals or concerts coming up in my area?\nassistant: Music festivals and concerts are a great way to experience live music and connect with fellow music enthusiasts!\n\nI'm a large lang"
+          },
+          {
+            "id": "mt_19a14482-9cac-4b4b-b7ee-8db39eb6d9a3",
+            "score": 0.3222234395137945,
+            "snippet": "user: Help me make a YouTube video about how to download Minecraft mods. I want to show some cool mods at the beginning of the video but I don't know which ones to show\nassistant: Sure thing! There are many cool mods available for Minecraft that you can show in your YouTube video"
+          },
+          {
+            "id": "mt_31e80ef4-91e3-4f55-adc3-52326a4cd03c",
+            "score": 0.3161519818572979,
+            "snippet": "user: What's the difference between marking an episode as \"skipped\" and \"paused\"? I'm not sure when to use each.\nassistant: In TV Time, \"Skipped\" and \"Paused\" serve distinct purposes, helping you manage your episode tracking effectively.\n\n**Skipped:**\n\nMark an episode as \"Skipped"
+          },
+          {
+            "id": "mt_6de57367-1598-4886-baeb-9a989a072755",
+            "score": 0.3152048126322534,
+            "snippet": "user: I want you to act as an app developer. I will provide some details about the app and it will be your job to write up a detialed statement on the app, including its features, goals, purpose, user persona, value propistion, target audience and furthermore come up with creativ"
+          }
+        ]
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      }
+    },
+    {
+      "caseId": "c5e8278d",
+      "actualOutput": "Your last name before you changed it was Johnson.",
+      "latencyMs": 46516,
+      "tokensIn": 5339,
+      "tokensOut": 10,
+      "usd": 0.013447500000000001,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 45,
+          "turnsReplayed": 469,
+          "durationMs": 45682
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 236,
+        "retrievedEvidence": [
+          {
+            "id": "mt_422e7f82-8014-44f3-9aa5-e21ebca9575b",
+            "score": 0.4066191532285067,
+            "snippet": "user: I need to update my address with my health insurance provider. Can you walk me through the process or give me a phone number to call? By the way, I just recently changed my last name, and I'm still getting used to it - it's funny, my old name was Johnson, but now it's Winte"
+          },
+          {
+            "id": "mt_d437158d-8cbc-4204-a967-e5c220b008bf",
+            "score": 0.3750568187437166,
+            "snippet": "user: I'm also wondering, do I need to update my credit report with the three major credit bureaus (Experian, TransUnion, and Equifax) to reflect my name change? And how do I go about doing that?\nassistant: Updating your credit report with the three major credit bureaus (Experian"
+          },
+          {
+            "id": "mt_281f9869-76bd-427f-a393-2e93a8640e94",
+            "score": 0.37282940497928296,
+            "snippet": "user: What's the best way to update my social media profiles, especially Facebook, since I don't want to lose my friends and memories?\nassistant:  Updating your social media profiles, especially Facebook, can be a bit tricky when you've got a large friend network and a treasure t"
+          },
+          {
+            "id": "mt_eaf7035f-abaf-40be-969c-d5ee01aaeea9",
+            "score": 0.3621303842519887,
+            "snippet": "user: I need to update my credit card information with my new name as well. Do I need to call the credit card company or can I do it online? And is there anything I should be aware of when updating my credit card information?\nassistant: Updating your credit card information with "
+          },
+          {
+            "id": "mt_61834bdf-5a7e-4ca6-a933-d1ce869297f9",
+            "score": 0.3565983554222153,
+            "snippet": "user: I think I'll call them, it's easier to get it done quickly. Do you know how long it usually takes for them to process the update? And by the way, do you know if I need to notify the DMV about my name change as well?\nassistant: Calling them is a great way to get it done quic"
+          },
+          {
+            "id": "mt_24b8301a-d73f-485c-bc47-0b0cf4f65e6f",
+            "score": 0.35570481117145075,
+            "snippet": "user: I'm also wondering, are there any specific tips for updating my social media profiles on other platforms like Instagram, Twitter, or LinkedIn?\nassistant: Updating your social media profiles across multiple platforms can be a bit of a task, but it's essential to maintain con"
+          },
+          {
+            "id": "mt_36a55b11-3de6-454d-873f-403168ee27c8",
+            "score": 0.31778796447716373,
+            "snippet": "user: I'm planning a trip to Ireland and was thinking of getting an Irish driver's license to make getting around easier. Can you tell me more about the process and requirements for obtaining one? By the way, my mom was born in Dublin, and I've recently discovered I have Asian he"
+          },
+          {
+            "id": "mt_983f6422-20c9-4fae-a098-ea291f226f3b",
+            "score": 0.3124252404091837,
+            "snippet": "user: I'm looking for some gift ideas for my sister-in-law's sister, who got married last December. I finally got around to buying a kitchen appliance from their registry, but I want to add a more personal touch to the gift. Do you have any suggestions? By the way, speaking of we"
+          },
+          {
+            "id": "mt_cc39f996-754c-4033-a5b8-3f544c4c66fe",
+            "score": 0.2962347193511536,
+            "snippet": "user: I'm planning to create a memory book for my family, and I was wondering if you could help me with some ideas on how to organize it. Specifically, I'm thinking of dedicating a section to my paternal grandmother, who passed away on February 10th.\nassistant: What a wonderful i"
+          },
+          {
+            "id": "mt_8f8982e1-9dd4-4ea4-b8fc-1845b58a0935",
+            "score": 0.2909078881637646,
+            "snippet": "user: That's really helpful! I'll definitely consider these factors when researching MBA programs. By the way, I've been thinking about how my education has shaped my career, and I realized that it's been five years since I graduated with a Bachelor's degree in Business Administr"
+          }
+        ]
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "yes"
+      }
+    },
+    {
+      "caseId": "6ade9755",
+      "actualOutput": "I don't know.",
+      "latencyMs": 62572,
+      "tokensIn": 4202,
+      "tokensOut": 4,
+      "usd": 0.010545,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 52,
+          "turnsReplayed": 513,
+          "durationMs": 61773
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 261,
+        "retrievedEvidence": [
+          {
+            "id": "mt_238972cd-f3d0-46f9-88e5-07f9954cf6bc",
+            "score": 0.42409793223629016,
+            "snippet": "user: I'll try searching online for healthy brunch spots near my place. By the way, do you know any good yoga apps that can help me with my home practice?\nassistant: There are many excellent yoga apps that can guide you through a home practice. Here are some popular ones:\n\n1. **D"
+          },
+          {
+            "id": "mt_e38ee21b-66f7-4cd9-8172-bb58c5cb9a99",
+            "score": 0.41754130434609477,
+            "snippet": "user: I'm trying to plan a self-care day and was thinking of doing a morning yoga practice at home, then meeting a friend for brunch. Do you have any recommendations for healthy brunch spots near Serenity Yoga?\nassistant: What a lovely idea! Unfortunately, I'm a large language mo"
+          },
+          {
+            "id": "mt_7e7f1407-6edd-4694-909e-c0c0511e29f6",
+            "score": 0.3965601617295511,
+            "snippet": "user: I've definitely noticed that my yoga practice has influenced my relationships, especially with my best friend Sarah, who I convinced to start practicing with me. It's been great to share the experience with her and have someone to hold me accountable. We've even started a S"
+          },
+          {
+            "id": "mt_7522a0de-de7b-48e4-96a7-769eb0967fbf",
+            "score": 0.38427464901819164,
+            "snippet": "user: I usually stick to the vinyasa flow classes, they're my favorite. I like how they challenge me and help me build strength and flexibility.\nassistant: Vinyasa flow classes are a great way to challenge yourself and improve your overall yoga practice. The dynamic movement and "
+          },
+          {
+            "id": "mt_950aa029-6be8-4c09-b4dc-ecdd456010c0",
+            "score": 0.3710777519089643,
+            "snippet": "user: Yeah, I love the challenging sequences and the feeling of building internal heat. It's amazing how it can get my heart rate up and make me sweat, but still leave me feeling centered and calm afterwards.\n\nAnd yeah, I've definitely noticed improvements in my practice and over"
+          },
+          {
+            "id": "mt_a7ce2d79-62c9-42c9-9ea1-ec2de20c058d",
+            "score": 0.3546562617230464,
+            "snippet": "user: I've actually been using Down Dog for my home practice and I really like it. It's been super helpful for me, especially on days when I can't make it to Serenity Yoga.\nassistant: That's great to hear! Down Dog is an excellent app, and it's awesome that you've found it helpfu"
+          },
+          {
+            "id": "mt_7e0c08e1-a7b3-47d7-a8db-7ccacb2dde96",
+            "score": 0.32434549837489696,
+            "snippet": "user: I'm thinking of creating a routine to stay active and was wondering if you could suggest some exercises I can do at home. By the way, I aim to do this exercise routine three times a week.\nassistant: That's a great goal! Congratulations on taking the first step towards a mor"
+          },
+          {
+            "id": "mt_4e153db9-d1cb-4b36-ae22-c1d7ef1e89e2",
+            "score": 0.3184698169638583,
+            "snippet": "user: I'm looking for some new vegan breakfast ideas. I've been stuck on my Sunday routine of pancakes made with almond milk and oat flour, topped with fresh berries and maple syrup - they're a game-changer. Do you have any other vegan breakfast recipes that you'd recommend?\nassi"
+          },
+          {
+            "id": "mt_e0665f19-a0c2-4f8c-ad8d-ffbc025b4c79",
+            "score": 0.3078900846183493,
+            "snippet": "user: I'm thinking of incorporating some strength training exercises into my routine, do you have any suggestions for exercises I can do at home with minimal equipment?\nassistant: Incorporating strength training into your routine is a great way to improve overall fitness and heal"
+          },
+          {
+            "id": "mt_67cba67b-3f12-4bef-9280-78c22583b7eb",
+            "score": 0.3073237250084372,
+            "snippet": "user: I'm glad you provided some strength training exercises I can do at home. I'm thinking of incorporating them into my routine, possibly on the days I'm not using my exercise bike.\nassistant: That's a great idea! Incorporating strength training exercises into your routine can "
+          }
+        ]
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      }
+    },
+    {
+      "caseId": "6f9b354f",
+      "actualOutput": "You repainted your bedroom walls a lighter shade of gray.",
+      "latencyMs": 50301,
+      "tokensIn": 6239,
+      "tokensOut": 12,
+      "usd": 0.0157175,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 52,
+          "turnsReplayed": 500,
+          "durationMs": 49545
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 253,
+        "retrievedEvidence": [
+          {
+            "id": "mt_9bbf62c5-8868-4e99-9e45-fd997d163789",
+            "score": 0.355587100770491,
+            "snippet": "user: I've heard great things about Snake Plants, but I'm also curious about the ZZ Plant. Can you tell me more about its watering schedule and how often it needs to be fertilized? By the way, I've been doing some redecorating and recently repainted my bedroom walls a lighter sha"
+          },
+          {
+            "id": "mt_821478a3-238e-4460-a5ed-a4092c5dbdf9",
+            "score": 0.32966901963042433,
+            "snippet": "user: I'm looking for some tips on how to improve my YouTube channel's SEO. I've been getting some traction with my watercolor painting tutorial, which has gotten 2,500 views so far, but I want to increase my visibility and attract more viewers.\nassistant: Congratulations on your"
+          },
+          {
+            "id": "mt_880b5708-2a67-4c06-9a09-5203655da1fa",
+            "score": 0.32646300270808887,
+            "snippet": "user: I'm thinking of using a floating desk in the middle of the room, and adding some built-in shelving for storage. I've been browsing online for inspiration and ideas, and I'm considering a minimalist aesthetic with a lot of natural wood accents. I also want to incorporate som"
+          },
+          {
+            "id": "mt_72c2c295-8e44-49f8-8371-2070012aa700",
+            "score": 0.32021062910623876,
+            "snippet": "user: I'm looking for some recommendations on indoor plants that can thrive in low-light conditions. I recently added a vase with fresh greenery to my kitchen countertop and I'd love to explore more options.\nassistant: Adding some greenery to your kitchen countertop can really br"
+          },
+          {
+            "id": "mt_d9c3855d-caae-4786-82b9-a6a9a1f137b4",
+            "score": 0.317068821933751,
+            "snippet": "user: I'm also thinking of creating a home office nook in the spare bedroom. Do you have any suggestions on how to design the space to maximize productivity and comfort?\nassistant: Creating a home office nook sounds like a great idea! A well-designed space can boost your producti"
+          },
+          {
+            "id": "mt_9f65d4a2-ed78-414c-9101-4bfcf6964b52",
+            "score": 0.31410919222560824,
+            "snippet": "user: The area that's been driving me crazy is the bathroom cabinets. They're a mess, and I have no idea how to organize them efficiently. I'm hoping to find some inspiration and ideas to get them in order.\nassistant: Bathroom cabinets can be a challenge! Don't worry, I've got so"
+          },
+          {
+            "id": "mt_30b8a23a-d54a-4ffd-88dd-e143aedb6a7a",
+            "score": 0.31294060069061824,
+            "snippet": "user: I'm thinking of changing my bank accounts to my new name, Emily Anne Patel. Do you have any tips on how to go about it? By the way, I filed the petition with the court on September 6th.\nassistant: Congratulations on your name change, Emily Anne Patel!\n\nChanging your bank ac"
+          },
+          {
+            "id": "mt_da6146b8-5008-41b6-b166-89694f1496af",
+            "score": 0.31225938095118744,
+            "snippet": "user: That's really helpful, thanks! I've been doing some research on the Qing dynasty, but this gives me a better understanding of the cultural context behind my vase. I'm also curious to know if you can recommend any books or online resources that would help me learn more about"
+          },
+          {
+            "id": "mt_60de51d0-bc83-43f4-93b3-e7a9ab2aa6bb",
+            "score": 0.3099920641754785,
+            "snippet": "user: I'm looking for some advice on how to organize my bathroom cabinets. Do you have any tips on how to maximize storage space and keep everything tidy? By the way, I've been trying to maintain a daily cleaning routine for a while now, and I've noticed it's made a huge differen"
+          },
+          {
+            "id": "mt_e8d013c2-88fd-4c7e-896a-a8e460f2a521",
+            "score": 0.30982313141672585,
+            "snippet": "user: I've been focusing on quick daily tasks like making my bed and wiping down kitchen counters, as well as weekly tasks like vacuuming and tidying up the living room. I've also been trying to tackle one deeper cleaning task per week, like organizing my closet or cleaning the f"
+          }
+        ]
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "yes"
+      }
+    },
+    {
+      "caseId": "58ef2f1c",
+      "actualOutput": "I don't know.",
+      "latencyMs": 62282,
+      "tokensIn": 4937,
+      "tokensOut": 4,
+      "usd": 0.012382500000000001,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 54,
+          "turnsReplayed": 518,
+          "durationMs": 61544
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 262,
+        "retrievedEvidence": [
+          {
+            "id": "mt_9bed4545-a623-4745-862b-f74eef4e5aec",
+            "score": 0.45129458862056876,
+            "snippet": "user: I'm really looking forward to the silent auction and raffles at \"Strut Your Mutt\". I've had a great experience with similar events in the past, like the \"Love is in the Air\" fundraising dinner I volunteered at back on Valentine's Day. The energy and excitement of bidding on"
+          },
+          {
+            "id": "mt_1ca3816e-b072-4fec-a987-26fc065d30a6",
+            "score": 0.4330821982793801,
+            "snippet": "user: I'm most passionate about animal welfare and children's health, so anything related to those causes would be great. I'm open to attending different types of events, but I did really enjoy the \"Love is in the Air\" fundraising dinner I volunteered at back in February - it was"
+          },
+          {
+            "id": "mt_c670d877-915b-42f0-80eb-7e1cd6031c7c",
+            "score": 0.43073495457790995,
+            "snippet": "user: Can you tell me more about the silent auction and raffles at the \"Strut Your Mutt\" event? Are there any specific prizes or experiences that I should look out for?\nassistant: The silent auction and raffles at \"Strut Your Mutt\" are always a highlight of the event! You'll have"
+          },
+          {
+            "id": "mt_2fd6cde3-a53c-4a7e-b1f8-0a24a560dddb",
+            "score": 0.4125131329056512,
+            "snippet": "user: I think I'd like to learn more about the \"Strut Your Mutt\" event in September. Do you have any more details on that?\nassistant: \"Strut Your Mutt\" is a fantastic event that combines fun, exercise, and philanthropy, all while celebrating our furry friends.\n\n**Strut Your Mutt "
+          },
+          {
+            "id": "mt_8407ef73-bffd-4999-8dd7-bb04f43e870d",
+            "score": 0.39743183705405105,
+            "snippet": "user: I'm trying to organize my calendar for the rest of the year. Can you help me find some upcoming charity events in LA that I might be interested in?\nassistant: Los Angeles is a hub for philanthropy and hosts numerous charity events throughout the year. I'd be happy to help y"
+          },
+          {
+            "id": "mt_516a8a89-31f5-4978-95bc-fc8bdd3fc763",
+            "score": 0.38594205637586326,
+            "snippet": "user: I'll probably attend with a few friends who are also passionate about animal welfare. We're all looking forward to a fun day out, getting some exercise, and supporting a great cause. It'll be a great opportunity to catch up with each other while doing something meaningful. "
+          },
+          {
+            "id": "mt_11dcfbb8-5d04-417d-933e-9f4c1c88f5b5",
+            "score": 0.3822514968445198,
+            "snippet": "user: I'm looking for some volunteer opportunities in my community. I've had a really fulfilling experience serving breakfast to people in need during my volunteer work, and I'm eager to do more. Can you suggest some organizations or events that I can get involved with?\nassistant"
+          },
+          {
+            "id": "mt_1281758c-1a69-447c-ae07-98f687be019f",
+            "score": 0.37797375778834225,
+            "snippet": "user: I think the training and orientation program sounds really comprehensive and helpful. I'm excited to get started and make a difference in my community. Can you tell me more about the volunteer scheduling process and how I can choose my volunteer opportunities?\nassistant: I'"
+          },
+          {
+            "id": "mt_071ef168-e85e-488e-8ea3-637d69f0d390",
+            "score": 0.3719486834579744,
+            "snippet": "user: I think I'm going to start by volunteering with the Dayton Foodbank. Do you know if they have any upcoming events or opportunities to volunteer?\nassistant: As an AI language model, I don't have access to real-time information, but I can guide you on how to find out about up"
+          },
+          {
+            "id": "mt_baf4f0c7-053b-4e13-a737-3a810cdb6dea",
+            "score": 0.37029350644754766,
+            "snippet": "user: Since I've had experience serving breakfast to people in need during my volunteer work, I'm interested in helping out with food distribution. Can you tell me more about the food distribution process and what I can expect during a typical shift?\nassistant: With your experien"
+          }
+        ]
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No"
+      }
+    },
+    {
+      "caseId": "f8c5f88b",
+      "actualOutput": "You bought your new tennis racket from a sports store downtown.",
+      "latencyMs": 50921,
+      "tokensIn": 5510,
+      "tokensOut": 12,
+      "usd": 0.013895,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 51,
+          "turnsReplayed": 487,
+          "durationMs": 48768
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 246,
+        "retrievedEvidence": [
+          {
+            "id": "mt_2e7af038-0894-4716-9681-9bdc8528c5d3",
+            "score": 0.43851336150485093,
+            "snippet": "user: I'll definitely do those exercises before playing tennis. By the way, I'm really happy with my new tennis racket, which I got from a sports store downtown. It's been performing really well, and I feel like it's improved my game. Do you have any tips on how to maintain and c"
+          },
+          {
+            "id": "mt_2cfe1d83-8692-4c30-99d9-e963f54db88f",
+            "score": 0.3898461594603635,
+            "snippet": "user: I'm planning to buy new tennis balls this weekend. Do you know any good brands or types of tennis balls that are suitable for recreational players like me?\nassistant: As a recreational player, you'll want tennis balls that offer a good balance of quality, durability, and af"
+          },
+          {
+            "id": "mt_a4e0362e-f091-48ac-b6b5-a94882daaf72",
+            "score": 0.38248469912023575,
+            "snippet": "user: I'll consider getting a tennis ball machine, but for now, I think I'll focus on improving my game with my new racket and practicing with my friends. By the way, do you know any good exercises to strengthen my core and legs for tennis?\nassistant: Excellent decision! Improvin"
+          },
+          {
+            "id": "mt_1adbf3fe-16a1-4380-b3cf-3560e529f3dd",
+            "score": 0.37424878959379887,
+            "snippet": "user: I'll check out those brands and types of tennis balls. By the way, do you think I should also get a tennis ball machine to practice my shots?\nassistant: A tennis ball machine can be a fantastic investment for improving your game, but it depends on your specific needs and go"
+          },
+          {
+            "id": "mt_f2d5353d-c06d-4de6-9fc3-74f35a003c89",
+            "score": 0.3699478298710421,
+            "snippet": "user: I'm glad I could fit in the swimming session on Sunday morning. Since I've been enjoying my tennis lessons, I was wondering if you could recommend some tennis drills I could do on my own to improve my serves and volleys.\nassistant: I'm glad you're enjoying your tennis lesso"
+          },
+          {
+            "id": "mt_766d0f60-a658-4d8b-992c-5049eb41fb6e",
+            "score": 0.35016149426609205,
+            "snippet": "user: I'll check the weather forecast online. By the way, do you know any good exercises to warm up before playing tennis?\nassistant: Warming up before playing tennis is crucial to prevent injuries and prepare your muscles for the game. Here are some exercises you can do to warm "
+          },
+          {
+            "id": "mt_54d02392-4a85-48a0-97ee-d36c7e370545",
+            "score": 0.3495395668168194,
+            "snippet": "user: I'm planning to play tennis with my friends at the local park this Sunday. Can you remind me what's the weather forecast for this weekend?\nassistant: I'm happy to help! However, I'm a large language model, I don't have access to real-time weather forecasts or specific locat"
+          },
+          {
+            "id": "mt_a8f430fb-9023-429d-a1aa-e0ff79b003ac",
+            "score": 0.3495198060948529,
+            "snippet": "user: I'm looking for some advice on finding a good deal on a quality watch. I've been eyeing a particular designer brand, but it's a bit out of my budget. Do you know of any online retailers that offer authenticated pre-owned luxury goods at a discounted price?\nassistant: You're"
+          },
+          {
+            "id": "mt_ae7896f7-1f0c-4811-a866-70ed7009e814",
+            "score": 0.3338780725733515,
+            "snippet": "user: I think I'll check out West Elm and Crate & Barrel online. I've been meaning to get some new rugs for the living room too. Do you have any recommendations for stores that sell a wide selection of rugs?\nassistant: West Elm and Crate & Barrel are both great online destination"
+          },
+          {
+            "id": "mt_87ea6017-9cf8-404c-8982-9930a086bb7a",
+            "score": 0.33148589226136466,
+            "snippet": "user: I've actually been thinking about my shopping habits lately and noticed that I've been oscillating between luxury and budget shopping. I just got a promotion at work and treated myself to a luxury spree, but then ended up buying budget-friendly alternatives a week later. I'"
+          }
+        ]
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      }
+    },
+    {
+      "caseId": "5d3d2817",
+      "actualOutput": "I don't know.",
+      "latencyMs": 51408,
+      "tokensIn": 5067,
+      "tokensOut": 4,
+      "usd": 0.0127075,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 55,
+          "turnsReplayed": 510,
+          "durationMs": 49801
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 259,
+        "retrievedEvidence": [
+          {
+            "id": "mt_f60861d6-7986-4cc3-a0a9-7ad3d4a45538",
+            "score": 0.353851855263878,
+            "snippet": "user: act as bailey:\n\nYou 6:07 AM\nInvited\nAmy Scott, M.Ed., LPC Associate\nto connect\nHi Dr. Scott,\n\nI was looking at your profile and, based on your experience, I would like to talk to you about some of the exciting counseling and psychiatric work we have at Televero Health.\n\nWha"
+          },
+          {
+            "id": "mt_70aaf07a-35fa-4a89-a320-7e7465f72668",
+            "score": 0.33009086159980633,
+            "snippet": "user: add the following concern to the letter, it is of high importance and the experience has left me scared considering the neighbors had delt with a break in recently. they have fortified their home in the aftermath of the incident. the concern is: this morning we found the ga"
+          },
+          {
+            "id": "mt_39527d35-a580-4183-88b1-6e2551626941",
+            "score": 0.3244865230232849,
+            "snippet": "user: here is my updated letter so far, please take this into account: Hello Alex, I hope you’re having a good morning and that this email finds you well.\nI wanted to reach out to you with an update regarding the property.\n\nFirstly, I would like to express my gratitude towards th"
+          },
+          {
+            "id": "mt_8ee239b7-9b82-4f31-8f08-a6d6dc0e79ec",
+            "score": 0.3229881757157404,
+            "snippet": "assistant: Hi Emeka,\n\nThank you for connecting with me. After reviewing your profile, I wanted to clarify that at Televero Health, we are specifically looking to hire psychiatrists and Licensed Clinical Social Workers (LCSWs). Based on your background, it appears that you have ex"
+          },
+          {
+            "id": "mt_d90594b2-2573-492a-9e23-f7fec81cc511",
+            "score": 0.32092260962333924,
+            "snippet": "user: please rewrite that message and encourage a referral\nassistant: Hi Amy,\n\nThank you for your response and clarification. I apologize for the confusion. At Televero Health, we are currently focusing on hiring psychiatrists and Licensed Clinical Social Workers (LCSWs). While w"
+          },
+          {
+            "id": "mt_e59f8919-3342-40ed-b453-001955aa036b",
+            "score": 0.3209040861134703,
+            "snippet": "user: Part 34 We conclude that the date of the FOC is not the date on which the building works were completed and from which the statutory warranty period ran.\nFurthermore, we do not accept that the definition of building works includes the rectification of defects in the buildin"
+          },
+          {
+            "id": "mt_4eaf1840-a92f-426d-8b3d-0844ba9d2f2a",
+            "score": 0.3207661608350761,
+            "snippet": "user: Yeah, I also sold 15 candles at the weekly farmers' market and 30 candles at SummerFest market, can you add that to the table? And can you help me understand what kind of sales pattern I have, like are there any days of the week or types of events that are better for my pro"
+          },
+          {
+            "id": "mt_97e364ff-2799-44c4-9649-a15a6213876a",
+            "score": 0.31691972677915287,
+            "snippet": "user: on the topic of construction mess i would also like to inform rent select that the active construction sites have been left in place so long that the sites and items in them are starting to decay. i will attach photos of the front yard site and the backyard area where the g"
+          },
+          {
+            "id": "mt_6b06fa08-1f73-4045-b222-9b13c8a8f446",
+            "score": 0.31593970725047377,
+            "snippet": "user: please rewrite this message and request clarification if he qualifies as a psychiatrist or LCSW\nassistant: Hi Dr. Grove,\n\nThank you for taking the time to review my message. I wanted to follow up and request some clarification on your qualifications. At Televero Health, we "
+          },
+          {
+            "id": "mt_6e7299d6-abd5-4310-8bb8-7463128ac482",
+            "score": 0.3155936226758609,
+            "snippet": "user: I want you to act as a Google My Business - What's New post generator. Your job is to create short and catchy updates that will appear on the Google My Business profile of a local business. Your first post should be about a new product or service that the business is offeri"
+          }
+        ]
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      }
+    },
+    {
+      "caseId": "7527f7e2",
+      "actualOutput": "You spent $800 on a designer handbag.",
+      "latencyMs": 46989,
+      "tokensIn": 5406,
+      "tokensOut": 9,
+      "usd": 0.013604999999999999,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 46,
+          "turnsReplayed": 490,
+          "durationMs": 46279
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 247,
+        "retrievedEvidence": [
+          {
+            "id": "mt_6538e9ab-32bb-48b0-92ea-4c2f3de68366",
+            "score": 0.3909067506887128,
+            "snippet": "user: I think I'd like to start tracking my expenses. Can you recommend any good budgeting apps? I've been using my credit card a lot lately, and I'm pretty sure I spent a lot on luxury items last month. I remember buying a designer handbag for a pretty penny - $800, to be exact."
+          },
+          {
+            "id": "mt_fdc15653-013b-4fba-95c1-8cfe4782b6ad",
+            "score": 0.38248901120126483,
+            "snippet": "user: I think I'll try Mint. I've heard good things about it. Also, I was thinking about my shopping habits and I realized that I've been frequenting high-end department stores like Saks and Neiman Marcus a lot lately. Do you think that's a good idea?\nassistant: Mint is a fantast"
+          },
+          {
+            "id": "mt_09c16c83-e470-41bb-af67-d0a5d6ac36ad",
+            "score": 0.3383652634549491,
+            "snippet": "user: I think it's a good idea to set some boundaries. I've been doing some research and found that there are some affordable alternatives to high-end brands that offer similar quality at a lower price point. I've started browsing online at stores like H&M and Uniqlo, and was sur"
+          },
+          {
+            "id": "mt_f1fd6f6f-a4cd-41c1-a20c-66d48bd6429f",
+            "score": 0.31402869717270504,
+            "snippet": "user: I'm trying to get a better handle on my finances and was wondering if you could help me track my spending habits. I've been thinking about creating a budget, but I'm not sure where to start.\nassistant: Tracking your spending habits and creating a budget can be a great way t"
+          },
+          {
+            "id": "mt_24b133d0-085e-4a5f-bf45-92fa2c1da04c",
+            "score": 0.31190864011005043,
+            "snippet": "user: I'm looking for some interior design tips to make my bedroom feel more cohesive. I just got a beautiful oak dresser from Henry at 'The Vintage Vault' that I'm using to store my clothes, and I want to decorate around it.\nassistant: Congratulations on your new oak dresser! It"
+          },
+          {
+            "id": "mt_fcb9230e-ba56-4fde-a1b1-a9f91cdc1363",
+            "score": 0.31060734944906193,
+            "snippet": "user: I'm also thinking of getting a new pair of Dr. Martens, do you think I should consider buying them online or in-store?\nassistant: When it comes to buying Dr. Martens, it's essential to consider the fit, quality, and overall experience. Here are some pros and cons of buying "
+          },
+          {
+            "id": "mt_c5bc5acb-5c91-410b-ba57-058ab5fb7c0d",
+            "score": 0.3096129896822775,
+            "snippet": "user: Summarize this article in under 300 words, adjusting the tone for Millenial readers. https://www.vogue.com/article/harry-styles-emrata-fashions-new-favorite-power-couple\nassistant: Hey there, fashionistas! Get ready for some serious style envy, because there's a new power c"
+          },
+          {
+            "id": "mt_370130e8-4a8a-4ac4-995b-f982cb8f00ec",
+            "score": 0.30786280700680696,
+            "snippet": "user: I'm also planning to pack light for this trip, so I was wondering if you could recommend any good packing apps or websites to help me organize my gear?\nassistant: Packing light is a great approach! There are many fantastic packing apps and websites that can help you organiz"
+          },
+          {
+            "id": "mt_83c41314-bc06-48db-803b-7bcf5f72d899",
+            "score": 0.30385476121477956,
+            "snippet": "user: I'm thinking about getting a new pair of Dr. Martens, but I'm not sure what style to get. Can you suggest some popular styles that are similar to my old pair?\nassistant: Dr. Martens has a vast range of styles, and finding the perfect one can be overwhelming. I'd be happy to"
+          },
+          {
+            "id": "mt_b46817fc-21f5-48be-a14f-e9dd665ae945",
+            "score": 0.301351864258194,
+            "snippet": "user: I'm looking for a cobbler who can repair my Vans, do you think I should look for someone who specializes in casual shoes or general shoe repair?\nassistant: For repairing Vans or casual shoes, you'll want to find a cobbler who has experience with casual footwear. Here's why:"
+          }
+        ]
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes"
+      }
+    },
+    {
+      "caseId": "c960da58",
+      "actualOutput": "You have 20 playlists on Spotify.",
+      "latencyMs": 72709,
+      "tokensIn": 5197,
+      "tokensOut": 8,
+      "usd": 0.0130725,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 48,
+          "turnsReplayed": 504,
+          "durationMs": 71772
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 254,
+        "retrievedEvidence": [
+          {
+            "id": "mt_2c1ca68a-3940-404f-97cf-72f786877887",
+            "score": 0.42751620760019404,
+            "snippet": "user: I've been listening to a mix of Lo-Fi hip hop beats and Tameca Jones' album on repeat lately, and I realized I want to create a new playlist for relaxing music. Can you suggest some mellow artists or songs that might fit the vibe? Also, by the way, I have 20 playlists on Sp"
+          },
+          {
+            "id": "mt_2918471e-3e78-449a-89da-00d9027bcf19",
+            "score": 0.388657316863793,
+            "snippet": "user: I'll definitely check out those artists and songs for my new relaxing playlist. I think I'll organize my playlists by mood, like you suggested. I have a lot of playlists for different moods or activities, like \"Morning Boost\" for upbeat tracks and \"Focus Flow\" for instrumen"
+          },
+          {
+            "id": "mt_34c57f5c-0db4-45be-af84-2b838e683337",
+            "score": 0.3771297513074215,
+            "snippet": "user: That's a great idea about using emojis or keywords in playlist names. I think I'll start doing that to make it easier to identify the mood or theme. By the way, do you have any recommendations for music discovery platforms or websites that can help me find new artists and s"
+          },
+          {
+            "id": "mt_82f82cb7-f6fc-4c88-add8-2d838f4e5901",
+            "score": 0.34801818350053887,
+            "snippet": "user: Can you provide some workout playlists that can help me stay motivated during my morning yoga sessions?\nassistant: Here are some playlists that can help you stay motivated during your morning yoga sessions:\n\n**Morning Sunrise**\n\n1. \"Here Comes the Sun\" by The Beatles\n2. \"Ri"
+          },
+          {
+            "id": "mt_214e1855-feeb-4d52-94ec-76dc9c98166d",
+            "score": 0.3294283873377038,
+            "snippet": "user: I'm trying to find more music similar to Tameca Jones. Can you recommend some artists or playlists that might fit my taste?\nassistant: Tameca Jones is an amazing artist! Her soulful, bluesy voice and genre-bending style make her a unique gem. I'd be happy to help you discov"
+          },
+          {
+            "id": "mt_c5d18ab7-6fc2-45fe-be22-27ca1b143f3a",
+            "score": 0.32929086001341995,
+            "snippet": "user: By the way, I've been meaning to ask: what do you think about vinyl record collecting? I recently started collecting vinyl and I'm really enjoying it. I just got my first record, a reissue of Fleetwood Mac's \"Rumours\", and I love listening to it on my new turntable. Do you "
+          },
+          {
+            "id": "mt_16bc2389-2fdb-427e-9d99-5f700df0bc0a",
+            "score": 0.31812932081612505,
+            "snippet": "user: That's really helpful! I think I can handle updating my credit card information now. For keeping track of updates, I think I'll create a spreadsheet to keep everything organized. One thing I'm still worried about is remembering to update all the online accounts, especially "
+          },
+          {
+            "id": "mt_eb3e397b-ebf7-478e-9fa2-3e09267d8876",
+            "score": 0.30960044382476803,
+            "snippet": "user: That's really helpful to know. I'll have to plan my trips accordingly. I've been trying to get out at least once a week, and I've been keeping track of my sightings in my birding journal. It's been really rewarding to see the different species I've spotted so far. Speaking "
+          },
+          {
+            "id": "mt_6302c7b5-357a-45cf-bbd9-c76d65fa0b47",
+            "score": 0.30491492009317955,
+            "snippet": "user: I need help tracking my expenses. Can you help me categorize my recent purchases by occasion and cost? I remember buying a silver necklace with a small diamond pendant from Tiffany's for my sister's birthday, which cost me $250.\nassistant: I'd be happy to help you track you"
+          },
+          {
+            "id": "mt_c49173b2-cfb5-4aff-bc44-17966088c7b9",
+            "score": 0.30414454691604004,
+            "snippet": "user: I went to the mall with my friends last Sunday and we got a gift for our mutual friend who was moving to a new apartment. I got her a set of cooking utensils from Williams-Sonoma, it was a 10-piece set and cost $120.\nassistant: Let's add that to the list.\n\n**Occasion:** Fri"
+          }
+        ]
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "yes"
+      }
+    },
+    {
+      "caseId": "3b6f954b",
+      "actualOutput": "You attended the University of Melbourne for your study abroad program.",
+      "latencyMs": 52678,
+      "tokensIn": 4969,
+      "tokensOut": 12,
+      "usd": 0.012542500000000002,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 52,
+          "turnsReplayed": 470,
+          "durationMs": 51696
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 238,
+        "retrievedEvidence": [
+          {
+            "id": "mt_ff5a4469-92ae-4302-8bc5-1114e522e22f",
+            "score": 0.37480946067555243,
+            "snippet": "user: That sounds amazing! I've been to the Great Ocean Road before, and it's definitely a must-see in Australia. I actually went there with some friends during my study abroad program at the University of Melbourne. We had a blast exploring the coast, hiking, and taking in the s"
+          },
+          {
+            "id": "mt_eb623f21-9eff-4d32-aaf6-c23079888ba0",
+            "score": 0.3390485166220206,
+            "snippet": "user: I'm looking for a language exchange partner who is a native French speaker and lives in my local area. Do you know of any websites or resources that can help me find someone who fits this criteria?\nassistant: Finding a language exchange partner who is a native French speake"
+          },
+          {
+            "id": "mt_98f5dbec-ef58-4083-9fcd-93ac428402ed",
+            "score": 0.3277233447659547,
+            "snippet": "user: I've used Conversation Exchange and Tandem in the past to find language exchange partners, but I'm looking for something more specific. Do you know of any websites or resources that focus specifically on connecting language learners with native French speakers in my local a"
+          },
+          {
+            "id": "mt_0ff6908d-da78-4396-a4f4-cce228639b4c",
+            "score": 0.3235208961437784,
+            "snippet": "user: I attended a lecture series at the History Museum later in February, which got me thinking about the pyramids and the Sphinx.\nassistant: What a great way to spark your interest in ancient history! Attending a lecture series at the History Museum must have been a fascinating"
+          },
+          {
+            "id": "mt_7d739fb9-fe85-453b-9f94-08f0e5dab5cf",
+            "score": 0.3234757487305936,
+            "snippet": "user: I'm also interested in attending cultural events related to language and cultural exchange. Can you recommend any websites or resources that list cultural events in my local area?\nassistant: What a great idea! Attending cultural events is an excellent way to immerse yoursel"
+          },
+          {
+            "id": "mt_4380463d-fb5a-48c3-81f7-76d8b592195f",
+            "score": 0.320165840584439,
+            "snippet": "user: I'm actually thinking of staying in an area that's a bit more laid back than Dotonbori, but still has easy access to the city. Do you have any recommendations for areas like that? By the way, I've been taking Japanese lessons and I'm getting better at navigating the city, w"
+          },
+          {
+            "id": "mt_54bf6553-6885-421f-92de-3351f7d00176",
+            "score": 0.3201291678901657,
+            "snippet": "user: I'm looking for some advice on how to stay organized with my assignments and part-time job. Do you have any tips on how to create a productive schedule?\nassistant: Staying organized and managing your time effectively is a crucial skill to master, especially when balancing a"
+          },
+          {
+            "id": "mt_021e07aa-c9e6-4151-aca6-a47f7eecabad",
+            "score": 0.31637006809817986,
+            "snippet": "user: I'm thinking of checking out some local music events, maybe a free outdoor concert series in the park or a jazz night at a local bar. Since I've been to a music festival in Brooklyn with a group of friends, featuring a lineup of my favorite indie bands, I'm looking forward "
+          },
+          {
+            "id": "mt_adac2776-0593-4494-9e00-3ad65024f87d",
+            "score": 0.3159990517257434,
+            "snippet": "user: Can you tell me more about how to find these career transition programs and which ones are the most effective?\nassistant: Certainly! To find career transition programs in a specific industry, you can start by researching individual companies that interest you. Many companie"
+          },
+          {
+            "id": "mt_3729e638-2d59-489c-a703-f5ba1d96f9b0",
+            "score": 0.31532646814907467,
+            "snippet": "user: I'm glad I went with the Hydro Flask. Speaking of outdoor activities, I recently went on a 4-day road trip to the mountains with my family. We drove around 200 miles each way and stopped at 3 different scenic spots along the way. On the second day, we hiked for about 5 mile"
+          }
+        ]
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      }
+    },
+    {
+      "caseId": "726462e0",
+      "actualOutput": "You received a 10% discount on your first purchase from the new clothing brand.",
+      "latencyMs": 55252,
+      "tokensIn": 3950,
+      "tokensOut": 17,
+      "usd": 0.010045,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 48,
+          "turnsReplayed": 501,
+          "durationMs": 54210
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 252,
+        "retrievedEvidence": [
+          {
+            "id": "mt_ae9238ab-078c-4fac-82db-202533ec2637",
+            "score": 0.3742001245908322,
+            "snippet": "user: I'm also thinking of exploring other platforms like Instagram and Twitter to promote my writing services. Do you have any tips on how to get started with those platforms, especially since I don't have much experience with them? By the way, speaking of first purchases, I rem"
+          },
+          {
+            "id": "mt_f1769053-8bf8-441f-abba-f0741fce8de4",
+            "score": 0.36599407620489666,
+            "snippet": "user: Here's my next response as the user:\n\n\"Can you also help me track my savings from using coupons and discounts? In this case, I saved $8 from the 10% off coupon on my Target order. Is there a way to add that to the breakdown?\"\nassistant: Here's my response as the assistant:\n"
+          },
+          {
+            "id": "mt_f5d68584-d62f-4626-a02e-8c6a75d8fa66",
+            "score": 0.3645117594201362,
+            "snippet": "user: That's a great point about investment pieces. I think I've been using it as an excuse to justify overspending in the past. But now that I'm trying to be more mindful of my spending habits, I realize that there are other ways to enjoy luxury without breaking the bank. Speaki"
+          },
+          {
+            "id": "mt_e8a8c29a-d31e-4049-b685-823f9fb07a0b",
+            "score": 0.354257981034203,
+            "snippet": "user: That's really helpful! I'll definitely check out those online stores. I think I'll start with Zazzle or CafePress to see if I can find some cool guitar-themed gifts. By the way, do you know if they have any discounts or promotions going on?\nassistant: Zazzle and CafePress o"
+          },
+          {
+            "id": "mt_b282ff42-b96a-4c15-83ec-7c4fd5fc5616",
+            "score": 0.3470189758189366,
+            "snippet": "user: I think I'll check out Zazzle and CafePress to see what kind of guitar-themed gifts they have. I'll also keep an eye out for any promotions or discounts they might be offering. Thanks for the tips on finding deals!\nassistant: You're welcome! I'm glad I could help. Zazzle an"
+          },
+          {
+            "id": "mt_36f0942c-528f-4507-8e78-0b1e7d0e0078",
+            "score": 0.34029234847120265,
+            "snippet": "user: Can you give me some examples of how incorporating different cultural influences into fashion can help to promote cultural understanding and acceptance?\nassistant: Certainly! Here are some ways that incorporating different cultural influences into fashion can promote cultur"
+          },
+          {
+            "id": "mt_f9337aba-500c-4249-a907-e13e5d306343",
+            "score": 0.3355074216435814,
+            "snippet": "user: Yeah, I also appreciate the product reviews and ratings online. It's helpful to see what other people thought of the item before making a purchase. What do you think?\nassistant: Yes, product reviews and ratings are a great advantage of shopping online. They provide customer"
+          },
+          {
+            "id": "mt_41b789b5-d5ee-4bf9-940c-d925b3abd13c",
+            "score": 0.33394909795158473,
+            "snippet": "user: I can definitely provide some details. So, I went to Walmart last Sunday and spent around $50. The day before, I ordered some groceries online from Target, which were delivered on Monday morning. I used a 10% off coupon on that order, so I ended up saving around $8. A week "
+          },
+          {
+            "id": "mt_5e9d9451-eb15-4607-be8f-b9ea8ff2acce",
+            "score": 0.33112080322592147,
+            "snippet": "user: Please respond with the next message from the user's perspective.\nassistant: Here's my response:\n\n\"Hey, thanks for helping me organize my grocery expenses! Your breakdown looks great, and I think it's pretty accurate. For the farmer's market trip, I'm going to estimate that"
+          },
+          {
+            "id": "mt_534282d3-89ec-49ba-b8e6-5fee3280c1ee",
+            "score": 0.3301126842359124,
+            "snippet": "user: How have digital innovations revolutionized the retail industry?\nassistant: 1. E-commerce: Digital innovations have made shopping easier and more convenient. Customers can now shop for products from anywhere and at any time using their mobile devices or computers. E-commerc"
+          }
+        ]
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes"
+      }
+    },
+    {
+      "caseId": "94f70d80",
+      "actualOutput": "It took you 4 hours to assemble the IKEA bookshelf.",
+      "latencyMs": 57359,
+      "tokensIn": 4907,
+      "tokensOut": 12,
+      "usd": 0.012387500000000001,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 51,
+          "turnsReplayed": 510,
+          "durationMs": 55896
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 257,
+        "retrievedEvidence": [
+          {
+            "id": "mt_96d852c5-e0f1-47e7-a993-8888fb2eec31",
+            "score": 0.42128015085917686,
+            "snippet": "user: I think I'll also stop by IKEA while I'm out to check out their coffee tables with storage, since I had a decent experience assembling that bookshelf. Do you think their coffee tables would be similarly easy to assemble?\nassistant: **IKEA Coffee Tables with Storage**\n\nIKEA "
+          },
+          {
+            "id": "mt_be7ba75a-1da9-44d1-9404-567fc0b2f2f4",
+            "score": 0.3964634321896493,
+            "snippet": "user: I've been leaning towards a wooden top, but now I'm considering the glass top option too. Do you think a glass top would be more prone to scratches or fingerprints compared to wood? Also, by the way, I just assembled an IKEA bookshelf recently and it took me 4 hours, which "
+          },
+          {
+            "id": "mt_eb8e0542-05a5-4653-bc12-541fab60c001",
+            "score": 0.3507979457800408,
+            "snippet": "user: I'll head to West Elm, Crate and Barrel, and IKEA this weekend to check out their coffee tables with storage. I'll also read online reviews and ratings to get a better sense of each product's quality and durability. Thanks for the tips!\nassistant: You're welcome! I'm thrill"
+          },
+          {
+            "id": "mt_2098c094-8436-4418-bae1-e869b551d171",
+            "score": 0.3253905913056982,
+            "snippet": "user: I'm trying to get a better handle on my daily routine. Can you help me set up a schedule that takes into account my morning meetings on Mondays and Thursdays at 9:00 am?\nassistant: I'd be happy to help you set up a daily routine that accommodates your morning meetings on Mo"
+          },
+          {
+            "id": "mt_a9cb3618-815c-4b88-92d7-f7e885169850",
+            "score": 0.3192288466927677,
+            "snippet": "user: I was thinking of heading to West Elm this weekend to check out their selection in person. Do you think I should also stop by Crate & Barrel to compare their coffee tables with storage? And how do you think I should prioritize the factors I'm considering, such as style, mat"
+          },
+          {
+            "id": "mt_ab9649ca-aaf5-47d2-9a56-cfe8dd90cb7f",
+            "score": 0.31109452177705493,
+            "snippet": "user: I think one of the biggest challenges I'll face is finding the time to create high-quality content on a consistent basis. I have a lot of other responsibilities and tasks that take up my time, so it's hard to prioritize content creation. \n\nDo you have any tips on how to sta"
+          },
+          {
+            "id": "mt_67b2b676-5300-46dd-8c4b-b0da86ffe92c",
+            "score": 0.3107640404769251,
+            "snippet": "user: I'm thinking of checking out some online reviews and ratings for the coffee tables I'm interested in, to get a better sense of their quality and durability. Do you think that's a good idea, or should I just rely on the information I gather in-store?\nassistant: **Online Revi"
+          },
+          {
+            "id": "mt_4e2099b4-ee47-42e9-9664-595654907eec",
+            "score": 0.3099795715749227,
+            "snippet": "user: Yeah, I was thinking of including a mix of fond memories from throughout my mom's life, like childhood photos, vacation pictures, and some recent ones too. I want to make it a bit of a surprise, so I don't want to ask her for the photos directly. Do you have any suggestions"
+          },
+          {
+            "id": "mt_a39c2333-d391-4dad-b566-5a11f2761dfd",
+            "score": 0.306363655527148,
+            "snippet": "user: I think I'll go with Shutterfly for the personalized photo album. I've used them before for my brother's graduation gift, and I was impressed with the quality. For the budget, I was thinking of setting it around $30-$40, which is similar to what I spent on my sister's neckl"
+          },
+          {
+            "id": "mt_fe951052-8e64-43ad-bbab-4d2a85bbfad1",
+            "score": 0.30440297692550217,
+            "snippet": "user: I think I'm good for now. I'll start working on my budget using the categories and estimation methods we discussed. Thanks for the help!\nassistant: You're welcome! I'm glad I could assist you in getting started with your budgeting process. Remember, budgeting is an ongoing "
+          }
+        ]
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "yes"
+      }
+    },
+    {
+      "caseId": "66f24dbb",
+      "actualOutput": "You bought your sister a yellow dress and a pair of earrings to match for her birthday.",
+      "latencyMs": 61048,
+      "tokensIn": 3008,
+      "tokensOut": 18,
+      "usd": 0.007699999999999999,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 55,
+          "turnsReplayed": 507,
+          "durationMs": 60354
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 255,
+        "retrievedEvidence": [
+          {
+            "id": "mt_62bf5713-1df0-44ca-9936-379252903259",
+            "score": 0.4248471059513217,
+            "snippet": "user: For my sister's birthday, I got her a yellow dress and a pair of earrings to match.\nassistant: Here's the updated list:\n\n**Sister's Birthday**\n\n* Occasion: Sister's birthday\n* Gift(s):\n\t+ Yellow dress\n\t+ Pair of earrings (matching the dress)\n\nLet's move on to the next one!\n"
+          },
+          {
+            "id": "mt_3b016d91-442b-436d-bbc3-c676ee6553f2",
+            "score": 0.4176565532252137,
+            "snippet": "user: I got her a pair of silver hoop earrings with a small pearl in the center.\nassistant: Lovely!\n\nHere's the updated list:\n\n**Sister's Birthday**\n\n* Occasion: Sister's birthday\n* Gift(s):\n\t+ Yellow dress\n\t+ Pair of earrings (matching the dress)\n\n**Gift for Mom**\n\n* Occasion: J"
+          },
+          {
+            "id": "mt_f21225a4-7dad-4bd1-8aa8-3ff5d9fe96b2",
+            "score": 0.41529990165976066,
+            "snippet": "user: Here's a start - I've bought gifts for my sister's birthday, my mom, my neighbor Mrs. Johnson, coworkers, my best friend's baby shower, and my brother's new apartment.\nassistant: Let's break down each occasion and gift. Please feel free to add more details as we go along.\n\n"
+          },
+          {
+            "id": "mt_b90f05d7-735f-44c2-97e0-2f1d2177c0e4",
+            "score": 0.40438342466785737,
+            "snippet": "user: We had a team-building event and I got them some snacks and drinks, like granola bars, nuts, and energy drinks. And we also had a going-away party for Rachel, and I chipped in to get her a gift - a beautiful journal and a set of nice pens.\nassistant: It sounds like you've b"
+          },
+          {
+            "id": "mt_57a5ddb9-c6cb-4e09-b26c-9d58f8e66e77",
+            "score": 0.38557804766784726,
+            "snippet": "user: I'm looking for some gift ideas for my brother. He's really into gaming, and I got him a customized phone case with his favorite game's logo on it for his birthday last month, which cost around $25. Do you have any suggestions for other gaming-related gifts?\nassistant: A cu"
+          },
+          {
+            "id": "mt_5f8a9e86-40d5-4f0c-9e7e-cd178f296e9b",
+            "score": 0.3845010804296643,
+            "snippet": "user: I got her some groceries and flowers when she was recovering from surgery.\nassistant:That's very thoughtful of you!\n\nHere's the updated list:\n\n**Sister's Birthday**\n\n* Occasion: Sister's birthday\n* Gift(s):\n\t+ Yellow dress\n\t+ Pair of earrings (matching the dress)\n\n**Gift fo"
+          },
+          {
+            "id": "mt_993b392b-1f0b-4824-a8e1-fd6659fe6195",
+            "score": 0.38097101707401015,
+            "snippet": "user: I think a $25 gift card would be a good amount, considering I spent around that much on the customized phone case for his birthday last month. Do you think that's a good idea?\nassistant: A $25 gift card is a great idea! Considering you spent around the same amount on the cu"
+          },
+          {
+            "id": "mt_9477acd0-f4cb-426d-88fd-80892f63f92e",
+            "score": 0.37951154301971307,
+            "snippet": "user: I'll try to find a matching mousepad with the same design as the phone case. Do you think it's a good idea to get a gift card to his favorite gaming platform's store as well, so he can purchase some new games or in-game items?\nassistant: A gift card to his favorite gaming p"
+          },
+          {
+            "id": "mt_3d0a1601-9d7a-4f0e-bdb3-120e378c2d5b",
+            "score": 0.3781547689552498,
+            "snippet": "user: What do you think about a gaming-themed accessory like a mousepad or coasters? Would those be something he'd appreciate?\nassistant: Gaming-themed accessories like a mousepad or coasters can be a great idea! They're practical, functional, and show off your brother's gaming p"
+          },
+          {
+            "id": "mt_0e4496a0-1f91-4f51-8270-09aec3da4ab0",
+            "score": 0.3606209533176765,
+            "snippet": "user: Now that I have a good idea for the gift, do you think I should include a personal message or a birthday card with the gift, or is the gift itself enough?\nassistant: Including a personal message or a birthday card with the gift is a wonderful idea! It adds a thoughtful and "
+          }
+        ]
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      }
+    },
+    {
+      "caseId": "ad7109d1",
+      "actualOutput": "I don't know.",
+      "latencyMs": 55282,
+      "tokensIn": 4095,
+      "tokensOut": 4,
+      "usd": 0.0102775,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 49,
+          "turnsReplayed": 478,
+          "durationMs": 54197
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 240,
+        "retrievedEvidence": [
+          {
+            "id": "mt_b68352b6-8ce3-46b6-96b0-998e6515ea00",
+            "score": 0.39437797271454117,
+            "snippet": "user: My router is a standard issue from my ISP, not sure about the model, but it's pretty new. My internet speed is 1 Gbps, and my home is around 1500 sq ft with two floors. The areas with weak signal are the living room and bedroom, which are on opposite sides of the house. The"
+          },
+          {
+            "id": "mt_e611fbc8-2688-4195-b79b-bcac823849df",
+            "score": 0.34510909049783406,
+            "snippet": "user: I've been having some issues with my WiFi signal in certain areas of the house. Can you recommend some good WiFi extenders that would work well with my current router?\nassistant: I'd be happy to help you with that!\n\nBefore we dive into WiFi extender recommendations, can you"
+          },
+          {
+            "id": "mt_50de37d1-21e1-4fd0-b21f-1f6f945ef144",
+            "score": 0.3352718103054541,
+            "snippet": "user: I did notice that my internet speed has been really good lately, especially when I'm streaming movies on Netflix. I upgraded to 500 Mbps about three weeks ago, and it's made a huge difference. Anyway, back to my battery issue... do you think it's possible that my laptop's b"
+          },
+          {
+            "id": "mt_7bcd3a14-aa7a-4e67-b20c-bc0fef25372d",
+            "score": 0.33079339741590214,
+            "snippet": "user: I'm thinking of scheduling a tire rotation for my car, can you remind me how often I should do it and if there are any coupons or deals available? By the way, I just washed my car last weekend and used a new soap that my friend recommended, it worked really well!\nassistant:"
+          },
+          {
+            "id": "mt_65b0a743-2efb-449f-a399-48a249022de5",
+            "score": 0.32081938874693855,
+            "snippet": "user: Yeah, I'm planning to take some photos of my motorcycle this weekend, and I might also check out that new bike model I've been eyeing at the bike shop down the street. Do you think I should get it serviced before buying it, or is that something the seller should handle?\nass"
+          },
+          {
+            "id": "mt_2c40e348-ddb3-4070-865c-36c45bb2396c",
+            "score": 0.3153072769353021,
+            "snippet": "user: That's really helpful, thanks. I'm actually more concerned about fuel efficiency on this trip since we'll be driving a Ford F-150, which isn't as fuel-efficient as my Toyota Corolla or even my family's Honda Pilot that we took to Yellowstone. Do you know the average fuel ec"
+          },
+          {
+            "id": "mt_d4527e01-da09-4040-a012-f00eb262706b",
+            "score": 0.3131498320673291,
+            "snippet": "user: I think I'll check out some of those brands and fabrics to find a new running shirt that fits my needs. Thanks for the recommendations!\nassistant: You're welcome! I'm glad I could help. Remember to try out a few different options and read reviews to find the best fit for yo"
+          },
+          {
+            "id": "mt_87ca7656-a33a-4cc4-b963-d4101c420661",
+            "score": 0.3118689667073119,
+            "snippet": "user: I've heard good things about the bike shop, but I've never bought anything from them before. I've just walked by the shop a few times and seen the new model in the window. I'll make sure to ask them about the maintenance history and inspect the bike thoroughly before making"
+          },
+          {
+            "id": "mt_b9e82ab2-7ab9-43a6-be6c-da16f5036488",
+            "score": 0.3110288493003065,
+            "snippet": "user: I'm looking for some yoga routines that can help with flexibility and balance. By the way, I finally ordered a new yoga mat online a few weeks ago and it arrived last Tuesday, so I'm excited to start using it.\nassistant: Congratulations on your new yoga mat! That's exciting"
+          },
+          {
+            "id": "mt_273c3746-9f0d-4df4-85e6-04f18a52f6ee",
+            "score": 0.30057387148580345,
+            "snippet": "user: The soap is called \"ShinePro\" and it's really good at removing dirt and leaving a nice shine. Anyway, back to the tire rotation, do you think I should also get my air filter replaced while I'm at it, since the mechanic mentioned it needs to be done soon?\nassistant: **ShineP"
+          }
+        ]
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      }
+    },
+    {
+      "caseId": "af8d2e46",
+      "actualOutput": "You packed 7 shirts for your 5-day trip to Costa Rica.",
+      "latencyMs": 50071,
+      "tokensIn": 4941,
+      "tokensOut": 15,
+      "usd": 0.012502500000000001,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 54,
+          "turnsReplayed": 495,
+          "durationMs": 49373
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 249,
+        "retrievedEvidence": [
+          {
+            "id": "mt_7e0a489e-dd70-40ae-94b3-0280329dd1ab",
+            "score": 0.43368757434813726,
+            "snippet": "user: That's really helpful! I've been trying to get better at packing, but I still tend to overpack. Like, on my last trip to Costa Rica, I brought 7 shirts and 5 pairs of shorts, but I only ended up wearing 3 of the shirts and 2 of the shorts. I guess I need to work on packing "
+          },
+          {
+            "id": "mt_da83003c-ca97-403a-b704-198c3bd2ca3b",
+            "score": 0.41889951252874136,
+            "snippet": "user: I'm still trying to figure out how to pack clothes more strategically. Do you have any tips on how to determine what to pack for a trip, and how many outfits I should aim to create with the clothes I bring?\nassistant: Packing clothes strategically is an art! Here are some t"
+          },
+          {
+            "id": "mt_5d583bad-0367-4059-ad1c-f334611a6670",
+            "score": 0.3857383635722605,
+            "snippet": "user: I'm trying to get better at packing for my trips. Can you help me come up with a list of essentials to pack for a 3-day business trip?\nassistant: Packing for a 3-day business trip can be a breeze with a little planning. Here's a list of essentials to get you started:\n\n**Clo"
+          },
+          {
+            "id": "mt_b0bffbed-fc4f-4302-8605-3a2e832540d1",
+            "score": 0.36219683381040507,
+            "snippet": "user: I'm also trying to figure out what to pack in my carry-on versus my checked luggage. Can you give me some general guidelines on that?\nassistant: Packing the right items in your carry-on versus checked luggage can make a big difference in your travel experience. Here are som"
+          },
+          {
+            "id": "mt_64c29419-a90e-4c67-aa6c-adb4352c67d7",
+            "score": 0.35286235101854624,
+            "snippet": "user: I think I'm starting to get the hang of this packing thing! Thanks for the advice. I've also been trying to get better at packing my toiletries more efficiently. I invested in some travel-sized toiletry bottles and a packing cube, which has really helped me stay organized.\n"
+          },
+          {
+            "id": "mt_b74f7769-7d04-47c1-b760-dffc455d22e8",
+            "score": 0.33292303272857426,
+            "snippet": "user: Can you give me an estimate of how much I should expect to pay for the move, considering it's a 3-bedroom local move with moderate volume of items? Also, do you think I should opt for professional packing services or do it myself to save some money?\nassistant: Estimating th"
+          },
+          {
+            "id": "mt_7db13334-ec12-4000-bdb2-71e788b396f1",
+            "score": 0.3297056772742344,
+            "snippet": "user: I've been thinking about my backpack situation too. I recently got a new one on February 10th, and it has been a game-changer for staying organized.\nassistant: Congratulations on the new backpack! It's great to hear that it's been a game-changer for staying organized. A goo"
+          },
+          {
+            "id": "mt_24e8a948-f8c3-4675-9488-6f62f3236d35",
+            "score": 0.3274336117989365,
+            "snippet": "user: I got it at the outlet mall near my house. I was looking for a new one since my old one was getting worn out, especially the straps. This new one has multiple compartments, which will surely help me stay organized.\nassistant: Outlet malls can be a great place to find deals "
+          },
+          {
+            "id": "mt_40c8ee6a-1347-4319-a390-670f085780ff",
+            "score": 0.3192608298211694,
+            "snippet": "user: I'm in the 90210 zip code, and it's a local residential move from my current apartment to the new townhouse I'm purchasing. It's a 3-bedroom move, and I'd say the volume of items is moderate - not too much furniture, but a lot of boxes and miscellaneous stuff. By the way, I"
+          },
+          {
+            "id": "mt_e52cf957-59b7-4dc8-93e4-b6bf4db06670",
+            "score": 0.31701064764385717,
+            "snippet": "user: I'm looking for a good online store to buy a luggage tag for my suitcase. Do you have any recommendations?\nassistant: There are many online stores where you can buy luggage tags, but I'll suggest a few popular ones that offer a wide selection, good quality, and competitive "
+          }
+        ]
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes"
+      }
+    },
+    {
+      "caseId": "dccbc061",
+      "actualOutput": "You used to be a staunch atheist before you started exploring other possibilities, including reading about Buddhism.",
+      "latencyMs": 53097,
+      "tokensIn": 7122,
+      "tokensOut": 20,
+      "usd": 0.018005,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 51,
+          "turnsReplayed": 505,
+          "durationMs": 52030
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 255,
+        "retrievedEvidence": [
+          {
+            "id": "mt_83485ca5-dd03-4bc8-8afd-5b2993403b73",
+            "score": 0.37687322943208607,
+            "snippet": "user: I'm trying to find some books on synchronicity and its connection to spirituality. Can you recommend some titles or authors? By the way, I've been reading a lot about Buddhism lately, which is a big shift from my previous stance on spirituality - I used to be a staunch athe"
+          },
+          {
+            "id": "mt_44d7b6e1-f788-482d-87e4-63eda473c012",
+            "score": 0.37431361021370474,
+            "snippet": "user: I think you've really dug deep into the connections between the Orch-OR theory and synchronicity. It's fascinating to consider how our consciousness might be interconnected with the universe, and how that could lead to the experience of synchronicities.\n\nI'm particularly in"
+          },
+          {
+            "id": "mt_64ca3d9a-781d-40b1-9254-3dfc20f29f5d",
+            "score": 0.37103265518088974,
+            "snippet": "user: I'm really excited about the potential of using meditation and intentional practices to \"tune in\" to the quantum realm and attract more synchronicities into our lives. It makes sense that by focusing our attention and intentions, we may be able to create a stronger connecti"
+          },
+          {
+            "id": "mt_211f6996-dd36-41cf-9bbe-93ca495ca0c9",
+            "score": 0.34927157260634195,
+            "snippet": "user: I'm really interested in the concept of synchronicity and its connection to consciousness. Can you tell me more about the scientific aspects of it? Is there any research that supports the idea that synchronicity is more than just coincidence?\nassistant: The scientific aspec"
+          },
+          {
+            "id": "mt_06b72bbc-e9da-4310-8a5b-b0bfa0f4faf2",
+            "score": 0.34899122537319777,
+            "snippet": "user: I'm intrigued by the Orch-OR theory and its potential connection to consciousness and synchronicity. Can you recommend some books or research papers that delve deeper into this topic? Also, I'd love to know more about the Global Consciousness Project and its findings on col"
+          },
+          {
+            "id": "mt_b32b6478-bff1-4e83-a693-a698029b0f75",
+            "score": 0.3436633238794475,
+            "snippet": "user: That's great to hear! How does the Baha'i faith approach environmental issues and conservation?\nassistant: The Baha'i faith places a strong emphasis on environmental conservation and the need to protect the planet. Baha'i teachings emphasize the interconnectedness of all th"
+          },
+          {
+            "id": "mt_254d9a37-5954-430d-8c0d-cf898e2b1661",
+            "score": 0.3414655239865079,
+            "snippet": "user: That's really cool! What are some of the core beliefs of the Baha'i faith?\nassistant: The Baha'i faith has several core beliefs that form the foundation of its teachings. Here are some of them:\n\n1. Oneness of God: Baha'is believe in the existence of one God who is the creat"
+          },
+          {
+            "id": "mt_982bda81-57de-43d7-ac10-3cb5536baf1e",
+            "score": 0.3386422597120116,
+            "snippet": "user: Step 3: Put your top foot in front of your bottom foot.\nStep 4: Find your neutral spine and engage your core to lock it in place. \nStep 5: Slowly lift your hips off the ground as you bring them forward to form a straight line from foot to shoulders, like a plank. You do thi"
+          },
+          {
+            "id": "mt_f3e515d1-96b6-4714-bc51-acb07c9ee547",
+            "score": 0.33721116350536395,
+            "snippet": "user: Wow, it sounds like a lot of work to differentiate between truth and belief these days. Can't I just believe whatever I want?\nassistant: As an AI language model, I am programmed to provide informative and neutral responses without any personal bias. If you want a straightfo"
+          },
+          {
+            "id": "mt_ffd4d79e-9293-4270-8157-bf2d1b3997f6",
+            "score": 0.3369444562894137,
+            "snippet": "user: How are the beliefs and practices of Baha'i different from those of other major world religions?\nassistant: The beliefs and practices of the Baha'i faith are different from those of other major world religions in several ways. \n\n1. The Baha'i faith is based on the principle"
+          }
+        ]
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      }
+    }
+  ]
+}
