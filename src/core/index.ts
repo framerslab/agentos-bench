@@ -38,6 +38,8 @@ export type {
   TypeComparison,
   UnmatchedCases,
 } from './compareRuns.js';
+export { estimateRunCost } from './estimateRunCost.js';
+export type { CostEstimate, EstimateRunCostInput } from './estimateRunCost.js';
 export {
   replay,
   replayViaObserve,

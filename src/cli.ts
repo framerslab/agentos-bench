@@ -38,6 +38,7 @@ import {
   SpreadingActivationPrecision,
   WorkingMemoryCapacity,
   createReader,
+  estimateRunCost,
   type IBenchmark,
   type IReader,
   type MemoryMode,
@@ -168,6 +169,29 @@ function parseFloatArg(v: string): number {
 }
 
 /**
+ * Default case count for the cost preflight when `--sample` is not set.
+ * Hardcoded so we don't have to load the dataset just to estimate cost.
+ * Matches the published dataset sizes.
+ */
+function defaultCaseCountForBenchmark(id: string): number {
+  switch (id) {
+    case 'longmemeval-s':
+    case 'longmemeval-m':
+    case 'longmemeval-oracle':
+      return 500;
+    case 'locomo':
+      // 10 conversations × ~200 QA pairs each in the upstream dump.
+      return 2_000;
+    case 'beam-500k':
+    case 'beam-1m':
+    case 'beam-10m':
+      return 100;
+    default:
+      return 100;
+  }
+}
+
+/**
  * Pretty-print a completed run's headline numbers plus a per-type
  * accuracy breakdown when the benchmark produced one. Keeping this in
  * the CLI (not the BenchmarkRunner) so the underlying run result stays
@@ -251,6 +275,42 @@ export function buildCli(): Command {
         maxUsd: opts.maxUsd,
       };
 
+      // Cost preflight — coarse but enough to catch "oh no I just
+      // fired 500 × Opus 4.7 cases by mistake" before any LLM call
+      // goes out. Runs before createReader / judge construction so
+      // aborting is cheap even when API keys are missing.
+      if (entry.family === 'external' && !opts.dryRun) {
+        // Rough haystack-size estimate needs a case count. We skip the
+        // real dataset load to stay fast — the estimator's per-benchmark
+        // haystack table gives a usable number with caseCount=sampleN
+        // or a generous default.
+        const caseCount = opts.sample ?? defaultCaseCountForBenchmark(entry.id);
+        const estimate = estimateRunCost({
+          benchmarkId: entry.id,
+          family: 'external',
+          caseCount,
+          sampleN: opts.sample,
+          reader: opts.reader as ReaderModel,
+          judgeModel: opts.judgeModel as ReaderModel,
+          memoryMode: opts.memory as MemoryMode,
+        });
+        // eslint-disable-next-line no-console
+        console.log(
+          `Preflight cost estimate: ~$${estimate.totalUsd.toFixed(2)} for ${estimate.effectiveCaseCount} cases ` +
+            `($${estimate.readerUsdPerCase.toFixed(4)}/case reader, $${estimate.judgeUsdPerCase.toFixed(4)}/case judge).`,
+        );
+        for (const w of estimate.warnings) console.log(`  warn: ${w}`);
+        if (typeof opts.maxUsd === 'number' && estimate.totalUsd > opts.maxUsd) {
+          // eslint-disable-next-line no-console
+          console.error(
+            `Aborting: projected $${estimate.totalUsd.toFixed(2)} exceeds --max-usd $${opts.maxUsd.toFixed(2)}. ` +
+              `Pass a higher --max-usd or use --sample N to bound the run.`,
+          );
+          process.exitCode = 1;
+          return;
+        }
+      }
+
       const judge = opts.dryRun
         ? new LongMemEvalJudge({
             reader: new MockReader(opts.judgeModel).on(
@@ -308,6 +368,118 @@ export function buildCli(): Command {
       const result = await runner.run(benchmark, runConfig);
 
       printRunSummary(result);
+    });
+
+  program
+    .command('runs')
+    .description('List saved benchmark runs with one-line summaries.')
+    .option('--results-dir <path>', 'Results directory')
+    .option('--benchmark <id>', 'Filter to a specific benchmark id')
+    .option('--limit <n>', 'Show only the N most recent runs', parseInteger, 50)
+    .action(async (opts) => {
+      const { ResultStore } = await import('./core/ResultStore.js');
+      const resultsDir = resolveResultsDir(opts.resultsDir);
+      const store = new ResultStore(resultsDir);
+      const summary = await store.readSummary();
+      const entries = Object.values(summary.latest)
+        .filter((e) => !opts.benchmark || e.benchmarkId === opts.benchmark)
+        .sort((a, b) => (a.startedAt > b.startedAt ? -1 : 1))
+        .slice(0, opts.limit ?? 50);
+
+      if (entries.length === 0) {
+        // eslint-disable-next-line no-console
+        console.log(`No runs found under ${resultsDir}.`);
+        return;
+      }
+
+      const pad = {
+        bench: Math.max(...entries.map((e) => e.benchmarkId.length)),
+        reader: Math.max(...entries.map((e) => e.reader.length)),
+        memory: Math.max(...entries.map((e) => e.memoryMode.length)),
+      };
+      // eslint-disable-next-line no-console
+      console.log(
+        `${'benchmark'.padEnd(pad.bench)}  ${'reader'.padEnd(pad.reader)}  ${'memory'.padEnd(pad.memory)}  replay   acc    $/correct  runFile`,
+      );
+      for (const e of entries) {
+        const acc = `${(e.accuracy * 100).toFixed(1).padStart(5)}%`;
+        const cpc = Number.isFinite(e.costPerCorrect)
+          ? `$${e.costPerCorrect.toFixed(4)}`
+          : '       $∞';
+        // eslint-disable-next-line no-console
+        console.log(
+          `${e.benchmarkId.padEnd(pad.bench)}  ${e.reader.padEnd(pad.reader)}  ${e.memoryMode.padEnd(pad.memory)}  ${e.replayMode.padEnd(7)}  ${acc}  ${cpc.padStart(10)}  ${e.runFile}`,
+        );
+      }
+    });
+
+  program
+    .command('micro')
+    .description('Run every micro-benchmark in one invocation (CI shortcut).')
+    .option('--results-dir <path>', 'Results directory')
+    .option('-c, --concurrency <n>', 'Per-benchmark concurrency', parseInteger, 3)
+    .action(async (opts) => {
+      const microEntries = BENCHMARKS.filter((b) => b.family === 'micro');
+      const judge = {
+        model: 'noop',
+        rubricVersion: '0',
+        async judge() {
+          throw new Error('judge invoked on a micro-benchmark');
+        },
+      } as const;
+
+      // Fresh MockReader per entry — micro-benchmarks never call it,
+      // but the BenchEntry.build contract requires one.
+      let failures = 0;
+      const rows: Array<{ id: string; passed: number; total: number; acc: number; avgLatencyMs: number }> = [];
+      for (const entry of microEntries) {
+        const runner = new BenchmarkRunner({
+          dataDir: resolveDataDir(opts.dataDir),
+          resultsDir: resolveResultsDir(opts.resultsDir),
+          judge,
+        });
+        const benchmark = entry.build({ reader: new MockReader('bench-micro') });
+        try {
+          const result = await runner.run(benchmark, {
+            reader: 'claude-sonnet-4-6',
+            memoryMode: 'none',
+            replayMode: 'ingest',
+            concurrency: opts.concurrency ?? 3,
+          });
+          rows.push({
+            id: entry.id,
+            passed: result.passedCases,
+            total: result.totalCases,
+            acc: result.accuracy,
+            avgLatencyMs: result.avgLatencyMs,
+          });
+          if (result.passedCases < result.totalCases) failures += 1;
+        } catch (err: unknown) {
+          failures += 1;
+          rows.push({ id: entry.id, passed: 0, total: 0, acc: 0, avgLatencyMs: 0 });
+          // eslint-disable-next-line no-console
+          console.error(`[${entry.id}] FAILED: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+
+      const pad = Math.max(...rows.map((r) => r.id.length));
+      // eslint-disable-next-line no-console
+      console.log('\nMicro-benchmark summary:');
+      // eslint-disable-next-line no-console
+      console.log(`${'benchmark'.padEnd(pad)}  result  passed/total   acc    avg latency`);
+      for (const r of rows) {
+        const ok = r.passed === r.total && r.total > 0;
+        const mark = ok ? 'PASS' : 'FAIL';
+        // eslint-disable-next-line no-console
+        console.log(
+          `${r.id.padEnd(pad)}  ${mark}    ${String(r.passed).padStart(3)}/${String(r.total).padStart(3)}   ${(r.acc * 100).toFixed(1).padStart(5)}%  ${r.avgLatencyMs.toFixed(1).padStart(6)} ms`,
+        );
+      }
+      if (failures > 0) {
+        // eslint-disable-next-line no-console
+        console.error(`\n${failures} micro-benchmark(s) failed.`);
+        process.exitCode = 1;
+      }
     });
 
   program

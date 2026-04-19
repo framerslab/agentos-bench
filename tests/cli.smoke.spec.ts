@@ -133,6 +133,112 @@ describe('CLI smoke', () => {
     expect(typeof run.cases[0].metadata.workingMemorySlots).toBe('number');
     expect(typeof run.cases[0].metadata.observationsEmitted).toBe('number');
   });
+
+  it('runs subcommand lists saved runs from summary.json', async () => {
+    // Seed a saved run by executing one.
+    await buildCli().parseAsync([
+      'node',
+      'agentos-bench',
+      'run',
+      'longmemeval-s',
+      '--memory',
+      'base-memory',
+      '--data-dir',
+      dataDir,
+      '--results-dir',
+      resultsDir,
+      '--dry-run',
+    ]);
+
+    const out = await captureStdout(async () => {
+      await buildCli().parseAsync([
+        'node',
+        'agentos-bench',
+        'runs',
+        '--results-dir',
+        resultsDir,
+      ]);
+    });
+    expect(out).toContain('longmemeval-s');
+    expect(out).toContain('base-memory');
+    expect(out).toContain('100.0%');
+  });
+
+  it('runs subcommand prints a helpful line when the results dir is empty', async () => {
+    const out = await captureStdout(async () => {
+      await buildCli().parseAsync([
+        'node',
+        'agentos-bench',
+        'runs',
+        '--results-dir',
+        path.join(tmpRoot, 'empty-results'),
+      ]);
+    });
+    expect(out).toMatch(/No runs found/);
+  });
+
+  it('preflight aborts the run when projected USD exceeds --max-usd', async () => {
+    const stderr: string[] = [];
+    const originalError = console.error;
+    console.error = (...args: unknown[]) => {
+      stderr.push(args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' '));
+    };
+    const originalExitCode = process.exitCode;
+    try {
+      await buildCli().parseAsync([
+        'node',
+        'agentos-bench',
+        'run',
+        'longmemeval-s',
+        '--reader',
+        'claude-opus-4-7',
+        '--memory',
+        'none',
+        '--max-usd',
+        '1',
+        '--data-dir',
+        dataDir,
+        '--results-dir',
+        path.join(tmpRoot, 'preflight-results'),
+      ]);
+    } finally {
+      console.error = originalError;
+    }
+
+    expect(process.exitCode).toBe(1);
+    expect(stderr.join('\n')).toMatch(/exceeds --max-usd/);
+    // No run file should have been produced.
+    const runsDir = path.join(tmpRoot, 'preflight-results', 'runs');
+    const entries = await fs.readdir(runsDir).catch(() => []);
+    expect(entries).toHaveLength(0);
+
+    // Reset exitCode so subsequent tests in this file start clean.
+    process.exitCode = originalExitCode;
+  });
+
+  it('micro subcommand runs every micro-benchmark and prints a pass/fail grid', async () => {
+    const out = await captureStdout(async () => {
+      await buildCli().parseAsync([
+        'node',
+        'agentos-bench',
+        'micro',
+        '--results-dir',
+        path.join(tmpRoot, 'micro-results'),
+      ]);
+    });
+    // Every micro-benchmark should appear as a PASS row on an
+    // unmodified AgentOS checkout.
+    expect(out).toContain('decay-fidelity');
+    expect(out).toContain('hexaco-encoding-bias');
+    expect(out).toContain('working-memory-capacity');
+    expect(out).toContain('spreading-activation-precision');
+    expect(out).toContain('consolidation-signal-preservation');
+    expect(out).toContain('scaling-profile');
+    expect(out).toContain('signal-ablation');
+    expect(out).toContain('PASS');
+    // The summary table lives after the per-benchmark outputs.
+    expect(out).toContain('Micro-benchmark summary');
+  }, 60_000);
 });
 
 /**
