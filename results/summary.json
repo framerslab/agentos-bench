@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-04-19T07:37:30.095Z",
+  "updatedAt": "2026-04-19T08:51:07.795Z",
   "latest": {
     "decay-fidelity|claude-sonnet-4-6|none|ingest": {
       "runFile": "micro/2026-04-19T06-11-20-814--decay-fidelity--claude-sonnet-4-6--none--ingest.json",
@@ -107,19 +107,34 @@
       "startedAt": "2026-04-19T06:11:20.827Z"
     },
     "longmemeval-s|gpt-4o|full-cognitive|ingest": {
-      "runFile": "runs/2026-04-19T07-10-57-519--longmemeval-s--gpt-4o--full-cognitive--ingest.json",
+      "runFile": "runs/2026-04-19T08-16-33-204--longmemeval-s--gpt-4o--full-cognitive--ingest.json",
       "benchmarkId": "longmemeval-s",
       "benchmarkVersion": "1.0.0",
       "reader": "gpt-4o",
       "memoryMode": "full-cognitive",
       "replayMode": "ingest",
       "totalCases": 20,
-      "accuracy": 0.7,
-      "avgScore": 0.7,
-      "avgLatencyMs": 58895.65,
-      "totalUsd": 0.29347250000000014,
-      "costPerCorrect": 0.020962321428571438,
-      "startedAt": "2026-04-19T07:10:57.519Z"
+      "accuracy": 0.9,
+      "avgScore": 0.9,
+      "avgLatencyMs": 62043.25,
+      "totalUsd": 0.30441750000000006,
+      "costPerCorrect": 0.016912083333333338,
+      "startedAt": "2026-04-19T08:16:33.204Z"
+    },
+    "longmemeval-oracle|gpt-4o|none|ingest": {
+      "runFile": "runs/2026-04-19T08-16-00-164--longmemeval-oracle--gpt-4o--none--ingest.json",
+      "benchmarkId": "longmemeval-oracle",
+      "benchmarkVersion": "1.0.0",
+      "reader": "gpt-4o",
+      "memoryMode": "none",
+      "replayMode": "ingest",
+      "totalCases": 20,
+      "accuracy": 0.65,
+      "avgScore": 0.65,
+      "avgLatencyMs": 764.7,
+      "totalUsd": 0.43302250000000025,
+      "costPerCorrect": 0.0333094230769231,
+      "startedAt": "2026-04-19T08:16:00.164Z"
     }
   }
 }

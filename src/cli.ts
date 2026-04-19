@@ -48,6 +48,7 @@ import {
   type RunConfig,
 } from './index.js';
 import type { IEmbeddingManager } from '@framers/agentos/core/embeddings/IEmbeddingManager';
+import type { MemoryRetrievalProfile } from '@framers/agentos';
 
 interface BenchEntry {
   id: string;
@@ -173,6 +174,17 @@ function parseFloatArg(v: string): number {
   return n;
 }
 
+function parseRetrievalProfile(v: string): MemoryRetrievalProfile {
+  if (v === 'fast' || v === 'balanced' || v === 'max-recall') return v;
+  throw new Error(`Expected retrieval profile fast | balanced | max-recall, got ${v}`);
+}
+
+function parseAdaptiveMode(v: string): boolean {
+  if (v === 'on') return true;
+  if (v === 'off') return false;
+  throw new Error(`Expected adaptive mode on | off, got ${v}`);
+}
+
 /**
  * Default case count for the cost preflight when `--sample` is not set.
  * Hardcoded so we don't have to load the dataset just to estimate cost.
@@ -257,6 +269,8 @@ export function buildCli(): Command {
     .option('-p, --replay <mode>', 'Replay mode: observe | ingest', 'ingest')
     .option('-n, --sample <n>', 'Run only the first N cases', parseInteger)
     .option('-c, --concurrency <n>', 'Parallel case execution', parseInteger, 3)
+    .option('--profile <profile>', 'Retrieval profile: fast | balanced | max-recall', parseRetrievalProfile, 'balanced')
+    .option('--adaptive <mode>', 'Adaptive retrieval: on | off', parseAdaptiveMode, true)
     .option('--max-usd <amount>', 'Abort if projected USD exceeds this cap', parseFloatArg)
     .option('--data-dir <path>', 'Dataset cache directory')
     .option('--results-dir <path>', 'Results directory')
@@ -282,6 +296,8 @@ export function buildCli(): Command {
         sampleN: opts.sample,
         concurrency: opts.concurrency,
         maxUsd: opts.maxUsd,
+        retrievalProfile: opts.profile as MemoryRetrievalProfile,
+        adaptiveRetrieval: opts.adaptive as boolean,
       };
 
       // Cost preflight — coarse but enough to catch "oh no I just

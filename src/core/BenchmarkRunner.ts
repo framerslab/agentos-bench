@@ -44,8 +44,10 @@ export interface BenchmarkRunnerOptions {
 /**
  * Resolves sensible defaults for a {@link RunConfig}.
  */
-export function resolveRunConfig(cfg: RunConfig): Required<Omit<RunConfig, 'sampleN' | 'tags' | 'seed' | 'maxUsd'>> &
-  Pick<RunConfig, 'sampleN' | 'tags' | 'seed' | 'maxUsd'> {
+export function resolveRunConfig(
+  cfg: RunConfig,
+): Required<Omit<RunConfig, 'sampleN' | 'tags' | 'seed' | 'maxUsd' | 'retrievalProfile' | 'adaptiveRetrieval'>> &
+  Pick<RunConfig, 'sampleN' | 'tags' | 'seed' | 'maxUsd' | 'retrievalProfile' | 'adaptiveRetrieval'> {
   return {
     reader: cfg.reader,
     memoryMode: cfg.memoryMode,
@@ -55,6 +57,8 @@ export function resolveRunConfig(cfg: RunConfig): Required<Omit<RunConfig, 'samp
     tags: cfg.tags,
     seed: cfg.seed,
     maxUsd: cfg.maxUsd,
+    retrievalProfile: cfg.retrievalProfile,
+    adaptiveRetrieval: cfg.adaptiveRetrieval,
   };
 }
 

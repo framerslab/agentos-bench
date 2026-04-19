@@ -62,35 +62,52 @@ export class OpenAIHttpReader implements IReader {
     if (req.system) messages.push({ role: 'system', content: req.system });
     messages.push({ role: 'user', content: req.user });
 
+    // GPT-5 family rejects `max_tokens` — they require `max_completion_tokens`
+    // and refuse non-default temperatures. The older chat-completions path
+    // keeps using `max_tokens` for GPT-4o / GPT-4 / GPT-3.5 compatibility.
+    const isGpt5 = /^gpt-5/.test(this.model);
+    const requestBody: Record<string, unknown> = {
+      model: this.model,
+      messages,
+    };
+    if (isGpt5) {
+      // GPT-5 models use `max_completion_tokens` AND consume some of that
+      // budget on internal reasoning tokens before producing visible
+      // output. A 256-token budget often gets fully spent on reasoning,
+      // leaving empty `message.content`. Scale up so there's room for
+      // both, and ask for minimal reasoning where the API supports it.
+      requestBody.max_completion_tokens = Math.max(req.maxTokens ?? 512, 2048);
+      requestBody.reasoning_effort = 'minimal';
+      // GPT-5 only accepts temperature=1 (the default). Omit to avoid 400.
+    } else {
+      requestBody.max_tokens = req.maxTokens ?? 512;
+      requestBody.temperature = req.temperature ?? 0;
+    }
+
     const resp = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
         authorization: `Bearer ${this.apiKey}`,
       },
-      body: JSON.stringify({
-        model: this.model,
-        messages,
-        max_tokens: req.maxTokens ?? 512,
-        temperature: req.temperature ?? 0,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!resp.ok) {
       throw new Error(`OpenAI API error ${resp.status}: ${await resp.text()}`);
     }
 
-    const body = (await resp.json()) as {
+    const responseBody = (await resp.json()) as {
       choices: Array<{ message: { content: string | null } }>;
       usage?: { prompt_tokens?: number; completion_tokens?: number };
       model?: string;
     };
 
     return {
-      text: (body.choices[0]?.message.content ?? '').trimEnd(),
-      tokensIn: body.usage?.prompt_tokens ?? 0,
-      tokensOut: body.usage?.completion_tokens ?? 0,
-      model: body.model ?? this.model,
+      text: (responseBody.choices[0]?.message.content ?? '').trimEnd(),
+      tokensIn: responseBody.usage?.prompt_tokens ?? 0,
+      tokensOut: responseBody.usage?.completion_tokens ?? 0,
+      model: responseBody.model ?? this.model,
       latencyMs: Date.now() - start,
     };
   }

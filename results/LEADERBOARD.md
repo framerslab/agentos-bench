@@ -1,8 +1,8 @@
 # AgentOS Memory Benchmark Leaderboard
 
-Last updated: 2026-04-19T07:37:30.095Z
+Last updated: 2026-04-19T08:51:07.795Z
 
-Per-turn-pair chunking (2026-04-19) lifted gpt-4o accuracy 40% -> 70% on the 20-case pilot while cutting cost 5.5x. Oracle + gpt-5-mini rows landing in follow-up commits.
+Round-3 improvements: per-turn-pair chunking + date-prefix + better reader prompt + score-threshold filter lifted 20-case gpt-4o full-cognitive pilot from 40% to 90%.
 
 Our rows are produced by `@framers/agentos-bench` against the linked source datasets.
 Competitor rows are lifted verbatim from their published sources (see per-row citations).
@@ -12,12 +12,17 @@ Methodologies may differ; every row footnotes its reader LLM so comparisons stay
 Target to beat: **96.2%** (agentmemory (JordanMcCann)).
 | System | Reader | Memory | Replay | Accuracy | Avg latency | $/correct | Source |
 |---|---|---|---|---:|---:|---:|---|
-| AgentOS (`@framers/agentos`) | gpt-4o | full-cognitive | ingest | 70.0% | 58896 ms | $0.0210 | — |
+| AgentOS (`@framers/agentos`) | gpt-4o | full-cognitive | ingest | 90.0% | 62043 ms | $0.0169 | — |
 | agentmemory (JordanMcCann) | GPT-4o | — | — | 96.2% | — | — | [link](https://github.com/JordanMcCann/agentmemory) |
 | Mastra Observational Memory | GPT-5-mini | — | — | 94.9% | — | — | [link](https://mastra.ai/research/observational-memory) |
 | Supermemory | Unspecified (see source) | — | — | 92.0% | — | — | [link](https://supermemory.ai/research/) |
 | Mastra Observational Memory | GPT-4o | — | — | 84.2% | — | — | [link](https://mastra.ai/research/observational-memory) |
 | Emergence AI | GPT-4o | — | — | 78.0% | — | — | [link](https://www.emergence.ai/blog/sota-on-longmemeval-with-rag) |
+
+## LongMemEval-Oracle (retrieval-removed, reader quality only)
+| System | Reader | Memory | Replay | Accuracy | Avg latency | $/correct | Source |
+|---|---|---|---|---:|---:|---:|---|
+| AgentOS (`@framers/agentos`) | gpt-4o | none | ingest | 65.0% | 765 ms | $0.0333 | — |
 
 ## BEAM (500k-token tier)
 Target to beat: **72.0%** (Hindsight).
