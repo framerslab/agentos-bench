@@ -1,0 +1,85 @@
+{
+  "name": "@framers/agentos-bench",
+  "version": "0.1.0",
+  "description": "Benchmark suite for AgentOS memory — LongMemEval, LOCOMO, BEAM, and cognitive-mechanism micro-benchmarks.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./core": {
+      "import": "./dist/core/index.js",
+      "types": "./dist/core/index.d.ts"
+    },
+    "./benchmarks/*": {
+      "import": "./dist/benchmarks/*/index.js",
+      "types": "./dist/benchmarks/*/index.d.ts"
+    },
+    "./micro/*": {
+      "import": "./dist/micro/*.js",
+      "types": "./dist/micro/*.d.ts"
+    }
+  },
+  "bin": {
+    "agentos-bench": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "src",
+    "results/LEADERBOARD.md",
+    "results/summary.json"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "bench": "node ./dist/cli.js",
+    "leaderboard": "node ./dist/cli.js leaderboard",
+    "setup": "node ./dist/cli.js setup",
+    "clean": "rimraf dist"
+  },
+  "peerDependencies": {
+    "@framers/agentos": "^0.1.243"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "csv-parse": "^5.5.0",
+    "zod": "^4.3.6"
+  },
+  "optionalDependencies": {
+    "@huggingface/hub": "^1.0.0"
+  },
+  "devDependencies": {
+    "@framers/agentos": "workspace:*",
+    "@types/node": "^20.12.12",
+    "better-sqlite3": "^12.6.2",
+    "rimraf": "^5.0.7",
+    "typescript": "^5.5.0",
+    "vitest": "^1.6.0"
+  },
+  "license": "MIT",
+  "author": "Frame.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/framersai/voice-chat-assistant.git",
+    "directory": "packages/agentos-bench"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "agentos",
+    "benchmark",
+    "memory",
+    "longmemeval",
+    "locomo",
+    "beam",
+    "cognitive-memory",
+    "eval",
+    "evaluation"
+  ]
+}
