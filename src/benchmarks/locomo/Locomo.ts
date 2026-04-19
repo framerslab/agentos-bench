@@ -39,6 +39,7 @@ import type {
 import { buildHaystackContext, replayViaIngest } from '../../core/ConversationReplay.js';
 import { percentile, stdDev } from '../../core/statsUtil.js';
 import type { IReader } from '../../readers/IReader.js';
+import { runFullCognitiveCase } from '../longmemeval/LongMemEvalS.js';
 import { loadLocomoDataset, LOCOMO_CATEGORY_NAMES } from './dataset.js';
 
 export interface LocomoAdapterOptions {
@@ -90,9 +91,19 @@ export class Locomo implements IBenchmark {
       runMeta.replayStats = replayStats;
       runMeta.recalledTraces = recallCount;
     } else {
-      throw new Error(
-        `Locomo: memoryMode '${mode}' not yet implemented — use 'none' or 'base-memory'.`,
+      // full-cognitive — reuse LongMemEvalS's shared pipeline so both
+      // adapters exercise the same CognitiveMemoryManager wiring.
+      const out = await runFullCognitiveCase(
+        c,
+        ctx,
+        this.opts.recallTopK ?? 10,
+        'locomo',
       );
+      system = out.prompt;
+      runMeta.replayStats = out.replayStats;
+      runMeta.recalledTraces = out.recallCount;
+      runMeta.workingMemorySlots = out.workingMemorySlots;
+      runMeta.observationsEmitted = out.observationsEmitted;
     }
 
     const response = await this.opts.reader.invoke({

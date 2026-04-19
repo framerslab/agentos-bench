@@ -35,9 +35,13 @@ import type {
   CaseRun,
   IBenchmark,
 } from '../../core/IBenchmark.js';
-import { buildHaystackContext, replayViaIngest } from '../../core/ConversationReplay.js';
+import {
+  buildHaystackContext,
+  replayViaIngest,
+} from '../../core/ConversationReplay.js';
 import { percentile, stdDev } from '../../core/statsUtil.js';
 import type { IReader } from '../../readers/IReader.js';
+import { createCognitiveManager } from '../../cognitive/createCognitiveManager.js';
 import { loadLongMemEvalDataset, type LongMemEvalVariant } from './dataset.js';
 
 /**
@@ -114,12 +118,19 @@ export class LongMemEvalS implements IBenchmark {
       runMetadata.replayStats = replayStats;
       runMetadata.recalledTraces = recallCount;
     } else {
-      // full-cognitive path is still scheduled for the next step — surface
-      // as a per-case error so the runner preserves the rest of the run.
-      throw new Error(
-        `LongMemEvalS: memoryMode '${mode}' not yet implemented — use 'none' or ` +
-          `'base-memory' for now. full-cognitive lands in the next step.`,
+      // full-cognitive — real CognitiveMemoryManager, optional observer/
+      // reflector pipeline depending on replayMode.
+      const out = await runFullCognitiveCase(
+        c,
+        ctx,
+        this.opts.recallTopK ?? 10,
+        'longmemeval-s',
       );
+      system = out.prompt;
+      runMetadata.replayStats = out.replayStats;
+      runMetadata.recalledTraces = out.recallCount;
+      runMetadata.workingMemorySlots = out.workingMemorySlots;
+      runMetadata.observationsEmitted = out.observationsEmitted;
     }
 
     const response = await this.opts.reader.invoke({
@@ -301,6 +312,154 @@ async function runBaseMemoryCase(
     await fs.rm(brainPath, { force: true }).catch(() => {});
   }
 }
+
+// ---------------------------------------------------------------------------
+// Full-cognitive path
+// ---------------------------------------------------------------------------
+
+interface FullCognitiveOutput {
+  prompt: string;
+  replayStats: { sessionsReplayed: number; turnsReplayed: number; durationMs: number };
+  recallCount: number;
+  workingMemorySlots: number;
+  observationsEmitted: number;
+}
+
+/**
+ * Run one case through the full-cognitive path:
+ *   1. Open a scratch `CognitiveMemoryManager` (SQLite brain +
+ *      SqliteKnowledgeGraph + InMemoryVectorStore + CharHashEmbedder).
+ *   2. Replay the haystack. `observe` drives per-turn
+ *      {@link CognitiveMemoryManager.observe} (exercises the observer /
+ *      reflector / working-memory pipeline). `ingest` drives the more
+ *      direct `encode` path, session by session.
+ *   3. `retrieve(question, topK)` for the reader context.
+ *   4. Build the system prompt from the retrieved traces.
+ *   5. Close the manager, delete the brain file.
+ *
+ * The CharHashEmbedder is deterministic lexical (not semantic). Real
+ * benchmark sweeps should inject an API-backed embedder via a subclass
+ * override or a direct `createCognitiveManager({ embedder })` wrapper.
+ *
+ * Exported so Locomo (and future adapters) can reuse the same path.
+ */
+export async function runFullCognitiveCase(
+  c: BenchCase,
+  ctx: BenchContext,
+  recallTopK: number,
+  adapterId: string,
+): Promise<FullCognitiveOutput> {
+  const brainPath = path.join(
+    ctx.scratchDir,
+    `${adapterId}-cog-${c.id.replace(/[^a-zA-Z0-9-_]/g, '_')}.sqlite`,
+  );
+  const handle = await createCognitiveManager({ brainPath });
+  try {
+    const replayStats = await replayForCognitive(c, handle, ctx.config.replayMode);
+
+    const retrieval = await handle.manager.retrieve(
+      c.question,
+      { valence: 0, arousal: 0, dominance: 0 },
+      { topK: recallTopK, neutralMood: true },
+    );
+    const wmSlots = handle.manager.getWorkingMemory?.().getSlotCount?.() ?? 0;
+
+    return {
+      prompt: buildFullCognitivePrompt(c, retrieval.retrieved),
+      replayStats: {
+        sessionsReplayed: replayStats.sessionsReplayed,
+        turnsReplayed: replayStats.turnsReplayed,
+        durationMs: replayStats.durationMs,
+      },
+      recallCount: retrieval.retrieved.length,
+      workingMemorySlots: wmSlots,
+      observationsEmitted: replayStats.observationsEmitted,
+    };
+  } finally {
+    await handle.close();
+  }
+}
+
+/**
+ * Replay the haystack into a cognitive manager. The observer /
+ * reflector pipeline requires an LLM invoker which benchmarks run
+ * without, so we fall back to direct {@link CognitiveMemoryManager.encode}
+ * calls — per turn for `observe` mode (closer to the live-conversation
+ * shape), per session for `ingest` mode (same semantics as the base
+ * memory path). `observationsEmitted` tracks how many `encode` calls
+ * landed so callers have a cognitive-path activity signal.
+ */
+async function replayForCognitive(
+  c: BenchCase,
+  handle: { manager: import('@framers/agentos').CognitiveMemoryManager },
+  mode: 'observe' | 'ingest',
+): Promise<{ sessionsReplayed: number; turnsReplayed: number; durationMs: number; observationsEmitted: number }> {
+  const start = Date.now();
+  const neutralMood = { valence: 0, arousal: 0, dominance: 0 };
+  let turns = 0;
+  let encodeCalls = 0;
+
+  if (mode === 'observe') {
+    for (const session of c.haystack) {
+      for (const turn of session.turns) {
+        turns += 1;
+        if (!turn.content.trim()) continue;
+        await handle.manager.encode(
+          `${turn.role}: ${turn.content}`,
+          neutralMood,
+          '',
+          { type: 'episodic', scope: 'user', scopeId: 'bench' },
+        );
+        encodeCalls += 1;
+      }
+    }
+  } else {
+    for (const session of c.haystack) {
+      const body = session.turns.map((t) => `${t.role}: ${t.content}`).join('\n');
+      turns += session.turns.length;
+      if (!body.trim()) continue;
+      await handle.manager.encode(body, neutralMood, '', {
+        type: 'episodic',
+        scope: 'user',
+        scopeId: 'bench',
+      });
+      encodeCalls += 1;
+    }
+  }
+
+  return {
+    sessionsReplayed: c.haystack.length,
+    turnsReplayed: turns,
+    durationMs: Date.now() - start,
+    observationsEmitted: encodeCalls,
+  };
+}
+
+function buildFullCognitivePrompt(
+  c: BenchCase,
+  recalled: Array<{ id: string; content: string; retrievalScore?: number }>,
+): string {
+  const header = [
+    'You are being evaluated on long-term conversation memory.',
+    'Use the retrieved cognitive-memory excerpts below to answer.',
+    'Be concise. If the excerpts do not contain the answer, say "I don\'t know".',
+  ].join(' ');
+  const dateHeader = c.questionDate ? `\n\n[Question asked on ${c.questionDate}]` : '';
+  const body =
+    recalled.length > 0
+      ? recalled
+          .map(
+            (r, i) =>
+              `#${i + 1} (score ${(r.retrievalScore ?? 0).toFixed(3)})\n${r.content}`,
+          )
+          .join('\n\n')
+      : '(no relevant memories surfaced)';
+  return `${header}${dateHeader}\n\n--- Retrieved Memory ---\n${body}\n--- End Memory ---`;
+}
+
+// ---------------------------------------------------------------------------
+// Base-memory path helpers
+// ---------------------------------------------------------------------------
 
 function buildBaseMemoryPrompt(c: BenchCase, recalled: ScoredTrace[]): string {
   const header = [

@@ -172,8 +172,15 @@ describe('LongMemEvalS integration (mock reader + real judge pipeline)', () => {
     expect(run.cases.every((c: { scoreMetadata?: { rubricVersion?: string } }) => !!c.scoreMetadata?.rubricVersion)).toBe(true);
   });
 
-  it('throws a clear case-level error when memoryMode is not none (v2 path)', async () => {
-    const readerMock = new MockReader('claude-sonnet-4-6');
+  it('full-cognitive mode drives the CognitiveMemoryManager path without errors', async () => {
+    // Previously this case asserted `full-cognitive` errored as a v2-pending
+    // path. The path is implemented now — this test pins the inverse:
+    // running against full-cognitive succeeds and populates the
+    // cognitive-specific metadata fields on every case.
+    const readerMock = new MockReader('claude-sonnet-4-6').on(
+      () => true,
+      () => ({ text: 'ok', tokensIn: 10, tokensOut: 5, model: 'claude-sonnet-4-6', latencyMs: 0 }),
+    );
     const judgeMock = new MockReader('gpt-4o').on(
       () => true,
       () => ({ text: 'no', tokensIn: 1, tokensOut: 1, model: 'gpt-4o', latencyMs: 0 }),
@@ -191,11 +198,11 @@ describe('LongMemEvalS integration (mock reader + real judge pipeline)', () => {
       replayMode: 'observe',
     });
 
-    // Every case becomes an error; none should pass.
-    expect(result.passedCases).toBe(0);
     for (const c of result.cases) {
-      expect(c.error).toMatch(/memoryMode 'full-cognitive' not yet implemented/);
-      expect(c.passed).toBe(false);
+      expect(c.error).toBeUndefined();
+      const meta = c.metadata as { memoryMode?: string; workingMemorySlots?: number };
+      expect(meta.memoryMode).toBe('full-cognitive');
+      expect(typeof meta.workingMemorySlots).toBe('number');
     }
   });
 });

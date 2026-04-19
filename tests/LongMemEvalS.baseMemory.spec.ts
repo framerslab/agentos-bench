@@ -137,32 +137,31 @@ describe('LongMemEvalS base-memory path', () => {
       () => ({ text: 'no', tokensIn: 1, tokensOut: 1, model: 'gpt-4o', latencyMs: 0 }),
     );
 
+    // Use a test-owned scratchRoot so concurrent test suites cannot
+    // drop stale brain files into what this assertion scans.
+    const scratchRoot = path.join(tmpRoot, 'scratch');
     const runner = new BenchmarkRunner({
       dataDir,
       resultsDir,
       judge: new LongMemEvalJudge({ reader: judgeMock }),
+      scratchRoot,
     });
 
-    const scratchRootBefore = path.join(os.tmpdir(), 'agentos-bench');
     await runner.run(new LongMemEvalS({ reader: readerMock, variant: 's' }), {
       reader: 'claude-sonnet-4-6',
       memoryMode: 'base-memory',
       replayMode: 'ingest',
     });
 
-    // After the run the runner deletes the scratch directory; no stale
-    // brain-*.sqlite files should survive under the shared bench root.
-    let stillThere: string[] = [];
+    const stillThere: string[] = [];
     try {
-      const roots = await fs.readdir(scratchRootBefore);
+      const roots = await fs.readdir(path.join(scratchRoot, 'agentos-bench'));
       for (const r of roots) {
-        if (r.startsWith('longmemeval-s-')) {
-          const inside = await fs.readdir(path.join(scratchRootBefore, r)).catch(() => []);
-          stillThere.push(...inside);
-        }
+        const inside = await fs.readdir(path.join(scratchRoot, 'agentos-bench', r)).catch(() => []);
+        stillThere.push(...inside);
       }
     } catch {
-      // root may not exist if all scratch dirs were cleaned up.
+      // Entire scratch was cleaned up — that's the expected outcome.
     }
     expect(stillThere.filter((f) => f.endsWith('.sqlite'))).toHaveLength(0);
   });
