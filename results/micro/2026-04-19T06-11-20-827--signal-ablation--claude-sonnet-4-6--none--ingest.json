@@ -1,0 +1,302 @@
+{
+  "benchmarkId": "signal-ablation",
+  "benchmarkVersion": "1.0.0",
+  "config": {
+    "reader": "claude-sonnet-4-6",
+    "memoryMode": "none",
+    "replayMode": "ingest",
+    "concurrency": 3
+  },
+  "totalCases": 6,
+  "passedCases": 6,
+  "accuracy": 1,
+  "avgScore": 1,
+  "scoreStdDev": 0,
+  "byType": {
+    "ablation": {
+      "n": 6,
+      "accuracy": 1,
+      "avgScore": 1
+    }
+  },
+  "avgLatencyMs": 0.16666666666666666,
+  "p50LatencyMs": 0,
+  "p95LatencyMs": 0.75,
+  "totalReaderTokens": 0,
+  "totalUsd": 0,
+  "costPerCorrect": 0,
+  "startedAt": "2026-04-19T06:11:20.827Z",
+  "completedAt": "2026-04-19T06:11:20.828Z",
+  "cases": [
+    {
+      "caseId": "ablate-strength",
+      "actualOutput": "NDCG@6 drop=0.0150 (baseline=1.0000, ablated=0.9850, rankingsDiffer=true)",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "metadata": {
+        "signal": "strength",
+        "ndcgBaseline": 1,
+        "ndcgAblated": 0.9850132677623556,
+        "drop": 0.014986732237644351,
+        "minDropRequired": 0.0001,
+        "rankingsDiffer": true,
+        "baselineRanking": [
+          "distractor-5",
+          "distractor-4",
+          "distractor-0",
+          "hero-strength",
+          "distractor-7",
+          "distractor-2",
+          "distractor-6",
+          "distractor-1",
+          "distractor-3"
+        ],
+        "ablatedRanking": [
+          "distractor-5",
+          "distractor-4",
+          "distractor-0",
+          "distractor-7",
+          "distractor-2",
+          "distractor-3",
+          "distractor-6",
+          "distractor-1",
+          "hero-strength"
+        ]
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "drop": 0.014986732237644351,
+        "minDropRequired": 0.0001,
+        "note": "Signal 'strength' is load-bearing: removing it dropped NDCG by 0.0150."
+      }
+    },
+    {
+      "caseId": "ablate-similarity",
+      "actualOutput": "NDCG@6 drop=0.0608 (baseline=1.0000, ablated=0.9392, rankingsDiffer=true)",
+      "latencyMs": 1,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "metadata": {
+        "signal": "similarity",
+        "ndcgBaseline": 1,
+        "ndcgAblated": 0.9392183492130736,
+        "drop": 0.06078165078692643,
+        "minDropRequired": 0.0001,
+        "rankingsDiffer": true,
+        "baselineRanking": [
+          "hero-similarity",
+          "distractor-5",
+          "distractor-7",
+          "distractor-0",
+          "distractor-2",
+          "distractor-4",
+          "distractor-6",
+          "distractor-1",
+          "distractor-3"
+        ],
+        "ablatedRanking": [
+          "distractor-5",
+          "distractor-7",
+          "distractor-0",
+          "distractor-2",
+          "distractor-4",
+          "distractor-6",
+          "distractor-1",
+          "distractor-3",
+          "hero-similarity"
+        ]
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "drop": 0.06078165078692643,
+        "minDropRequired": 0.0001,
+        "note": "Signal 'similarity' is load-bearing: removing it dropped NDCG by 0.0608."
+      }
+    },
+    {
+      "caseId": "ablate-recency",
+      "actualOutput": "NDCG@6 drop=0.0074 (baseline=1.0000, ablated=0.9926, rankingsDiffer=true)",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "metadata": {
+        "signal": "recency",
+        "ndcgBaseline": 1,
+        "ndcgAblated": 0.9926152875119126,
+        "drop": 0.007384712488087364,
+        "minDropRequired": 0.0001,
+        "rankingsDiffer": true,
+        "baselineRanking": [
+          "distractor-5",
+          "distractor-6",
+          "distractor-0",
+          "distractor-1",
+          "hero-recency",
+          "distractor-7",
+          "distractor-2",
+          "distractor-4",
+          "distractor-3"
+        ],
+        "ablatedRanking": [
+          "distractor-5",
+          "distractor-6",
+          "distractor-0",
+          "distractor-1",
+          "distractor-7",
+          "distractor-2",
+          "distractor-4",
+          "distractor-3",
+          "hero-recency"
+        ]
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "drop": 0.007384712488087364,
+        "minDropRequired": 0.0001,
+        "note": "Signal 'recency' is load-bearing: removing it dropped NDCG by 0.0074."
+      }
+    },
+    {
+      "caseId": "ablate-emotionalCongruence",
+      "actualOutput": "NDCG@6 drop=0.0074 (baseline=1.0000, ablated=0.9926, rankingsDiffer=true)",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "metadata": {
+        "signal": "emotionalCongruence",
+        "ndcgBaseline": 1,
+        "ndcgAblated": 0.9926152875119126,
+        "drop": 0.007384712488087364,
+        "minDropRequired": 0.0001,
+        "rankingsDiffer": true,
+        "baselineRanking": [
+          "distractor-5",
+          "distractor-0",
+          "distractor-6",
+          "distractor-1",
+          "hero-emotionalCongruence",
+          "distractor-4",
+          "distractor-7",
+          "distractor-2",
+          "distractor-3"
+        ],
+        "ablatedRanking": [
+          "distractor-5",
+          "distractor-0",
+          "distractor-6",
+          "distractor-1",
+          "distractor-4",
+          "distractor-7",
+          "distractor-2",
+          "distractor-3",
+          "hero-emotionalCongruence"
+        ]
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "drop": 0.007384712488087364,
+        "minDropRequired": 0.0001,
+        "note": "Signal 'emotionalCongruence' is load-bearing: removing it dropped NDCG by 0.0074."
+      }
+    },
+    {
+      "caseId": "ablate-graphActivation",
+      "actualOutput": "NDCG@6 drop=0.0006 (baseline=1.0000, ablated=0.9994, rankingsDiffer=true)",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "metadata": {
+        "signal": "graphActivation",
+        "ndcgBaseline": 1,
+        "ndcgAblated": 0.9994322016803049,
+        "drop": 0.000567798319695112,
+        "minDropRequired": 0.0001,
+        "rankingsDiffer": true,
+        "baselineRanking": [
+          "distractor-5",
+          "distractor-0",
+          "distractor-6",
+          "distractor-1",
+          "distractor-4",
+          "distractor-7",
+          "distractor-2",
+          "hero-graphActivation",
+          "distractor-3"
+        ],
+        "ablatedRanking": [
+          "distractor-5",
+          "distractor-0",
+          "distractor-6",
+          "distractor-1",
+          "distractor-4",
+          "distractor-7",
+          "distractor-2",
+          "distractor-3",
+          "hero-graphActivation"
+        ]
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "drop": 0.000567798319695112,
+        "minDropRequired": 0.0001,
+        "note": "Signal 'graphActivation' is load-bearing: removing it dropped NDCG by 0.0006."
+      }
+    },
+    {
+      "caseId": "ablate-importance",
+      "actualOutput": "NDCG@6 drop=0.0608 (baseline=1.0000, ablated=0.9392, rankingsDiffer=true)",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "metadata": {
+        "signal": "importance",
+        "ndcgBaseline": 1,
+        "ndcgAblated": 0.9392183492130736,
+        "drop": 0.06078165078692643,
+        "minDropRequired": 0.0001,
+        "rankingsDiffer": true,
+        "baselineRanking": [
+          "hero-importance",
+          "distractor-6",
+          "distractor-1",
+          "distractor-5",
+          "distractor-0",
+          "distractor-3",
+          "distractor-4",
+          "distractor-7",
+          "distractor-2"
+        ],
+        "ablatedRanking": [
+          "distractor-6",
+          "distractor-1",
+          "distractor-5",
+          "distractor-0",
+          "distractor-3",
+          "distractor-4",
+          "distractor-7",
+          "distractor-2",
+          "hero-importance"
+        ]
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "drop": 0.06078165078692643,
+        "minDropRequired": 0.0001,
+        "note": "Signal 'importance' is load-bearing: removing it dropped NDCG by 0.0608."
+      }
+    }
+  ]
+}

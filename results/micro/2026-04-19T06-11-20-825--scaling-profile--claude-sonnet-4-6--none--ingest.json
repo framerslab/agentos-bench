@@ -1,0 +1,90 @@
+{
+  "benchmarkId": "scaling-profile",
+  "benchmarkVersion": "1.0.0",
+  "config": {
+    "reader": "claude-sonnet-4-6",
+    "memoryMode": "none",
+    "replayMode": "ingest",
+    "concurrency": 3
+  },
+  "totalCases": 2,
+  "passedCases": 2,
+  "accuracy": 1,
+  "avgScore": 1,
+  "scoreStdDev": 0,
+  "byType": {
+    "scaling": {
+      "n": 2,
+      "accuracy": 1,
+      "avgScore": 1
+    }
+  },
+  "avgLatencyMs": 16,
+  "p50LatencyMs": 16,
+  "p95LatencyMs": 28.6,
+  "totalReaderTokens": 0,
+  "totalUsd": 0,
+  "costPerCorrect": 0,
+  "startedAt": "2026-04-19T06:11:20.825Z",
+  "completedAt": "2026-04-19T06:11:20.826Z",
+  "cases": [
+    {
+      "caseId": "scaling-profile-1k",
+      "actualOutput": "p50=0.22ms p95=0.24ms",
+      "latencyMs": 2,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "metadata": {
+        "size": 1000,
+        "budgetMs": 200,
+        "samples": [
+          0.2087920000003578,
+          0.21508399999993344,
+          0.21666699999968841,
+          0.21887500000002547,
+          0.2452499999999418
+        ],
+        "p50Ms": 0.21666699999968841,
+        "p95Ms": 0.23997499999995853,
+        "perTraceUs": 0.21666699999968841
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "p95Ms": 0.23997499999995853,
+        "budgetMs": 200,
+        "note": "P95 0.24ms under 200ms budget."
+      }
+    },
+    {
+      "caseId": "scaling-profile-10k",
+      "actualOutput": "p50=4.21ms p95=8.72ms",
+      "latencyMs": 30,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "metadata": {
+        "size": 10000,
+        "budgetMs": 1500,
+        "samples": [
+          4.069666000000325,
+          4.167917000000216,
+          4.206333000000086,
+          5.450082999999722,
+          9.533750000000055
+        ],
+        "p50Ms": 4.206333000000086,
+        "p95Ms": 8.717016599999987,
+        "perTraceUs": 0.4206333000000086
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "p95Ms": 8.717016599999987,
+        "budgetMs": 1500,
+        "note": "P95 8.72ms under 1500ms budget."
+      }
+    }
+  ]
+}

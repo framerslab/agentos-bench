@@ -1,0 +1,101 @@
+{
+  "benchmarkId": "spreading-activation-precision",
+  "benchmarkVersion": "1.0.0",
+  "config": {
+    "reader": "claude-sonnet-4-6",
+    "memoryMode": "none",
+    "replayMode": "ingest",
+    "concurrency": 3
+  },
+  "totalCases": 3,
+  "passedCases": 3,
+  "accuracy": 1,
+  "avgScore": 1,
+  "scoreStdDev": 0,
+  "byType": {
+    "assertion": {
+      "n": 3,
+      "accuracy": 1,
+      "avgScore": 1
+    }
+  },
+  "avgLatencyMs": 1,
+  "p50LatencyMs": 1,
+  "p95LatencyMs": 1,
+  "totalReaderTokens": 0,
+  "totalUsd": 0,
+  "costPerCorrect": 0,
+  "startedAt": "2026-04-19T06:11:20.823Z",
+  "completedAt": "2026-04-19T06:11:20.824Z",
+  "cases": [
+    {
+      "caseId": "spreading-precision-cluster-0",
+      "actualOutput": "precision=1.000 (25/25)",
+      "latencyMs": 1,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "metadata": {
+        "clusterIdx": 0,
+        "seedId": "c0-n0",
+        "activatedCount": 25,
+        "inClusterCount": 25,
+        "precision": 1,
+        "requiredPrecision": 0.8
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "precision": 1,
+        "requiredPrecision": 0.8,
+        "note": "Activation stayed within the seed cluster at 100.0%."
+      }
+    },
+    {
+      "caseId": "spreading-precision-cluster-1",
+      "actualOutput": "precision=1.000 (25/25)",
+      "latencyMs": 1,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "metadata": {
+        "clusterIdx": 1,
+        "seedId": "c1-n0",
+        "activatedCount": 25,
+        "inClusterCount": 25,
+        "precision": 1,
+        "requiredPrecision": 0.8
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "precision": 1,
+        "requiredPrecision": 0.8,
+        "note": "Activation stayed within the seed cluster at 100.0%."
+      }
+    },
+    {
+      "caseId": "spreading-precision-cluster-2",
+      "actualOutput": "precision=1.000 (25/25)",
+      "latencyMs": 1,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "metadata": {
+        "clusterIdx": 2,
+        "seedId": "c2-n0",
+        "activatedCount": 25,
+        "inClusterCount": 25,
+        "precision": 1,
+        "requiredPrecision": 0.8
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "precision": 1,
+        "requiredPrecision": 0.8,
+        "note": "Activation stayed within the seed cluster at 100.0%."
+      }
+    }
+  ]
+}

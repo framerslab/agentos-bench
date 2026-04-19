@@ -1,0 +1,110 @@
+{
+  "benchmarkId": "consolidation-signal-preservation",
+  "benchmarkVersion": "1.0.0",
+  "config": {
+    "reader": "claude-sonnet-4-6",
+    "memoryMode": "none",
+    "replayMode": "ingest",
+    "concurrency": 3
+  },
+  "totalCases": 3,
+  "passedCases": 3,
+  "accuracy": 1,
+  "avgScore": 1,
+  "scoreStdDev": 0,
+  "byType": {
+    "assertion": {
+      "n": 3,
+      "accuracy": 1,
+      "avgScore": 1
+    }
+  },
+  "avgLatencyMs": 0,
+  "p50LatencyMs": 0,
+  "p95LatencyMs": 0,
+  "totalReaderTokens": 0,
+  "totalUsd": 0,
+  "costPerCorrect": 0,
+  "startedAt": "2026-04-19T06:11:20.824Z",
+  "completedAt": "2026-04-19T06:11:20.825Z",
+  "cases": [
+    {
+      "caseId": "flashbulb-invariant-reconsolidation",
+      "actualOutput": "flashbulb unchanged AND baseline changed",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "metadata": {
+        "mechanism": "reconsolidation",
+        "flashbulbBefore": -0.4,
+        "flashbulbAfter": -0.4,
+        "flashbulbDelta": 0,
+        "baselineBefore": -0.4,
+        "baselineAfter": -0.34,
+        "baselineDelta": 0.06,
+        "flashbulbProtected": true,
+        "baselineAffected": true,
+        "passed": true
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "failures": [],
+        "note": "Flashbulb trace protected; baseline trace responded to the mechanism."
+      }
+    },
+    {
+      "caseId": "flashbulb-invariant-retrieval-induced-forgetting",
+      "actualOutput": "flashbulb unchanged AND baseline changed",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "metadata": {
+        "mechanism": "retrieval-induced-forgetting",
+        "flashbulbBefore": 2592000000,
+        "flashbulbAfter": 2592000000,
+        "flashbulbDelta": 0,
+        "baselineBefore": 2592000000,
+        "baselineAfter": 2280960000,
+        "baselineDelta": 311040000,
+        "flashbulbProtected": true,
+        "baselineAffected": true,
+        "passed": true
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "failures": [],
+        "note": "Flashbulb trace protected; baseline trace responded to the mechanism."
+      }
+    },
+    {
+      "caseId": "flashbulb-invariant-emotion-regulation",
+      "actualOutput": "flashbulb unchanged AND baseline changed",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "metadata": {
+        "mechanism": "emotion-regulation",
+        "flashbulbBefore": -0.95,
+        "flashbulbAfter": -0.95,
+        "flashbulbDelta": 0,
+        "baselineBefore": -0.95,
+        "baselineAfter": -0.8075,
+        "baselineDelta": 0.14249999999999996,
+        "flashbulbProtected": true,
+        "baselineAffected": true,
+        "passed": true
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "failures": [],
+        "note": "Flashbulb trace protected; baseline trace responded to the mechanism."
+      }
+    }
+  ]
+}

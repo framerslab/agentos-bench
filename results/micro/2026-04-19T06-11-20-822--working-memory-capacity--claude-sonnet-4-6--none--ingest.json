@@ -1,0 +1,197 @@
+{
+  "benchmarkId": "working-memory-capacity",
+  "benchmarkVersion": "1.0.0",
+  "config": {
+    "reader": "claude-sonnet-4-6",
+    "memoryMode": "none",
+    "replayMode": "ingest",
+    "concurrency": 3
+  },
+  "totalCases": 5,
+  "passedCases": 5,
+  "accuracy": 1,
+  "avgScore": 1,
+  "scoreStdDev": 0,
+  "byType": {
+    "assertion": {
+      "n": 5,
+      "accuracy": 1,
+      "avgScore": 1
+    }
+  },
+  "avgLatencyMs": 0.2,
+  "p50LatencyMs": 0,
+  "p95LatencyMs": 0.7999999999999998,
+  "totalReaderTokens": 0,
+  "totalUsd": 0,
+  "costPerCorrect": 0,
+  "startedAt": "2026-04-19T06:11:20.822Z",
+  "completedAt": "2026-04-19T06:11:20.823Z",
+  "cases": [
+    {
+      "caseId": "wm-capacity-neutral-7-slots",
+      "actualOutput": "capacity=7, slots=7",
+      "latencyMs": 1,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "metadata": {
+        "expectedCapacity": 7,
+        "observedCapacity": 7,
+        "finalSlotCount": 7,
+        "attemptedFocus": 10,
+        "retainedTraceIds": [
+          "trace-3",
+          "trace-4",
+          "trace-5",
+          "trace-6",
+          "trace-7",
+          "trace-8",
+          "trace-9"
+        ],
+        "capacityCorrect": true,
+        "slotCountCorrect": true,
+        "evictionCorrect": true,
+        "passed": true
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "failures": [],
+        "note": "Working memory honors 7 slots with predicted eviction order."
+      }
+    },
+    {
+      "caseId": "wm-capacity-high-openness-8-slots",
+      "actualOutput": "capacity=8, slots=8",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "metadata": {
+        "expectedCapacity": 8,
+        "observedCapacity": 8,
+        "finalSlotCount": 8,
+        "attemptedFocus": 12,
+        "retainedTraceIds": [
+          "trace-10",
+          "trace-11",
+          "trace-4",
+          "trace-5",
+          "trace-6",
+          "trace-7",
+          "trace-8",
+          "trace-9"
+        ],
+        "capacityCorrect": true,
+        "slotCountCorrect": true,
+        "evictionCorrect": true,
+        "passed": true
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "failures": [],
+        "note": "Working memory honors 8 slots with predicted eviction order."
+      }
+    },
+    {
+      "caseId": "wm-capacity-high-conscientiousness-6-slots",
+      "actualOutput": "capacity=6, slots=6",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "metadata": {
+        "expectedCapacity": 6,
+        "observedCapacity": 6,
+        "finalSlotCount": 6,
+        "attemptedFocus": 10,
+        "retainedTraceIds": [
+          "trace-4",
+          "trace-5",
+          "trace-6",
+          "trace-7",
+          "trace-8",
+          "trace-9"
+        ],
+        "capacityCorrect": true,
+        "slotCountCorrect": true,
+        "evictionCorrect": true,
+        "passed": true
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "failures": [],
+        "note": "Working memory honors 6 slots with predicted eviction order."
+      }
+    },
+    {
+      "caseId": "wm-capacity-balanced-high-both-7-slots",
+      "actualOutput": "capacity=7, slots=7",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "metadata": {
+        "expectedCapacity": 7,
+        "observedCapacity": 7,
+        "finalSlotCount": 7,
+        "attemptedFocus": 10,
+        "retainedTraceIds": [
+          "trace-3",
+          "trace-4",
+          "trace-5",
+          "trace-6",
+          "trace-7",
+          "trace-8",
+          "trace-9"
+        ],
+        "capacityCorrect": true,
+        "slotCountCorrect": true,
+        "evictionCorrect": true,
+        "passed": true
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "failures": [],
+        "note": "Working memory honors 7 slots with predicted eviction order."
+      }
+    },
+    {
+      "caseId": "wm-capacity-eviction-order-lru-activation",
+      "actualOutput": "capacity=7, slots=7",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "metadata": {
+        "expectedCapacity": 7,
+        "observedCapacity": 7,
+        "finalSlotCount": 7,
+        "attemptedFocus": 8,
+        "retainedTraceIds": [
+          "trace-1",
+          "trace-2",
+          "trace-3",
+          "trace-4",
+          "trace-5",
+          "trace-6",
+          "trace-7"
+        ],
+        "capacityCorrect": true,
+        "slotCountCorrect": true,
+        "evictionCorrect": true,
+        "passed": true
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "failures": [],
+        "note": "Working memory honors 7 slots with predicted eviction order."
+      }
+    }
+  ]
+}

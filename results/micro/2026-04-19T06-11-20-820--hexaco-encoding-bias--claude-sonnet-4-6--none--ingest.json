@@ -1,0 +1,170 @@
+{
+  "benchmarkId": "hexaco-encoding-bias",
+  "benchmarkVersion": "1.0.0",
+  "config": {
+    "reader": "claude-sonnet-4-6",
+    "memoryMode": "none",
+    "replayMode": "ingest",
+    "concurrency": 3
+  },
+  "totalCases": 6,
+  "passedCases": 6,
+  "accuracy": 1,
+  "avgScore": 1,
+  "scoreStdDev": 0,
+  "byType": {
+    "assertion": {
+      "n": 6,
+      "accuracy": 1,
+      "avgScore": 1
+    }
+  },
+  "avgLatencyMs": 0,
+  "p50LatencyMs": 0,
+  "p95LatencyMs": 0,
+  "totalReaderTokens": 0,
+  "totalUsd": 0,
+  "costPerCorrect": 0,
+  "startedAt": "2026-04-19T06:11:20.820Z",
+  "completedAt": "2026-04-19T06:11:20.821Z",
+  "cases": [
+    {
+      "caseId": "hexaco-bias-openness",
+      "actualOutput": "high > low",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "metadata": {
+        "trait": "openness",
+        "feature": "hasNovelty",
+        "highStrength": 0.325,
+        "lowStrength": 0.2725,
+        "margin": 0.05249999999999999,
+        "requiredMargin": 0.02
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "margin": 0.05249999999999999,
+        "requiredMargin": 0.02,
+        "note": "Trait openness biases encoding by 0.0525 as predicted."
+      }
+    },
+    {
+      "caseId": "hexaco-bias-conscientiousness",
+      "actualOutput": "high > low",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "metadata": {
+        "trait": "conscientiousness",
+        "feature": "hasProcedure",
+        "highStrength": 0.325,
+        "lowStrength": 0.2725,
+        "margin": 0.05249999999999999,
+        "requiredMargin": 0.02
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "margin": 0.05249999999999999,
+        "requiredMargin": 0.02,
+        "note": "Trait conscientiousness biases encoding by 0.0525 as predicted."
+      }
+    },
+    {
+      "caseId": "hexaco-bias-emotionality",
+      "actualOutput": "high > low",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "metadata": {
+        "trait": "emotionality",
+        "feature": "hasEmotion",
+        "highStrength": 0.3,
+        "lowStrength": 0.26,
+        "margin": 0.03999999999999998,
+        "requiredMargin": 0.02
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "margin": 0.03999999999999998,
+        "requiredMargin": 0.02,
+        "note": "Trait emotionality biases encoding by 0.0400 as predicted."
+      }
+    },
+    {
+      "caseId": "hexaco-bias-extraversion",
+      "actualOutput": "high > low",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "metadata": {
+        "trait": "extraversion",
+        "feature": "hasSocialContent",
+        "highStrength": 0.3,
+        "lowStrength": 0.26,
+        "margin": 0.03999999999999998,
+        "requiredMargin": 0.02
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "margin": 0.03999999999999998,
+        "requiredMargin": 0.02,
+        "note": "Trait extraversion biases encoding by 0.0400 as predicted."
+      }
+    },
+    {
+      "caseId": "hexaco-bias-agreeableness",
+      "actualOutput": "high > low",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "metadata": {
+        "trait": "agreeableness",
+        "feature": "hasCooperation",
+        "highStrength": 0.3,
+        "lowStrength": 0.26,
+        "margin": 0.03999999999999998,
+        "requiredMargin": 0.02
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "margin": 0.03999999999999998,
+        "requiredMargin": 0.02,
+        "note": "Trait agreeableness biases encoding by 0.0400 as predicted."
+      }
+    },
+    {
+      "caseId": "hexaco-bias-honesty",
+      "actualOutput": "high > low",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "metadata": {
+        "trait": "honesty",
+        "feature": "hasEthicalContent",
+        "highStrength": 0.3,
+        "lowStrength": 0.26,
+        "margin": 0.03999999999999998,
+        "requiredMargin": 0.02
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "margin": 0.03999999999999998,
+        "requiredMargin": 0.02,
+        "note": "Trait honesty biases encoding by 0.0400 as predicted."
+      }
+    }
+  ]
+}
