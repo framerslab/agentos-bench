@@ -41,6 +41,7 @@ import { percentile, stdDev } from '../../core/statsUtil.js';
 import type { IReader } from '../../readers/IReader.js';
 import { runFullCognitiveCase } from '../longmemeval/LongMemEvalS.js';
 import { loadLocomoDataset, LOCOMO_CATEGORY_NAMES } from './dataset.js';
+import type { IEmbeddingManager } from '@framers/agentos/core/embeddings/IEmbeddingManager';
 
 export interface LocomoAdapterOptions {
   reader: IReader;
@@ -48,6 +49,11 @@ export interface LocomoAdapterOptions {
   recallTopK?: number;
   /** Maximum reader answer tokens. Defaults to 256. */
   maxAnswerTokens?: number;
+  /**
+   * Optional {@link IEmbeddingManager} used in the full-cognitive path.
+   * Defaults to the CharHashEmbedder stub when omitted.
+   */
+  embedder?: IEmbeddingManager;
 }
 
 /**
@@ -98,12 +104,14 @@ export class Locomo implements IBenchmark {
         ctx,
         this.opts.recallTopK ?? 10,
         'locomo',
+        this.opts.embedder,
       );
       system = out.prompt;
       runMeta.replayStats = out.replayStats;
       runMeta.recalledTraces = out.recallCount;
       runMeta.workingMemorySlots = out.workingMemorySlots;
       runMeta.observationsEmitted = out.observationsEmitted;
+      runMeta.retrievedEvidence = out.retrievedEvidence;
     }
 
     const response = await this.opts.reader.invoke({

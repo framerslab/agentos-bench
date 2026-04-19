@@ -13,3 +13,9 @@ export type {
   BenchCognitiveHandle,
   CreateCognitiveManagerOptions,
 } from './createCognitiveManager.js';
+export {
+  DEFAULT_OPENAI_EMBED_MODEL,
+  OpenAIEmbedder,
+  createOpenAIEmbedderFromEnv,
+} from './OpenAIEmbedder.js';
+export type { OpenAIEmbedderOptions } from './OpenAIEmbedder.js';

@@ -1,0 +1,11 @@
+# Dataset cache — too large to commit (LongMemEval-S is ~278MB,
+# LongMemEval-M is 2.75GB). Rehydrate via `agentos-bench setup`.
+data/
+
+# Local build output
+dist/
+node_modules/
+*.tsbuildinfo
+
+# OS junk
+.DS_Store

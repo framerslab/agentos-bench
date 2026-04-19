@@ -14,26 +14,31 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
-/** Known benchmark → list of (filename, URL) pairs. */
+/** Known benchmark → list of (filename, URL) pairs.
+ *
+ * Upstream LongMemEval files are extensionless Git-LFS blobs; HF
+ * auto-redirects `resolve/main/<name>` to the CDN backing. We rename to
+ * `.json` on disk to keep the file-sniff logic in dataset.ts simple.
+ */
 export const DATASET_SOURCES: Record<string, DatasetFile[]> = {
   'longmemeval-s': [
     {
       filename: 'longmemeval_s.json',
-      url: 'https://huggingface.co/datasets/xiaowu0162/longmemeval/resolve/main/longmemeval_s.json',
+      url: 'https://huggingface.co/datasets/xiaowu0162/longmemeval/resolve/main/longmemeval_s',
       targetDir: 'longmemeval',
     },
   ],
   'longmemeval-m': [
     {
       filename: 'longmemeval_m.json',
-      url: 'https://huggingface.co/datasets/xiaowu0162/longmemeval/resolve/main/longmemeval_m.json',
+      url: 'https://huggingface.co/datasets/xiaowu0162/longmemeval/resolve/main/longmemeval_m',
       targetDir: 'longmemeval',
     },
   ],
   'longmemeval-oracle': [
     {
       filename: 'longmemeval_oracle.json',
-      url: 'https://huggingface.co/datasets/xiaowu0162/longmemeval/resolve/main/longmemeval_oracle.json',
+      url: 'https://huggingface.co/datasets/xiaowu0162/longmemeval/resolve/main/longmemeval_oracle',
       targetDir: 'longmemeval',
     },
   ],

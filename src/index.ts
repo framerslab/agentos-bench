@@ -35,6 +35,9 @@ export { MockReader } from './readers/MockReader.js';
 export type { MockHandler, MockRoute } from './readers/MockReader.js';
 export { createReader, OpenAIHttpReader, AnthropicHttpReader } from './readers/createReader.js';
 
+// --- Cognitive scaffolding ---
+export * from './cognitive/index.js';
+
 // --- External benchmarks ---
 export * from './benchmarks/longmemeval/index.js';
 export * from './benchmarks/locomo/index.js';

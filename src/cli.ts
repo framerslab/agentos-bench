@@ -37,6 +37,7 @@ import {
   SignalAblation,
   SpreadingActivationPrecision,
   WorkingMemoryCapacity,
+  createOpenAIEmbedderFromEnv,
   createReader,
   estimateRunCost,
   type IBenchmark,
@@ -46,6 +47,7 @@ import {
   type ReplayMode,
   type RunConfig,
 } from './index.js';
+import type { IEmbeddingManager } from '@framers/agentos/core/embeddings/IEmbeddingManager';
 
 interface BenchEntry {
   id: string;
@@ -55,8 +57,11 @@ interface BenchEntry {
    * Build the benchmark instance. `reader` is an already-constructed
    * {@link IReader} — real (OpenAI / Anthropic HTTP client) in
    * production runs, {@link MockReader} under `--dry-run`.
+   * `embedder`, when provided, replaces the CharHashEmbedder stub in
+   * the full-cognitive path so retrieval exercises real semantic
+   * similarity.
    */
-  build: (ctx: { reader: IReader }) => IBenchmark;
+  build: (ctx: { reader: IReader; embedder?: IEmbeddingManager }) => IBenchmark;
 }
 
 const BENCHMARKS: BenchEntry[] = [
@@ -106,25 +111,25 @@ const BENCHMARKS: BenchEntry[] = [
     id: 'longmemeval-s',
     family: 'external',
     description: 'LongMemEval-S (500 cases, ~115k-token haystacks)',
-    build: ({ reader }) => new LongMemEvalS({ reader, variant: 's' }),
+    build: ({ reader, embedder }) => new LongMemEvalS({ reader, variant: 's', embedder }),
   },
   {
     id: 'longmemeval-m',
     family: 'external',
     description: 'LongMemEval-M (~500 sessions per haystack) — medium-difficulty variant',
-    build: ({ reader }) => new LongMemEvalM({ reader }),
+    build: ({ reader, embedder }) => new LongMemEvalM({ reader, embedder }),
   },
   {
     id: 'longmemeval-oracle',
     family: 'external',
     description: 'LongMemEval-Oracle (evidence-only) — isolates reader quality from retrieval',
-    build: ({ reader }) => new LongMemEvalOracle({ reader }),
+    build: ({ reader, embedder }) => new LongMemEvalOracle({ reader, embedder }),
   },
   {
     id: 'locomo',
     family: 'external',
     description: 'LOCOMO (Maharana et al. 2024, 10 convos × ~300 turns, QA task only in v1)',
-    build: ({ reader }) => new Locomo({ reader }),
+    build: ({ reader, embedder }) => new Locomo({ reader, embedder }),
   },
   {
     id: 'beam-500k',
@@ -256,6 +261,10 @@ export function buildCli(): Command {
     .option('--data-dir <path>', 'Dataset cache directory')
     .option('--results-dir <path>', 'Results directory')
     .option('--judge-model <model>', 'Judge LLM (external benchmarks only)', 'gpt-4o')
+    .option(
+      '--embedder-model <model>',
+      'Embedder model for the full-cognitive path (e.g. openai:text-embedding-3-small). Falls back to the CharHash stub when omitted.',
+    )
     .option('--dry-run', 'Use MockReader / mock judge (no API calls)')
     .action(async (benchmarkId: string, opts) => {
       const entry = BENCHMARKS.find((b) => b.id === benchmarkId);
@@ -353,6 +362,14 @@ export function buildCli(): Command {
           ? new MockReader(opts.reader as string)
           : createReader(opts.reader as ReaderModel);
 
+      // Optional real embedder for the full-cognitive path. When the
+      // flag is absent the adapter falls back to CharHashEmbedder,
+      // which is fine for smoke tests but not for publishable numbers.
+      const embedder: IEmbeddingManager | undefined =
+        opts.embedderModel && !opts.dryRun
+          ? createOpenAIEmbedderFromEnv(opts.embedderModel as string)
+          : undefined;
+
       const runner = new BenchmarkRunner({
         dataDir: resolveDataDir(opts.dataDir),
         resultsDir: resolveResultsDir(opts.resultsDir),
@@ -364,7 +381,7 @@ export function buildCli(): Command {
         `Running ${entry.id} reader=${runConfig.reader} memory=${runConfig.memoryMode} replay=${runConfig.replayMode}${opts.dryRun ? ' (dry-run)' : ''}${runConfig.sampleN ? ` sample=${runConfig.sampleN}` : ''}`,
       );
 
-      const benchmark = entry.build({ reader });
+      const benchmark = entry.build({ reader, embedder });
       const result = await runner.run(benchmark, runConfig);
 
       printRunSummary(result);
@@ -517,6 +534,24 @@ export function buildCli(): Command {
         }
       }
       if (failures > 0) process.exitCode = 1;
+    });
+
+  program
+    .command('export <runFile>')
+    .description('Export a saved run as CSVs: <prefix>-cases.csv + <prefix>-evidence.csv')
+    .option('--out <prefix>', 'Output prefix. Defaults to the run file path without .json')
+    .action(async (runFile: string, opts) => {
+      const { exportRunToCsv } = await import('./reporting/exportCsv.js');
+      const fsp = await import('node:fs/promises');
+      const result = JSON.parse(await fsp.readFile(runFile, 'utf8')) as import(
+        './core/IBenchmark.js'
+      ).BenchResult;
+      const prefix = (opts.out as string | undefined) ?? runFile.replace(/\.json$/, '');
+      const { casesPath, evidencePath } = await exportRunToCsv(result, prefix);
+      // eslint-disable-next-line no-console
+      console.log(`Wrote ${casesPath}`);
+      // eslint-disable-next-line no-console
+      console.log(`Wrote ${evidencePath}`);
     });
 
   program

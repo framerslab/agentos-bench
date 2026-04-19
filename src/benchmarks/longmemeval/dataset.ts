@@ -57,7 +57,10 @@ const RawCaseSchema = z.object({
   question_id: z.string(),
   question_type: z.string(),
   question: z.string(),
-  answer: z.string(),
+  // Upstream dumps mix strings and numbers (temporal questions often
+  // serialise the answer as `18` not `"18"`). Accept either and
+  // normalise to a string downstream.
+  answer: z.union([z.string(), z.number(), z.boolean(), z.array(z.union([z.string(), z.number()]))]),
   question_date: z.string().optional(),
   answer_session_ids: z.array(z.string()).optional(),
   haystack_session_ids: z.array(z.string()).optional(),
@@ -122,20 +125,33 @@ function parseJsonl(raw: string): unknown[] {
  */
 function convertCase(raw: RawLongMemEvalCase, idx: number, variant: LongMemEvalVariant): BenchCase {
   const haystack = extractHaystack(raw);
+  const expected = normaliseAnswer(raw.answer);
   return {
     id: raw.question_id || `longmemeval-${variant}-${idx}`,
     type: raw.question_type,
     question: raw.question,
     haystack,
-    expected: raw.answer,
+    expected,
     questionDate: raw.question_date,
     metadata: {
       variant,
       answerSessionIds: raw.answer_session_ids,
-      abstention: raw.question_type.toLowerCase().includes('abstention') ||
-        /unanswerable/i.test(raw.answer),
+      abstention:
+        raw.question_type.toLowerCase().includes('abstention') ||
+        /unanswerable/i.test(expected),
     },
   };
+}
+
+/**
+ * Coerce the upstream `answer` field — which may be a string, a number,
+ * a boolean, or an array of strings/numbers — into a single string the
+ * rubric composer expects.
+ */
+function normaliseAnswer(answer: RawLongMemEvalCase['answer']): string {
+  if (typeof answer === 'string') return answer;
+  if (typeof answer === 'number' || typeof answer === 'boolean') return String(answer);
+  return answer.map((a) => String(a)).join(' / ');
 }
 
 function extractHaystack(raw: RawLongMemEvalCase): Session[] {

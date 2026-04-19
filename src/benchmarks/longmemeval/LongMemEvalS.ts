@@ -27,6 +27,7 @@ import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { Memory } from '@framers/agentos';
 import type { ScoredTrace } from '@framers/agentos';
+import type { IEmbeddingManager } from '@framers/agentos/core/embeddings/IEmbeddingManager';
 import type {
   BenchCase,
   BenchContext,
@@ -58,6 +59,14 @@ export interface LongMemEvalAdapterOptions {
   maxAnswerTokens?: number;
   /** How many recalled memory traces to fold into the reader's prompt. */
   recallTopK?: number;
+  /**
+   * Optional {@link IEmbeddingManager} for the full-cognitive path.
+   * Defaults to the CharHashEmbedder stub (offline, deterministic
+   * lexical only). Production / publishable runs should inject an
+   * OpenAIEmbedder or equivalent so the cognitive retrieval path sees
+   * real semantic similarity.
+   */
+  embedder?: IEmbeddingManager;
 }
 
 /**
@@ -125,12 +134,14 @@ export class LongMemEvalS implements IBenchmark {
         ctx,
         this.opts.recallTopK ?? 10,
         'longmemeval-s',
+        this.opts.embedder,
       );
       system = out.prompt;
       runMetadata.replayStats = out.replayStats;
       runMetadata.recalledTraces = out.recallCount;
       runMetadata.workingMemorySlots = out.workingMemorySlots;
       runMetadata.observationsEmitted = out.observationsEmitted;
+      runMetadata.retrievedEvidence = out.retrievedEvidence;
     }
 
     const response = await this.opts.reader.invoke({
@@ -323,6 +334,12 @@ interface FullCognitiveOutput {
   recallCount: number;
   workingMemorySlots: number;
   observationsEmitted: number;
+  /** Compact audit trail of what memory returned for the question. */
+  retrievedEvidence: Array<{
+    id: string;
+    score: number;
+    snippet: string;
+  }>;
 }
 
 /**
@@ -348,12 +365,13 @@ export async function runFullCognitiveCase(
   ctx: BenchContext,
   recallTopK: number,
   adapterId: string,
+  embedder?: IEmbeddingManager,
 ): Promise<FullCognitiveOutput> {
   const brainPath = path.join(
     ctx.scratchDir,
     `${adapterId}-cog-${c.id.replace(/[^a-zA-Z0-9-_]/g, '_')}.sqlite`,
   );
-  const handle = await createCognitiveManager({ brainPath });
+  const handle = await createCognitiveManager({ brainPath, embedder });
   try {
     const replayStats = await replayForCognitive(c, handle, ctx.config.replayMode);
 
@@ -363,6 +381,12 @@ export async function runFullCognitiveCase(
       { topK: recallTopK, neutralMood: true },
     );
     const wmSlots = handle.manager.getWorkingMemory?.().getSlotCount?.() ?? 0;
+
+    const retrievedEvidence = retrieval.retrieved.map((t) => ({
+      id: t.id,
+      score: t.retrievalScore ?? 0,
+      snippet: String(t.content ?? '').slice(0, 280),
+    }));
 
     return {
       prompt: buildFullCognitivePrompt(c, retrieval.retrieved),
@@ -374,6 +398,7 @@ export async function runFullCognitiveCase(
       recallCount: retrieval.retrieved.length,
       workingMemorySlots: wmSlots,
       observationsEmitted: replayStats.observationsEmitted,
+      retrievedEvidence,
     };
   } finally {
     await handle.close();
