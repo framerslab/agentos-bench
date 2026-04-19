@@ -38,6 +38,7 @@ export { createReader, OpenAIHttpReader, AnthropicHttpReader } from './readers/c
 // --- External benchmarks ---
 export * from './benchmarks/longmemeval/index.js';
 export * from './benchmarks/locomo/index.js';
+export * from './benchmarks/beam/index.js';
 
 // --- Reporting ---
 export * from './reporting/index.js';

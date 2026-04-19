@@ -22,6 +22,7 @@ import path from 'node:path';
 import { Command } from 'commander';
 
 import {
+  Beam,
   BenchmarkRunner,
   ConsolidationSignalPreservation,
   DecayFidelity,
@@ -118,6 +119,24 @@ const BENCHMARKS: BenchEntry[] = [
     family: 'external',
     description: 'LOCOMO (Maharana et al. 2024, 10 convos × ~300 turns, QA task only in v1)',
     build: ({ reader }) => new Locomo({ reader: createReader(reader) }),
+  },
+  {
+    id: 'beam-500k',
+    family: 'external',
+    description: 'BEAM 500k tier (placeholder — upstream schema not yet public)',
+    build: ({ reader }) => new Beam({ reader: createReader(reader), tier: '500k' }),
+  },
+  {
+    id: 'beam-1m',
+    family: 'external',
+    description: 'BEAM 1M tier (placeholder — upstream schema not yet public)',
+    build: ({ reader }) => new Beam({ reader: createReader(reader), tier: '1m' }),
+  },
+  {
+    id: 'beam-10m',
+    family: 'external',
+    description: 'BEAM 10M tier — frontier, Hindsight SOTA (placeholder until schema is published)',
+    build: ({ reader }) => new Beam({ reader: createReader(reader), tier: '10m' }),
   },
 ];
 
