@@ -25,6 +25,9 @@ export const MODEL_PRICES: Record<string, { promptPer1k: number; completionPer1k
   // OpenAI — https://openai.com/api/pricing/
   'gpt-4o': { promptPer1k: 0.0025, completionPer1k: 0.01 },
   'gpt-4o-mini': { promptPer1k: 0.00015, completionPer1k: 0.0006 },
+  'gpt-5': { promptPer1k: 0.00125, completionPer1k: 0.01 },
+  'gpt-5-mini': { promptPer1k: 0.00025, completionPer1k: 0.002 },
+  'gpt-5-nano': { promptPer1k: 0.00005, completionPer1k: 0.0004 },
 
   // Embeddings (single price — combine into promptPer1k for simplicity).
   'text-embedding-3-small': { promptPer1k: 0.00002, completionPer1k: 0 },

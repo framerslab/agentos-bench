@@ -409,10 +409,21 @@ export async function runFullCognitiveCase(
  * Replay the haystack into a cognitive manager. The observer /
  * reflector pipeline requires an LLM invoker which benchmarks run
  * without, so we fall back to direct {@link CognitiveMemoryManager.encode}
- * calls — per turn for `observe` mode (closer to the live-conversation
- * shape), per session for `ingest` mode (same semantics as the base
- * memory path). `observationsEmitted` tracks how many `encode` calls
- * landed so callers have a cognitive-path activity signal.
+ * calls.
+ *
+ * Replay modes:
+ *   - `observe` — one encode per turn (finest granularity, highest
+ *     embedding-call count). Best retrieval fidelity but expensive.
+ *   - `ingest` — one encode per **turn-pair** (user + following
+ *     assistant turn). Reduces embedding calls by ~2× vs observe while
+ *     still giving retrieval enough signal to surface the specific
+ *     exchange that holds the hero memory. Empirically a ~3-turn
+ *     window is the sweet spot — per-session ingest (the previous
+ *     behaviour) buried hero memories in 3k-token traces and tanked
+ *     retrieval; per-turn-pair keeps traces ~300–600 tokens.
+ *
+ * `observationsEmitted` tracks how many `encode` calls landed so
+ * callers have a cognitive-path activity signal.
  */
 async function replayForCognitive(
   c: BenchCase,
@@ -440,15 +451,17 @@ async function replayForCognitive(
     }
   } else {
     for (const session of c.haystack) {
-      const body = session.turns.map((t) => `${t.role}: ${t.content}`).join('\n');
+      const chunks = chunkSessionTurns(session.turns);
       turns += session.turns.length;
-      if (!body.trim()) continue;
-      await handle.manager.encode(body, neutralMood, '', {
-        type: 'episodic',
-        scope: 'user',
-        scopeId: 'bench',
-      });
-      encodeCalls += 1;
+      for (const chunk of chunks) {
+        if (!chunk.trim()) continue;
+        await handle.manager.encode(chunk, neutralMood, '', {
+          type: 'episodic',
+          scope: 'user',
+          scopeId: 'bench',
+        });
+        encodeCalls += 1;
+      }
     }
   }
 
@@ -458,6 +471,52 @@ async function replayForCognitive(
     durationMs: Date.now() - start,
     observationsEmitted: encodeCalls,
   };
+}
+
+/**
+ * Split a session's turns into retrieval-friendly chunks. Groups are
+ * {user, assistant} turn-pairs — each pair is a self-contained unit
+ * of memory. Lone user turns at the end of a session become their own
+ * chunk. System / tool turns are appended to the most recent user or
+ * assistant turn so they share retrieval surface area.
+ *
+ * Empirically this shape gets retrieval to surface specific exchanges
+ * instead of whole sessions, which was the core cause of the pilot's
+ * 40% accuracy on LongMemEval-S.
+ */
+export function chunkSessionTurns(
+  turns: Array<{ role: 'user' | 'assistant' | 'system' | 'tool'; content: string }>,
+): string[] {
+  const chunks: string[] = [];
+  let current: string[] = [];
+  let sawUser = false;
+
+  const flush = () => {
+    if (current.length === 0) return;
+    chunks.push(current.join('\n'));
+    current = [];
+    sawUser = false;
+  };
+
+  for (const turn of turns) {
+    const line = `${turn.role}: ${turn.content}`;
+    if (turn.role === 'user') {
+      // Starting a fresh user turn → flush the previous exchange.
+      if (sawUser) flush();
+      current.push(line);
+      sawUser = true;
+    } else if (turn.role === 'assistant') {
+      current.push(line);
+      // assistant reply closes a user→assistant pair — flush now so
+      // the retrieval unit is exactly one exchange.
+      flush();
+    } else {
+      // system / tool — stick to the in-flight chunk.
+      current.push(line);
+    }
+  }
+  flush();
+  return chunks;
 }
 
 function buildFullCognitivePrompt(
