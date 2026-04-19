@@ -45,6 +45,10 @@ import { percentile, stdDev } from '../../core/statsUtil.js';
 import type { IReader } from '../../readers/IReader.js';
 import { createCognitiveManager } from '../../cognitive/createCognitiveManager.js';
 import { loadLongMemEvalDataset, type LongMemEvalVariant } from './dataset.js';
+import {
+  BENCH_SESSION_TAG_PREFIX,
+  extractBenchSessionTag,
+} from './extractBenchSessionTag.js';
 
 /**
  * Configuration specific to the LongMemEval adapter. Separate from
@@ -349,6 +353,12 @@ interface FullCognitiveOutput {
     id: string;
     score: number;
     snippet: string;
+    /**
+     * Source session ID parsed off the `bench-session:` tag on the
+     * retrieved trace. Undefined when the retrieved trace carries no
+     * bench-session tag.
+     */
+    sessionId?: string;
   }>;
 }
 
@@ -415,6 +425,7 @@ export async function runFullCognitiveCase(
       id: t.id,
       score: t.retrievalScore ?? 0,
       snippet: String(t.content ?? '').slice(0, 280),
+      sessionId: extractBenchSessionTag(t.tags),
     }));
 
     return {
@@ -482,6 +493,7 @@ async function replayForCognitive(
 
   if (mode === 'observe') {
     for (const session of c.haystack) {
+      const sessionTag = `${BENCH_SESSION_TAG_PREFIX}${session.sessionId}`;
       for (const turn of session.turns) {
         turns += 1;
         if (!turn.content.trim()) continue;
@@ -489,13 +501,19 @@ async function replayForCognitive(
           `${turn.role}: ${turn.content}`,
           neutralMood,
           '',
-          { type: 'episodic', scope: 'user', scopeId: 'bench' },
+          {
+            type: 'episodic',
+            scope: 'user',
+            scopeId: 'bench',
+            tags: [sessionTag],
+          },
         );
         encodeCalls += 1;
       }
     }
   } else {
     for (const session of c.haystack) {
+      const sessionTag = `${BENCH_SESSION_TAG_PREFIX}${session.sessionId}`;
       const chunks = chunkSessionTurns(session.turns);
       turns += session.turns.length;
       for (const chunk of chunks) {
@@ -510,6 +528,7 @@ async function replayForCognitive(
           type: 'episodic',
           scope: 'user',
           scopeId: 'bench',
+          tags: [sessionTag],
         });
         encodeCalls += 1;
       }
