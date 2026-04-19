@@ -1,8 +1,8 @@
 # AgentOS Memory Benchmark Leaderboard
 
-Last updated: 2026-04-19T06:11:20.829Z
+Last updated: 2026-04-19T07:04:32.066Z
 
-Micro-benchmark results generated against unmodified AgentOS. External-benchmark rows require API keys to populate (see: agentos-bench run longmemeval-s --help).
+First real external-benchmark row — GPT-4o reader + GPT-4o judge + text-embedding-3-small + full-cognitive + ingest, 20-case sample.
 
 Our rows are produced by `@framers/agentos-bench` against the linked source datasets.
 Competitor rows are lifted verbatim from their published sources (see per-row citations).
@@ -12,6 +12,7 @@ Methodologies may differ; every row footnotes its reader LLM so comparisons stay
 Target to beat: **96.2%** (agentmemory (JordanMcCann)).
 | System | Reader | Memory | Replay | Accuracy | Avg latency | $/correct | Source |
 |---|---|---|---|---:|---:|---:|---|
+| AgentOS (`@framers/agentos`) | gpt-4o | full-cognitive | ingest | 40.0% | 14543 ms | $0.1716 | — |
 | agentmemory (JordanMcCann) | GPT-4o | — | — | 96.2% | — | — | [link](https://github.com/JordanMcCann/agentmemory) |
 | Mastra Observational Memory | GPT-5-mini | — | — | 94.9% | — | — | [link](https://mastra.ai/research/observational-memory) |
 | Supermemory | Unspecified (see source) | — | — | 92.0% | — | — | [link](https://supermemory.ai/research/) |

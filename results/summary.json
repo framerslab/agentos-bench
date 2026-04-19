@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-04-19T06:11:20.829Z",
+  "updatedAt": "2026-04-19T07:04:32.066Z",
   "latest": {
     "decay-fidelity|claude-sonnet-4-6|none|ingest": {
       "runFile": "micro/2026-04-19T06-11-20-814--decay-fidelity--claude-sonnet-4-6--none--ingest.json",
@@ -105,6 +105,21 @@
       "totalUsd": 0,
       "costPerCorrect": 0,
       "startedAt": "2026-04-19T06:11:20.827Z"
+    },
+    "longmemeval-s|gpt-4o|full-cognitive|ingest": {
+      "runFile": "runs/2026-04-19T06-49-58-505--longmemeval-s--gpt-4o--full-cognitive--ingest.json",
+      "benchmarkId": "longmemeval-s",
+      "benchmarkVersion": "1.0.0",
+      "reader": "gpt-4o",
+      "memoryMode": "full-cognitive",
+      "replayMode": "ingest",
+      "totalCases": 20,
+      "accuracy": 0.4,
+      "avgScore": 0.4,
+      "avgLatencyMs": 14543.15,
+      "totalUsd": 1.3729150000000003,
+      "costPerCorrect": 0.17161437500000004,
+      "startedAt": "2026-04-19T06:49:58.505Z"
     }
   }
 }
