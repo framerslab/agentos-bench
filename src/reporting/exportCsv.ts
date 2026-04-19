@@ -28,15 +28,24 @@ import type { BenchResult, CaseResult } from '../core/IBenchmark.js';
 export async function exportRunToCsv(
   result: BenchResult,
   outPrefix: string,
-): Promise<{ casesPath: string; evidencePath: string }> {
+): Promise<{
+  casesPath: string;
+  evidencePath: string;
+  retrievalPath: string;
+  latencyOpsPath: string;
+}> {
   const casesPath = `${outPrefix}-cases.csv`;
   const evidencePath = `${outPrefix}-evidence.csv`;
+  const retrievalPath = `${outPrefix}-retrieval.csv`;
+  const latencyOpsPath = `${outPrefix}-latency-ops.csv`;
 
   await fs.mkdir(path.dirname(casesPath), { recursive: true });
   await fs.writeFile(casesPath, renderCasesCsv(result));
   await fs.writeFile(evidencePath, renderEvidenceCsv(result));
+  await fs.writeFile(retrievalPath, renderRetrievalCsv(result));
+  await fs.writeFile(latencyOpsPath, renderLatencyOpsCsv(result));
 
-  return { casesPath, evidencePath };
+  return { casesPath, evidencePath, retrievalPath, latencyOpsPath };
 }
 
 /**
@@ -105,6 +114,90 @@ export function renderEvidenceCsv(result: BenchResult): string {
       const e = evidence[i]!;
       rows.push([c.caseId, meta?.caseType ?? '', String(i + 1), e.id, e.score.toFixed(4), e.snippet]);
     }
+  }
+  return toCsv([headers, ...rows]);
+}
+
+/**
+ * Render one row per case with retrieval-quality metrics. Cases with
+ * no gold session IDs (retrievalMetrics === null / undefined) are
+ * skipped — their sample size is explicitly zero in the leaderboard.
+ */
+export function renderRetrievalCsv(result: BenchResult): string {
+  const headers = [
+    'case_id',
+    'case_type',
+    'gold_count',
+    'k',
+    'recall_at_k',
+    'precision_at_k',
+    'ndcg_at_k',
+    'mrr',
+    'retrieved_count',
+    'hits',
+    'retrieved_session_ids',
+    'gold_session_ids',
+  ];
+  const rows: string[][] = [];
+  for (const c of result.cases) {
+    const m = c.retrievalMetrics;
+    if (m === null || m === undefined) continue;
+    const meta = c.metadata as
+      | { caseType?: string; retrievedEvidence?: Array<{ sessionId?: string }> }
+      | undefined;
+    const retrievedSessionIds = (meta?.retrievedEvidence ?? [])
+      .map((e) => e.sessionId ?? '')
+      .filter(Boolean);
+    const goldSessionIds = c.goldSessionIds ?? [];
+    rows.push([
+      c.caseId,
+      meta?.caseType ?? '',
+      String(m.goldCount),
+      String(m.k),
+      m.recallAtK.toFixed(4),
+      m.precisionAtK.toFixed(4),
+      m.ndcgAtK.toFixed(4),
+      m.mrr.toFixed(4),
+      String(m.retrievedCount),
+      String(m.hits),
+      retrievedSessionIds.join('|'),
+      goldSessionIds.join('|'),
+    ]);
+  }
+  return toCsv([headers, ...rows]);
+}
+
+/**
+ * Render one row per case with latency-operation timings. Cases
+ * without a latencyBreakdown (e.g. memoryMode=none) are skipped.
+ */
+export function renderLatencyOpsCsv(result: BenchResult): string {
+  const headers = [
+    'case_id',
+    'case_type',
+    'encode_ms',
+    'retrieve_ms',
+    'vector_search_ms',
+    'scoring_ms',
+    'replay_ms',
+    'encode_calls',
+  ];
+  const rows: string[][] = [];
+  for (const c of result.cases) {
+    const l = c.latencyBreakdown;
+    if (!l) continue;
+    const meta = c.metadata as { caseType?: string } | undefined;
+    const encodeCalls = c.memoryFootprint?.encodeCalls ?? 0;
+    rows.push([
+      c.caseId,
+      meta?.caseType ?? '',
+      l.encodeMs.toFixed(3),
+      l.retrieveMs.toFixed(3),
+      l.vectorSearchMs.toFixed(3),
+      l.scoringMs.toFixed(3),
+      l.replayMs.toFixed(3),
+      String(encodeCalls),
+    ]);
   }
   return toCsv([headers, ...rows]);
 }
