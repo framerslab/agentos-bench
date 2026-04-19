@@ -46,6 +46,35 @@ export interface SummaryEntry {
   totalUsd: number;
   costPerCorrect: number;
   startedAt: string;
+  // v2 metric fields — optional, populated when the underlying run
+  // emitted them. Leaderboard rendering gracefully skips sections
+  // when no run carries the corresponding field.
+  retrievalMetrics?: {
+    meanRecallAtK: number;
+    meanPrecisionAtK: number;
+    meanNdcgAtK: number;
+    meanMrr: number;
+    k: number;
+    sampleSize: number;
+  };
+  stratifiedAccuracy?: {
+    weightedOverall: number;
+    unweightedOverall: number;
+  };
+  latencyBreakdown?: {
+    encode: { p50: number; p95: number; p99: number; n: number };
+    retrieve: { p50: number; p95: number; p99: number; n: number };
+    vectorSearch: { p50: number; p95: number; p99: number; n: number };
+    scoring: { p50: number; p95: number; p99: number; n: number };
+    replay: { p50: number; p95: number; p99: number; n: number };
+  };
+  memoryFootprint?: {
+    meanBrainBytes: number;
+    p95BrainBytes: number;
+    meanTraceCount: number;
+    maxPeakWorkingMemorySlots: number;
+    totalEncodeCalls: number;
+  };
 }
 
 /**
@@ -133,6 +162,16 @@ export class ResultStore {
       totalUsd: r.totalUsd,
       costPerCorrect: r.costPerCorrect,
       startedAt: r.startedAt,
+      // v2 metric fields — optional, only set when the run emitted them.
+      retrievalMetrics: r.retrievalMetrics,
+      stratifiedAccuracy: r.stratifiedAccuracy
+        ? {
+            weightedOverall: r.stratifiedAccuracy.weightedOverall,
+            unweightedOverall: r.stratifiedAccuracy.unweightedOverall,
+          }
+        : undefined,
+      latencyBreakdown: r.latencyBreakdown,
+      memoryFootprint: r.memoryFootprint,
     };
     summary.updatedAt = new Date().toISOString();
     const summaryPath = path.join(this.resultsDir, 'summary.json');
