@@ -895,22 +895,25 @@ function buildFullCognitivePrompt(
   c: BenchCase,
   recalled: Array<{ id: string; content: string; retrievalScore?: number }>,
 ): string {
-  // Reader prompt tuning:
-  // - The retrieved excerpts may be noisy (lexical matches, tangential
-  //   topics). Previously the prompt said "If the excerpts do not
-  //   contain the answer, say I don't know" which encouraged abstention
-  //   even when a partial answer was present, dragging accuracy.
-  // - The new framing tells the model to extract the best possible
-  //   answer from the evidence, and only abstain when the evidence is
-  //   genuinely silent on the question.
-  // - Date-prefixed excerpts ([YYYY-MM-DD] ...) let temporal-reasoning
-  //   questions compute time gaps directly from the chunk text.
+  // Reader prompt tuning (v3 — temporal-reasoning refinement):
+  //
+  // Smoke (2026-04-19, 24-case stratified) found temporal-reasoning
+  // cases abstaining at 75% even when R@10=1.0 (gold session retrieved).
+  // Failure pattern: reader says "I don't know — no explicit date"
+  // instead of inferring from the [YYYY-MM-DD] session-date prefix or
+  // from surrounding event context. Non-temporal cases were fine.
+  //
+  // Fix: explicit instruction to infer dates and reject the easy-out
+  // abstention. Still allow abstention when NO temporal signal is
+  // present (true unknowable cases). Keep the rest of the prompt
+  // framing — extract-best-answer, be specific, be concise.
   const header = [
-    'You answer questions about a user based on a retrieved memory excerpts from their past conversations.',
+    'You answer questions about a user based on retrieved memory excerpts from their past conversations.',
     'The excerpts are sorted by retrieval relevance and may include unrelated content — focus on the ones that actually pertain to the question.',
-    'When excerpts mention dates in [YYYY-MM-DD] prefixes, use them to reason about time gaps, ordering, and recency.',
+    'Every excerpt is prefixed with [YYYY-MM-DD] — the date the conversation happened on. Use these prefixes as the primary source for temporal questions (ordering, time gaps, "how long ago", "which came first").',
+    'When the question asks about timing, infer from (a) session-date prefixes, (b) relative temporal cues in the content ("last week", "yesterday"), and (c) the question-asked-on date below. Do NOT abstain just because no excerpt states an absolute date — session-date prefixes give you one for every chunk.',
     'Extract the single best answer supported by the excerpts. Be specific (exact names, numbers, dates when available) and concise.',
-    'Only say "I don\'t know" when no excerpt is relevant to the question at all.',
+    'Only say "I don\'t know" when the excerpts genuinely contain no information relevant to the question — not when the evidence is partial or indirect.',
   ].join(' ');
   const dateHeader = c.questionDate ? `\n\nQuestion asked on: ${c.questionDate}` : '';
   const body =
