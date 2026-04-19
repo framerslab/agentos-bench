@@ -895,25 +895,20 @@ function buildFullCognitivePrompt(
   c: BenchCase,
   recalled: Array<{ id: string; content: string; retrievalScore?: number }>,
 ): string {
-  // Reader prompt tuning (v3 — temporal-reasoning refinement):
+  // Reader prompt tuning (v4 — balanced across temporal + knowledge-update):
   //
-  // Smoke (2026-04-19, 24-case stratified) found temporal-reasoning
-  // cases abstaining at 75% even when R@10=1.0 (gold session retrieved).
-  // Failure pattern: reader says "I don't know — no explicit date"
-  // instead of inferring from the [YYYY-MM-DD] session-date prefix or
-  // from surrounding event context. Non-temporal cases were fine.
-  //
-  // Fix: explicit instruction to infer dates and reject the easy-out
-  // abstention. Still allow abstention when NO temporal signal is
-  // present (true unknowable cases). Keep the rest of the prompt
-  // framing — extract-best-answer, be specific, be concise.
+  // v3 fixed temporal (25% → 75%) but regressed knowledge-update
+  // (75% → 25%) because the reader started listing both old and new
+  // values for updated facts instead of picking the latest. Multi-
+  // session also dipped. v4 keeps the temporal-inference guidance,
+  // adds a "latest-wins" rule for contradicting facts, and shortens
+  // the whole thing so the model isn't over-instructed.
   const header = [
-    'You answer questions about a user based on retrieved memory excerpts from their past conversations.',
-    'The excerpts are sorted by retrieval relevance and may include unrelated content — focus on the ones that actually pertain to the question.',
-    'Every excerpt is prefixed with [YYYY-MM-DD] — the date the conversation happened on. Use these prefixes as the primary source for temporal questions (ordering, time gaps, "how long ago", "which came first").',
-    'When the question asks about timing, infer from (a) session-date prefixes, (b) relative temporal cues in the content ("last week", "yesterday"), and (c) the question-asked-on date below. Do NOT abstain just because no excerpt states an absolute date — session-date prefixes give you one for every chunk.',
-    'Extract the single best answer supported by the excerpts. Be specific (exact names, numbers, dates when available) and concise.',
-    'Only say "I don\'t know" when the excerpts genuinely contain no information relevant to the question — not when the evidence is partial or indirect.',
+    'Answer the user question from the retrieved conversation excerpts.',
+    'Every excerpt is prefixed with [YYYY-MM-DD] — the session date. Use these as the source of truth for dates (ordering, time gaps, "how long ago", "which came first").',
+    'If facts conflict across excerpts (someone\'s job, a target weight, an approved amount), prefer the most recent [YYYY-MM-DD]. Earlier contradicting info is superseded.',
+    'Be specific: exact names, numbers, dates when you have them. Be concise: one or two sentences is usually right.',
+    'Only answer "I don\'t know" when no excerpt contains relevant information. If the evidence is partial or indirect, give your best single answer — don\'t abstain just because no excerpt states the answer literally.',
   ].join(' ');
   const dateHeader = c.questionDate ? `\n\nQuestion asked on: ${c.questionDate}` : '';
   const body =
