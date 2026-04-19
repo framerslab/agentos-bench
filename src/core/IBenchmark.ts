@@ -163,6 +163,15 @@ export interface RunConfig {
   retrievalProfile?: MemoryRetrievalProfile;
   /** Whether retrieval engines may escalate on weak hits. */
   adaptiveRetrieval?: boolean;
+  /** K for retrieval-quality metrics (Recall/Precision/NDCG@K). */
+  retrievalK?: number;
+  /** Enable stratified sampling + weighted accuracy. Implies per-type
+   *  sampling when `samplePerType` is set. */
+  stratified?: boolean;
+  /** When set with `stratified`, take at most N cases per case-type. */
+  samplePerType?: number;
+  /** Capture brain bytes + trace counts per case. Default: true. */
+  trackFootprint?: boolean;
 }
 
 /**
@@ -172,8 +181,34 @@ export interface RunConfig {
  */
 export interface BenchContext {
   /** The run configuration (resolved defaults applied). */
-  config: Required<Omit<RunConfig, 'sampleN' | 'tags' | 'seed' | 'maxUsd' | 'retrievalProfile' | 'adaptiveRetrieval'>> &
-    Pick<RunConfig, 'sampleN' | 'tags' | 'seed' | 'maxUsd' | 'retrievalProfile' | 'adaptiveRetrieval'>;
+  config: Required<
+    Omit<
+      RunConfig,
+      | 'sampleN'
+      | 'tags'
+      | 'seed'
+      | 'maxUsd'
+      | 'retrievalProfile'
+      | 'adaptiveRetrieval'
+      | 'retrievalK'
+      | 'stratified'
+      | 'samplePerType'
+      | 'trackFootprint'
+    >
+  > &
+    Pick<
+      RunConfig,
+      | 'sampleN'
+      | 'tags'
+      | 'seed'
+      | 'maxUsd'
+      | 'retrievalProfile'
+      | 'adaptiveRetrieval'
+      | 'retrievalK'
+      | 'stratified'
+      | 'samplePerType'
+      | 'trackFootprint'
+    >;
   /** LLM-as-judge for external benchmarks. Micro-benchmarks ignore. */
   judge: IJudge;
   /** Content-hash-keyed cache for embeddings, reader responses, judgments. */

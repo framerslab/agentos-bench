@@ -279,6 +279,11 @@ export function buildCli(): Command {
       '--embedder-model <model>',
       'Embedder model for the full-cognitive path (e.g. openai:text-embedding-3-small). Falls back to the CharHash stub when omitted.',
     )
+    .option('--retrieval-k <n>', 'K for retrieval-quality metrics (Recall/Precision/NDCG@K)', parseInteger, 10)
+    .option('--stratified', 'Enable stratified sampling + weighted accuracy aggregation')
+    .option('--sample-per-type <n>', 'Cases per case-type (implies --stratified)', parseInteger)
+    .option('--track-footprint', 'Capture brain bytes + trace counts (default: on)', true)
+    .option('--no-footprint', 'Disable footprint tracking for maximum-throughput runs')
     .option('--dry-run', 'Use MockReader / mock judge (no API calls)')
     .action(async (benchmarkId: string, opts) => {
       const entry = BENCHMARKS.find((b) => b.id === benchmarkId);
@@ -287,6 +292,17 @@ export function buildCli(): Command {
         console.error(`Unknown benchmark '${benchmarkId}'. Run 'agentos-bench list' to see options.`);
         process.exitCode = 1;
         return;
+      }
+
+      // --sample-per-type implies --stratified. If both --sample and
+      // --sample-per-type are supplied, --sample-per-type takes effect
+      // per the adapter logic (which respects samplePerType when set).
+      const stratified = Boolean(opts.stratified || typeof opts.samplePerType === 'number');
+      if (typeof opts.sample === 'number' && typeof opts.samplePerType === 'number') {
+        // eslint-disable-next-line no-console
+        console.warn(
+          '[cli] both --sample and --sample-per-type supplied; --sample-per-type takes effect for stratified adapters.',
+        );
       }
 
       const runConfig: RunConfig = {
@@ -298,6 +314,12 @@ export function buildCli(): Command {
         maxUsd: opts.maxUsd,
         retrievalProfile: opts.profile as MemoryRetrievalProfile,
         adaptiveRetrieval: opts.adaptive as boolean,
+        retrievalK: opts.retrievalK as number | undefined,
+        stratified,
+        samplePerType: opts.samplePerType as number | undefined,
+        // commander's --track-footprint / --no-footprint flip the same
+        // option; default is true (capture enabled).
+        trackFootprint: opts.footprint as boolean,
       };
 
       // Cost preflight — coarse but enough to catch "oh no I just
