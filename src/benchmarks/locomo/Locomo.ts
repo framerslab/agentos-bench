@@ -27,6 +27,7 @@
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { Memory } from '@framers/agentos';
+import type { MemoryRetrievalPolicy } from '@framers/agentos';
 import type { ScoredTrace } from '@framers/agentos';
 import type {
   BenchCase,
@@ -76,6 +77,7 @@ export class Locomo implements IBenchmark {
   async runCase(c: BenchCase, ctx: BenchContext): Promise<CaseRun> {
     const start = Date.now();
     const mode = ctx.config.memoryMode;
+    const retrievalPolicy = buildBenchRetrievalPolicy(ctx);
     let system: string;
     const runMeta: Record<string, unknown> = {
       memoryMode: mode,
@@ -92,10 +94,12 @@ export class Locomo implements IBenchmark {
         c,
         ctx,
         this.opts.recallTopK ?? 10,
+        retrievalPolicy,
       );
       system = prompt;
       runMeta.replayStats = replayStats;
       runMeta.recalledTraces = recallCount;
+      runMeta.retrievalPolicy = retrievalPolicy;
     } else {
       // full-cognitive — reuse LongMemEvalS's shared pipeline so both
       // adapters exercise the same CognitiveMemoryManager wiring.
@@ -104,6 +108,7 @@ export class Locomo implements IBenchmark {
         ctx,
         this.opts.recallTopK ?? 10,
         'locomo',
+        retrievalPolicy,
         this.opts.embedder,
       );
       system = out.prompt;
@@ -112,6 +117,7 @@ export class Locomo implements IBenchmark {
       runMeta.workingMemorySlots = out.workingMemorySlots;
       runMeta.observationsEmitted = out.observationsEmitted;
       runMeta.retrievedEvidence = out.retrievedEvidence;
+      runMeta.retrievalPolicy = retrievalPolicy;
     }
 
     const response = await this.opts.reader.invoke({
@@ -273,6 +279,7 @@ async function runBaseMemoryCase(
   c: BenchCase,
   ctx: BenchContext,
   recallTopK: number,
+  retrievalPolicy: MemoryRetrievalPolicy,
 ): Promise<BaseMemoryOutput> {
   const brainPath = path.join(
     ctx.scratchDir,
@@ -281,7 +288,10 @@ async function runBaseMemoryCase(
   const mem = await Memory.create({ path: brainPath, selfImprove: false });
   try {
     const replayStats = await replayViaIngest(c.haystack, mem);
-    const recalled = await mem.recall(c.question, { limit: recallTopK });
+    const recalled = await mem.recall(c.question, {
+      limit: recallTopK,
+      policy: retrievalPolicy,
+    });
     return {
       prompt: buildBaseMemoryPrompt(c, recalled),
       replayStats: {
@@ -317,3 +327,10 @@ function buildBaseMemoryPrompt(c: BenchCase, recalled: ScoredTrace[]): string {
 
 /** Exported for tests — lets fixtures assert category→type mapping. */
 export const LOCOMO_CATEGORY_LOOKUP = LOCOMO_CATEGORY_NAMES;
+
+function buildBenchRetrievalPolicy(ctx: BenchContext): MemoryRetrievalPolicy {
+  return {
+    profile: ctx.config.retrievalProfile ?? 'balanced',
+    adaptive: ctx.config.adaptiveRetrieval ?? true,
+  };
+}

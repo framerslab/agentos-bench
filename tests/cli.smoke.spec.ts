@@ -110,6 +110,34 @@ describe('CLI smoke', () => {
     expect(run.cases[0].actualOutput).toContain('dry-run mock answer');
   });
 
+  it('run accepts retrieval profile flags and persists them in run config', async () => {
+    await buildCli().parseAsync([
+      'node',
+      'agentos-bench',
+      'run',
+      'longmemeval-s',
+      '--memory',
+      'base-memory',
+      '--replay',
+      'ingest',
+      '--profile',
+      'max-recall',
+      '--adaptive',
+      'off',
+      '--data-dir',
+      dataDir,
+      '--results-dir',
+      resultsDir,
+      '--dry-run',
+    ]);
+
+    const runs = await fs.readdir(path.join(resultsDir, 'runs'));
+    const run = JSON.parse(await fs.readFile(path.join(resultsDir, 'runs', runs[0]!), 'utf8'));
+
+    expect(run.config.retrievalProfile).toBe('max-recall');
+    expect(run.config.adaptiveRetrieval).toBe(false);
+  });
+
   it('run --dry-run against full-cognitive exercises CognitiveMemoryManager', async () => {
     await buildCli().parseAsync([
       'node',

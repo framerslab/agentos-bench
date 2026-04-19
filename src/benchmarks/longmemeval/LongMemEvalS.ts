@@ -26,6 +26,7 @@
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { Memory } from '@framers/agentos';
+import type { MemoryRetrievalPolicy } from '@framers/agentos';
 import type { ScoredTrace } from '@framers/agentos';
 import type { IEmbeddingManager } from '@framers/agentos/core/embeddings/IEmbeddingManager';
 import type {
@@ -109,6 +110,7 @@ export class LongMemEvalS implements IBenchmark {
     const mode = ctx.config.memoryMode;
 
     let system: string;
+    const retrievalPolicy = buildBenchRetrievalPolicy(ctx);
     const runMetadata: Record<string, unknown> = {
       memoryMode: mode,
       replayMode: ctx.config.replayMode,
@@ -122,10 +124,12 @@ export class LongMemEvalS implements IBenchmark {
         c,
         ctx,
         this.opts.recallTopK ?? 10,
+        retrievalPolicy,
       );
       system = prompt;
       runMetadata.replayStats = replayStats;
       runMetadata.recalledTraces = recallCount;
+      runMetadata.retrievalPolicy = retrievalPolicy;
     } else {
       // full-cognitive — real CognitiveMemoryManager, optional observer/
       // reflector pipeline depending on replayMode.
@@ -134,6 +138,7 @@ export class LongMemEvalS implements IBenchmark {
         ctx,
         this.opts.recallTopK ?? 10,
         'longmemeval-s',
+        retrievalPolicy,
         this.opts.embedder,
       );
       system = out.prompt;
@@ -142,6 +147,7 @@ export class LongMemEvalS implements IBenchmark {
       runMetadata.workingMemorySlots = out.workingMemorySlots;
       runMetadata.observationsEmitted = out.observationsEmitted;
       runMetadata.retrievedEvidence = out.retrievedEvidence;
+      runMetadata.retrievalPolicy = retrievalPolicy;
     }
 
     const response = await this.opts.reader.invoke({
@@ -300,6 +306,7 @@ async function runBaseMemoryCase(
   c: BenchCase,
   ctx: BenchContext,
   recallTopK: number,
+  retrievalPolicy: MemoryRetrievalPolicy,
 ): Promise<BaseMemoryCaseOutput> {
   const brainPath = path.join(
     ctx.scratchDir,
@@ -308,7 +315,10 @@ async function runBaseMemoryCase(
   const mem = await Memory.create({ path: brainPath, selfImprove: false });
   try {
     const replayStats = await replayViaIngest(c.haystack, mem);
-    const recalled = await mem.recall(c.question, { limit: recallTopK });
+    const recalled = await mem.recall(c.question, {
+      limit: recallTopK,
+      policy: retrievalPolicy,
+    });
     return {
       prompt: buildBaseMemoryPrompt(c, recalled),
       replayStats: {
@@ -365,6 +375,7 @@ export async function runFullCognitiveCase(
   ctx: BenchContext,
   recallTopK: number,
   adapterId: string,
+  retrievalPolicy: MemoryRetrievalPolicy,
   embedder?: IEmbeddingManager,
 ): Promise<FullCognitiveOutput> {
   const brainPath = path.join(
@@ -378,24 +389,42 @@ export async function runFullCognitiveCase(
     const retrieval = await handle.manager.retrieve(
       c.question,
       { valence: 0, arousal: 0, dominance: 0 },
-      { topK: recallTopK, neutralMood: true },
+      {
+        topK: recallTopK,
+        neutralMood: true,
+        policy: retrievalPolicy,
+      },
     );
     const wmSlots = handle.manager.getWorkingMemory?.().getSlotCount?.() ?? 0;
 
-    const retrievedEvidence = retrieval.retrieved.map((t) => ({
+    // Drop low-relevance chunks before they reach the reader. Retrieval
+    // often returns 10 chunks even when only the top 3-5 are meaningfully
+    // related to the question, and the tail dilutes the reader's
+    // attention on the actual hero memory. Threshold is conservative
+    // (0.2) — retrieved items with a composite score below this are
+    // consistently off-topic in the pilot CSVs.
+    const filtered = retrieval.retrieved.filter(
+      (t) => (t.retrievalScore ?? 0) >= RETRIEVAL_SCORE_MIN,
+    );
+    // Always include at least the top result so the reader has something
+    // to work with even on questions where every chunk scored poorly.
+    const reader_chunks =
+      filtered.length > 0 ? filtered : retrieval.retrieved.slice(0, 1);
+
+    const retrievedEvidence = reader_chunks.map((t) => ({
       id: t.id,
       score: t.retrievalScore ?? 0,
       snippet: String(t.content ?? '').slice(0, 280),
     }));
 
     return {
-      prompt: buildFullCognitivePrompt(c, retrieval.retrieved),
+      prompt: buildFullCognitivePrompt(c, reader_chunks),
       replayStats: {
         sessionsReplayed: replayStats.sessionsReplayed,
         turnsReplayed: replayStats.turnsReplayed,
         durationMs: replayStats.durationMs,
       },
-      recallCount: retrieval.retrieved.length,
+      recallCount: reader_chunks.length,
       workingMemorySlots: wmSlots,
       observationsEmitted: replayStats.observationsEmitted,
       retrievedEvidence,
@@ -403,6 +432,22 @@ export async function runFullCognitiveCase(
   } finally {
     await handle.close();
   }
+}
+
+/**
+ * Composite-score threshold below which a retrieved trace is dropped
+ * from the reader prompt. Items below this consistently turned out to
+ * be off-topic in the pilot CSVs (0.25 top hit = semantically adjacent
+ * but wrong session). Too aggressive a floor drops real recall, so we
+ * always keep at least the top-1 result regardless.
+ */
+const RETRIEVAL_SCORE_MIN = 0.2;
+
+function buildBenchRetrievalPolicy(ctx: BenchContext): MemoryRetrievalPolicy {
+  return {
+    profile: ctx.config.retrievalProfile ?? 'balanced',
+    adaptive: ctx.config.adaptiveRetrieval ?? true,
+  };
 }
 
 /**
@@ -455,7 +500,13 @@ async function replayForCognitive(
       turns += session.turns.length;
       for (const chunk of chunks) {
         if (!chunk.trim()) continue;
-        await handle.manager.encode(chunk, neutralMood, '', {
+        // Prefix each chunk with its session date so temporal-reasoning
+        // questions ("how many days between X and Y") have the answer in
+        // the chunk text itself, not just the dropped-out metadata.
+        const dated = session.date
+          ? `[${session.date}] ${chunk}`
+          : chunk;
+        await handle.manager.encode(dated, neutralMood, '', {
           type: 'episodic',
           scope: 'user',
           scopeId: 'bench',
@@ -523,18 +574,30 @@ function buildFullCognitivePrompt(
   c: BenchCase,
   recalled: Array<{ id: string; content: string; retrievalScore?: number }>,
 ): string {
+  // Reader prompt tuning:
+  // - The retrieved excerpts may be noisy (lexical matches, tangential
+  //   topics). Previously the prompt said "If the excerpts do not
+  //   contain the answer, say I don't know" which encouraged abstention
+  //   even when a partial answer was present, dragging accuracy.
+  // - The new framing tells the model to extract the best possible
+  //   answer from the evidence, and only abstain when the evidence is
+  //   genuinely silent on the question.
+  // - Date-prefixed excerpts ([YYYY-MM-DD] ...) let temporal-reasoning
+  //   questions compute time gaps directly from the chunk text.
   const header = [
-    'You are being evaluated on long-term conversation memory.',
-    'Use the retrieved cognitive-memory excerpts below to answer.',
-    'Be concise. If the excerpts do not contain the answer, say "I don\'t know".',
+    'You answer questions about a user based on a retrieved memory excerpts from their past conversations.',
+    'The excerpts are sorted by retrieval relevance and may include unrelated content — focus on the ones that actually pertain to the question.',
+    'When excerpts mention dates in [YYYY-MM-DD] prefixes, use them to reason about time gaps, ordering, and recency.',
+    'Extract the single best answer supported by the excerpts. Be specific (exact names, numbers, dates when available) and concise.',
+    'Only say "I don\'t know" when no excerpt is relevant to the question at all.',
   ].join(' ');
-  const dateHeader = c.questionDate ? `\n\n[Question asked on ${c.questionDate}]` : '';
+  const dateHeader = c.questionDate ? `\n\nQuestion asked on: ${c.questionDate}` : '';
   const body =
     recalled.length > 0
       ? recalled
           .map(
             (r, i) =>
-              `#${i + 1} (score ${(r.retrievalScore ?? 0).toFixed(3)})\n${r.content}`,
+              `#${i + 1} (retrieval score ${(r.retrievalScore ?? 0).toFixed(3)})\n${r.content}`,
           )
           .join('\n\n')
       : '(no relevant memories surfaced)';
@@ -547,9 +610,9 @@ function buildFullCognitivePrompt(
 
 function buildBaseMemoryPrompt(c: BenchCase, recalled: ScoredTrace[]): string {
   const header = [
-    'You are being evaluated on long-term conversation memory.',
-    'Use the relevant memory excerpts below to answer the question.',
-    'Be concise. If the excerpts do not contain the answer, say "I don\'t know".',
+    'You answer questions about a user based on retrieved memory excerpts from past conversations.',
+    'The excerpts are sorted by retrieval relevance. Extract the single best answer supported by the excerpts — be specific with names, numbers, and dates.',
+    'Only say "I don\'t know" when no excerpt is relevant to the question at all.',
   ].join(' ');
   const dateHeader = c.questionDate ? `\n\n[Question asked on ${c.questionDate}]` : '';
   const body =

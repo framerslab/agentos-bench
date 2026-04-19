@@ -18,6 +18,7 @@
 import type { IJudge } from '../judges/IJudge.js';
 import type { Cache } from './Cache.js';
 import type { CostTracker } from './CostTracker.js';
+import type { MemoryRetrievalProfile } from '@framers/agentos';
 
 // ---------------------------------------------------------------------------
 // Dimensions
@@ -151,6 +152,10 @@ export interface RunConfig {
   tags?: string[];
   /** Optional seed for reproducibility where relevant. */
   seed?: number;
+  /** Shared runtime retrieval profile to evaluate. */
+  retrievalProfile?: MemoryRetrievalProfile;
+  /** Whether retrieval engines may escalate on weak hits. */
+  adaptiveRetrieval?: boolean;
 }
 
 /**
@@ -160,8 +165,8 @@ export interface RunConfig {
  */
 export interface BenchContext {
   /** The run configuration (resolved defaults applied). */
-  config: Required<Omit<RunConfig, 'sampleN' | 'tags' | 'seed' | 'maxUsd'>> &
-    Pick<RunConfig, 'sampleN' | 'tags' | 'seed' | 'maxUsd'>;
+  config: Required<Omit<RunConfig, 'sampleN' | 'tags' | 'seed' | 'maxUsd' | 'retrievalProfile' | 'adaptiveRetrieval'>> &
+    Pick<RunConfig, 'sampleN' | 'tags' | 'seed' | 'maxUsd' | 'retrievalProfile' | 'adaptiveRetrieval'>;
   /** LLM-as-judge for external benchmarks. Micro-benchmarks ignore. */
   judge: IJudge;
   /** Content-hash-keyed cache for embeddings, reader responses, judgments. */
