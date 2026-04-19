@@ -688,6 +688,41 @@ export async function runFullCognitiveCase(
  */
 const RETRIEVAL_SCORE_MIN = 0.2;
 
+/**
+ * Safe upper bound on chunk text length sent to embedders. OpenAI's
+ * `text-embedding-3-*` enforces an 8192-token limit; assuming 4 chars
+ * per English token gives ~32k chars. We cap at 24k chars (~6k tokens)
+ * to leave headroom for tokenizer variability across models. Chunks
+ * above this are split into halves until every piece fits.
+ *
+ * Observed live in Phase 0.1 smoke: one knowledge-update case had a
+ * turn-pair that blew past 32k chars and caused a 400 error that
+ * killed the whole case. Splitting (rather than truncating) preserves
+ * the full content across multiple retrieval-store entries.
+ */
+const SAFE_EMBEDDING_CHAR_LIMIT = 24_000;
+
+/**
+ * Split a single chunk into embedding-safe pieces. Recursively halves
+ * the chunk along line or whitespace boundaries until every piece is
+ * under {@link SAFE_EMBEDDING_CHAR_LIMIT}.
+ */
+export function splitForEmbedding(chunk: string): string[] {
+  if (chunk.length <= SAFE_EMBEDDING_CHAR_LIMIT) return [chunk];
+  // Prefer splitting at a newline near the midpoint; fall back to any
+  // whitespace; last resort is a hard slice.
+  const mid = Math.floor(chunk.length / 2);
+  const searchFrom = Math.max(0, mid - 500);
+  const searchTo = Math.min(chunk.length, mid + 500);
+  const window = chunk.slice(searchFrom, searchTo);
+  let cut = window.indexOf('\n');
+  if (cut < 0) cut = window.lastIndexOf(' ');
+  const splitAt = cut >= 0 ? searchFrom + cut + 1 : mid;
+  const left = chunk.slice(0, splitAt);
+  const right = chunk.slice(splitAt);
+  return [...splitForEmbedding(left), ...splitForEmbedding(right)];
+}
+
 function buildBenchRetrievalPolicy(ctx: BenchContext): MemoryRetrievalPolicy {
   return {
     profile: ctx.config.retrievalProfile ?? 'balanced',
@@ -766,7 +801,10 @@ async function replayForCognitive(
       for (const turn of session.turns) {
         turns += 1;
         if (!turn.content.trim()) continue;
-        await timedEncode(`${turn.role}: ${turn.content}`, [sessionTag]);
+        const full = `${turn.role}: ${turn.content}`;
+        for (const piece of splitForEmbedding(full)) {
+          await timedEncode(piece, [sessionTag]);
+        }
       }
     }
   } else {
@@ -780,7 +818,9 @@ async function replayForCognitive(
         // questions ("how many days between X and Y") have the answer in
         // the chunk text itself, not just the dropped-out metadata.
         const dated = session.date ? `[${session.date}] ${chunk}` : chunk;
-        await timedEncode(dated, [sessionTag]);
+        for (const piece of splitForEmbedding(dated)) {
+          await timedEncode(piece, [sessionTag]);
+        }
       }
     }
   }
