@@ -231,14 +231,39 @@ export function buildCli(): Command {
 
   program
     .command('setup')
-    .description('Prepare dataset caches (placeholder — HuggingFace download lands in v2).')
-    .action(() => {
-      // eslint-disable-next-line no-console
-      console.log(
-        'Dataset auto-download not yet implemented. Place LongMemEval JSONs at ' +
-          `${path.join(resolveDataDir(), 'longmemeval/')} manually for now. ` +
-          'Source: huggingface.co/datasets/xiaowu0162/longmemeval',
-      );
+    .description('Download benchmark datasets into the data cache.')
+    .option('-b, --benchmark <id>', 'Download data for a single benchmark (default: all known)', 'all')
+    .option('--data-dir <path>', 'Dataset cache directory')
+    .option('--force', 'Re-download even if files already exist')
+    .action(async (opts) => {
+      const { downloadBenchmark, listDownloadableBenchmarks } = await import('./setup/download.js');
+      const dataDir = resolveDataDir(opts.dataDir);
+      const targets: string[] =
+        opts.benchmark === 'all' ? listDownloadableBenchmarks() : [opts.benchmark as string];
+
+      let failures = 0;
+      for (const id of targets) {
+        try {
+          const results = await downloadBenchmark(id, dataDir, {
+            force: Boolean(opts.force),
+            onProgress: (msg) => {
+              // eslint-disable-next-line no-console
+              console.log(`[${id}] ${msg}`);
+            },
+          });
+          for (const r of results) {
+            // eslint-disable-next-line no-console
+            console.log(
+              `[${id}] ${r.skipped ? 'skipped' : 'downloaded'} ${r.filename} (${r.bytes} bytes) → ${r.absolutePath}`,
+            );
+          }
+        } catch (err: unknown) {
+          failures += 1;
+          // eslint-disable-next-line no-console
+          console.error(`[${id}] FAILED: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+      if (failures > 0) process.exitCode = 1;
     });
 
   program

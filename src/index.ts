@@ -42,6 +42,9 @@ export * from './benchmarks/locomo/index.js';
 // --- Reporting ---
 export * from './reporting/index.js';
 
+// --- Setup (dataset download) ---
+export * from './setup/index.js';
+
 // --- Micro-benchmarks ---
 export { DecayFidelity, buildSyntheticTrace } from './micro/DecayFidelity.js';
 export { HexacoEncodingBias } from './micro/HexacoEncodingBias.js';
