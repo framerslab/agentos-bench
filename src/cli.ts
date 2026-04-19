@@ -185,6 +185,44 @@ function parseAdaptiveMode(v: string): boolean {
   throw new Error(`Expected adaptive mode on | off, got ${v}`);
 }
 
+const VALID_ABLATE_SIGNALS = [
+  'strength',
+  'similarity',
+  'recency',
+  'emotionalCongruence',
+  'graphActivation',
+  'importance',
+] as const;
+
+function parseAblateSignal(v: string): (typeof VALID_ABLATE_SIGNALS)[number] {
+  if ((VALID_ABLATE_SIGNALS as readonly string[]).includes(v)) {
+    return v as (typeof VALID_ABLATE_SIGNALS)[number];
+  }
+  throw new Error(
+    `Expected one of ${VALID_ABLATE_SIGNALS.join(' | ')}, got ${v}`,
+  );
+}
+
+const VALID_ABLATE_MECHANISMS = [
+  'reconsolidation',
+  'retrievalInducedForgetting',
+  'involuntaryRecall',
+  'metacognitiveFOK',
+  'temporalGist',
+  'schemaEncoding',
+  'sourceConfidenceDecay',
+  'emotionRegulation',
+] as const;
+
+function parseAblateMechanism(v: string): (typeof VALID_ABLATE_MECHANISMS)[number] {
+  if ((VALID_ABLATE_MECHANISMS as readonly string[]).includes(v)) {
+    return v as (typeof VALID_ABLATE_MECHANISMS)[number];
+  }
+  throw new Error(
+    `Expected one of ${VALID_ABLATE_MECHANISMS.join(' | ')}, got ${v}`,
+  );
+}
+
 /**
  * Default case count for the cost preflight when `--sample` is not set.
  * Hardcoded so we don't have to load the dataset just to estimate cost.
@@ -284,6 +322,16 @@ export function buildCli(): Command {
     .option('--sample-per-type <n>', 'Cases per case-type (implies --stratified)', parseInteger)
     .option('--track-footprint', 'Capture brain bytes + trace counts (default: on)', true)
     .option('--no-footprint', 'Disable footprint tracking for maximum-throughput runs')
+    .option(
+      '--ablate-signal <signal>',
+      'Zero one retrieval signal: strength | similarity | recency | emotionalCongruence | graphActivation | importance',
+      parseAblateSignal,
+    )
+    .option(
+      '--ablate-mechanism <mechanism>',
+      'Disable one cognitive mechanism: reconsolidation | retrievalInducedForgetting | involuntaryRecall | metacognitiveFOK | temporalGist | schemaEncoding | sourceConfidenceDecay | emotionRegulation',
+      parseAblateMechanism,
+    )
     .option('--dry-run', 'Use MockReader / mock judge (no API calls)')
     .action(async (benchmarkId: string, opts) => {
       const entry = BENCHMARKS.find((b) => b.id === benchmarkId);
@@ -320,6 +368,8 @@ export function buildCli(): Command {
         // commander's --track-footprint / --no-footprint flip the same
         // option; default is true (capture enabled).
         trackFootprint: opts.footprint as boolean,
+        ablateSignal: opts.ablateSignal as RunConfig['ablateSignal'],
+        ablateMechanism: opts.ablateMechanism as RunConfig['ablateMechanism'],
       };
 
       // Cost preflight — coarse but enough to catch "oh no I just

@@ -60,6 +60,8 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     stratified: cfg.stratified,
     samplePerType: cfg.samplePerType,
     trackFootprint: cfg.trackFootprint,
+    ablateSignal: cfg.ablateSignal,
+    ablateMechanism: cfg.ablateMechanism,
   };
 }
 

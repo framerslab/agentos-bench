@@ -599,9 +599,19 @@ export async function runFullCognitiveCase(
     ctx.scratchDir,
     `${adapterId}-cog-${c.id.replace(/[^a-zA-Z0-9-_]/g, '_')}.sqlite`,
   );
-  const handle = await createCognitiveManager({ brainPath, embedder });
+  const handle = await createCognitiveManager({
+    brainPath,
+    embedder,
+    disableMechanism: ctx.config.ablateMechanism,
+  });
   try {
     const replayStats = await replayForCognitive(c, handle, ctx.config.replayMode);
+
+    // Build a per-call weight override when --ablate-signal is set.
+    // Undefined → agentos uses DEFAULT_SCORING_WEIGHTS.
+    const scoringWeights = ctx.config.ablateSignal
+      ? { [ctx.config.ablateSignal]: 0 }
+      : undefined;
 
     const retrieval = await handle.manager.retrieve(
       c.question,
@@ -610,6 +620,7 @@ export async function runFullCognitiveCase(
         topK: recallTopK,
         neutralMood: true,
         policy: retrievalPolicy,
+        scoringWeights,
       },
     );
     const wmSlots = handle.manager.getWorkingMemory?.().getSlotCount?.() ?? 0;
