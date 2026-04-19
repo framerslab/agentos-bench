@@ -690,19 +690,24 @@ const RETRIEVAL_SCORE_MIN = 0.2;
 
 /**
  * Safe upper bound on chunk text length sent to embedders. OpenAI's
- * `text-embedding-3-*` enforces an 8192-token limit. Plain English
- * tokenises at ~4 chars/token → 32k chars worst case. Dense content
- * (structured tables, numeric data, JSON-like strings) tokenises much
- * finer — financial knowledge-update cases in LongMemEval-S have
- * observed ratios closer to 1.5-2 chars/token. We cap at 12k chars
- * (~4-6k tokens worst case, ~8k best case) to stay safely under the
- * limit across content types.
+ * `text-embedding-3-*` enforces an 8192-token limit. Token:char ratio
+ * varies widely: plain English ~4 chars/token, dense structured text
+ * (Wikipedia with acronyms / citations / numeric references) ~1-1.5
+ * chars/token. A 10k-char piece of Wikipedia content has been observed
+ * to exceed 8192 tokens (confirmed live: question_id=852ce960 failed
+ * at chunk lengths up to 10.4k chars even after splitting). 6k chars
+ * fits under 8192 tokens for every content profile we've seen in
+ * LongMemEval-S — even 1:1 char/token pathological content.
  *
  * Chunks above this are split at newline / whitespace boundaries until
  * every piece fits. All pieces carry the same bench-session tag so
  * session-level retrieval metrics still work.
+ *
+ * TODO(future): replace with a real tokenizer (gpt-tokenizer) for
+ * precise token-level splitting. The char-level fallback is
+ * intentionally conservative.
  */
-const SAFE_EMBEDDING_CHAR_LIMIT = 12_000;
+const SAFE_EMBEDDING_CHAR_LIMIT = 6_000;
 
 /**
  * Split a single chunk into embedding-safe pieces. Recursively halves
