@@ -347,6 +347,18 @@ export interface RunConfig {
    * Default: false. Opt-in behind `--fact-supersession` CLI flag.
    */
   factSupersession?: boolean;
+
+  /**
+   * Enable Step-6 split-on-ambiguous rerank refinement. Bottom fraction
+   * of traces by first-pass rerank score are split at sentence
+   * boundaries and rescored; replaced by their better half only if
+   * it outscores the original. Monotonic. Reuses the existing Cohere
+   * rerank-v3.5 service — no extra LLM calls.
+   *
+   * Value in (0, 1]. Typical: 0.3 (refine bottom 30%).
+   * Default: undefined (no split). Requires `--hybrid-retrieval`.
+   */
+  splitAmbiguous?: number;
 }
 
 /**
@@ -384,6 +396,7 @@ export interface BenchContext {
       | 'hybridRetrieval'
       | 'hyde'
       | 'factSupersession'
+      | 'splitAmbiguous'
     >
   > &
     Pick<
@@ -413,6 +426,7 @@ export interface BenchContext {
       | 'hybridRetrieval'
       | 'hyde'
       | 'factSupersession'
+      | 'splitAmbiguous'
     >;
   /** LLM-as-judge for external benchmarks. Micro-benchmarks ignore. */
   judge: IJudge;

@@ -105,6 +105,8 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     hyde: cfg.hyde,
     // Step-5: FactSupersession flag.
     factSupersession: cfg.factSupersession,
+    // Step-6: split-on-ambiguous rerank refinement.
+    splitAmbiguous: cfg.splitAmbiguous,
   };
 }
 
@@ -275,6 +277,15 @@ export function computeCaseRunKeyParts(
   if (config.factSupersession) {
     runKeyParts.push('fact-supersession:llm');
     resultKeyParts.push('fact-supersession:llm');
+  }
+
+  // Split-on-ambiguous fingerprint (Step 6): conditional append so
+  // runs without the flag keep their cache hashes intact. Threshold
+  // is part of the tag so different thresholds cache independently.
+  if (config.splitAmbiguous && config.splitAmbiguous > 0) {
+    const tag = `split-ambiguous:${config.splitAmbiguous}`;
+    runKeyParts.push(tag);
+    resultKeyParts.push(tag);
   }
 
   return { runKeyParts, resultKeyParts };
