@@ -32,3 +32,6 @@ export type {
 
 export { computeTokenEfficiency } from './computeTokenEfficiency.js';
 export type { TokensPerCorrect } from './computeTokenEfficiency.js';
+
+export { computeBootstrapCI } from './computeBootstrapCI.js';
+export type { BootstrapResult, BootstrapOptions } from './computeBootstrapCI.js';
