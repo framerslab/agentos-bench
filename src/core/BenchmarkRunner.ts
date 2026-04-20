@@ -95,6 +95,10 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     judgeAdversarialMaxProbes: cfg.judgeAdversarialMaxProbes,
     judgeAdversarialSynthModel: cfg.judgeAdversarialSynthModel,
     bootstrapResamples: cfg.bootstrapResamples,
+    // Step-2: session-level hierarchical retrieval knobs.
+    sessionRetrieval: cfg.sessionRetrieval,
+    sessionRetrievalTopSessions: cfg.sessionRetrievalTopSessions,
+    sessionRetrievalChunksPerSession: cfg.sessionRetrievalChunksPerSession,
   };
 }
 
@@ -233,6 +237,17 @@ export function computeCaseRunKeyParts(
     const topKTag = `topk:${config.readerTopK}`;
     runKeyParts.push(topKTag);
     resultKeyParts.push(topKTag);
+  }
+
+  // Session-level retrieval fingerprint (Step 2): conditional append
+  // so runs without the flag keep their baseline cache hashes intact.
+  // Pattern matches readerTopK from Step 1.
+  if (config.sessionRetrieval) {
+    const k = config.sessionRetrievalTopSessions ?? 5;
+    const m = config.sessionRetrievalChunksPerSession ?? 3;
+    const srTag = `session-retrieval:k=${k},m=${m}`;
+    runKeyParts.push(srTag);
+    resultKeyParts.push(srTag);
   }
 
   return { runKeyParts, resultKeyParts };
