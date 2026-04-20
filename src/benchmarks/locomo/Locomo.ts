@@ -76,6 +76,10 @@ export interface LocomoAdapterOptions {
    * exclusive with `sessionSummaryStore`.
    */
   hybridRetrievalEnabled?: boolean;
+  /**
+   * Step-4: enable HyDE. Same semantics as `LongMemEvalS.hydeEnabled`.
+   */
+  hydeEnabled?: boolean;
 }
 
 /**
@@ -163,6 +167,8 @@ export class Locomo implements IBenchmark {
         ctx.config.sessionRetrievalTopSessions,
         ctx.config.sessionRetrievalChunksPerSession,
         this.opts.hybridRetrievalEnabled,
+        this.opts.hydeEnabled,
+        this.opts.reader,
       );
       system = out.prompt;
       runMeta.replayStats = out.replayStats;
