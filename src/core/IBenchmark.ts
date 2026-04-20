@@ -199,6 +199,96 @@ export interface RunConfig {
     | 'schemaEncoding'
     | 'sourceConfidenceDecay'
     | 'emotionRegulation';
+
+  /**
+   * Optional neural reranker. When set, the full-cognitive path wires
+   * a {@link RerankerService} into the scratch
+   * {@link CognitiveMemoryManager}; retrieve blends 0.7 cognitive +
+   * 0.3 neural cross-encoder scores. Bench side also expands the
+   * retrieval candidate pool (by `candidateMultiplier`, default 3) so
+   * the reranker has meaningfully more candidates than the final
+   * reader K, then truncates to the reader K before prompt assembly.
+   *
+   * `apiKey` resolves from the CLI flag or `COHERE_API_KEY` env when
+   * omitted.
+   */
+  rerank?: {
+    provider: 'cohere';
+    model?: string;
+    apiKey?: string;
+    /**
+     * Multiply the retrieval `topK` before rerank to widen the
+     * candidate pool. Default 3 when `rerank` is set, 1 otherwise.
+     */
+    candidateMultiplier?: number;
+  };
+
+  /**
+   * Model id used to generate session-level contextual-retrieval
+   * summaries (Anthropic Sep 2024 variant). The CLI constructs a
+   * {@link SessionSummarizer} around this model and passes it to
+   * the adapter via `entry.build({ sessionSummarizer })`. Recorded
+   * on {@link BenchContext.config} so {@link BenchmarkRunner}'s
+   * case-run cache key can fingerprint it — a cached cognitive-only
+   * run must not satisfy a request for a contextual run.
+   *
+   * Undefined when the `--context-summary` flag was not set.
+   */
+  contextSummaryModel?: string;
+
+  /**
+   * How many retrieved chunks the reader sees after rerank and
+   * score-floor filtering. Fed into `runFullCognitiveCase` /
+   * `runBaseMemoryCase` as the `recallTopK` arg. When rerank is
+   * active, the candidate pool scales automatically via
+   * `rerank.candidateMultiplier` (default 3×): K=15 → 45-chunk
+   * Cohere input, K=20 → 60-chunk input. Must be >= 1 when set.
+   * Omit to inherit the adapter's default (currently 10).
+   *
+   * Resolved from the `--reader-top-k` CLI flag. Recorded on
+   * {@link BenchContext.config} so {@link BenchmarkRunner}'s
+   * case-run cache key can fingerprint it — K=10 and K=15 runs
+   * must not satisfy each other's cached answers.
+   */
+  readerTopK?: number;
+
+  /**
+   * Enable the judge-adversarial probe. When true, the runner
+   * synthesizes topically-adjacent wrong answers for up to
+   * {@link RunConfig.judgeAdversarialMaxProbes} cases and scores them
+   * with the same judge that scored real answers, reporting the
+   * false-positive rate on {@link BenchResult.judgeAdversarialFPR}.
+   *
+   * Motivated by the Penfield Labs LoCoMo audit (Apr 2026) which found
+   * the default LoCoMo judge accepts ~63 percent of plausible wrong
+   * answers — a noise floor invisible without this probe. Cost: one
+   * cheap synth call plus one judge call per probed case, bounded by
+   * `judgeAdversarialMaxProbes`.
+   *
+   * Default: false.
+   */
+  judgeAdversarial?: boolean;
+
+  /**
+   * Maximum cases probed when {@link RunConfig.judgeAdversarial} is
+   * enabled. Hard-bounds the cost (and latency) the probe can add to
+   * a run. Default: 50.
+   */
+  judgeAdversarialMaxProbes?: number;
+
+  /**
+   * Synthesizer model used to generate adversarial distractors. A
+   * cheap model suffices (the probe is about judge behavior, not
+   * synthesizer behavior). Default: `'gpt-5-mini'`.
+   */
+  judgeAdversarialSynthModel?: string;
+
+  /**
+   * Bootstrap resamples for all CI fields
+   * ({@link BenchResult.accuracyCI}, `weightedAccuracyCI`,
+   * `byTypeCI`, `judgeAdversarialFPR`). Default: 10,000.
+   */
+  bootstrapResamples?: number;
 }
 
 /**
@@ -223,6 +313,13 @@ export interface BenchContext {
       | 'trackFootprint'
       | 'ablateSignal'
       | 'ablateMechanism'
+      | 'rerank'
+      | 'contextSummaryModel'
+      | 'readerTopK'
+      | 'judgeAdversarial'
+      | 'judgeAdversarialMaxProbes'
+      | 'judgeAdversarialSynthModel'
+      | 'bootstrapResamples'
     >
   > &
     Pick<
@@ -239,6 +336,13 @@ export interface BenchContext {
       | 'trackFootprint'
       | 'ablateSignal'
       | 'ablateMechanism'
+      | 'rerank'
+      | 'contextSummaryModel'
+      | 'readerTopK'
+      | 'judgeAdversarial'
+      | 'judgeAdversarialMaxProbes'
+      | 'judgeAdversarialSynthModel'
+      | 'bootstrapResamples'
     >;
   /** LLM-as-judge for external benchmarks. Micro-benchmarks ignore. */
   judge: IJudge;
@@ -405,6 +509,36 @@ export interface BenchResult {
 
   /** Tokens per correct answer, per category. */
   tokensPerCorrect?: TokensPerCorrect;
+
+  /**
+   * 95 percent bootstrap percentile CI for unweighted accuracy.
+   * Populated by the runner after the benchmark's own `aggregate()`
+   * returns. Always present on runs that complete; absent on legacy
+   * run JSONs written before Step 1 of the sequenced RAG rollout.
+   */
+  accuracyCI?: import('./metrics/index.js').BootstrapResult;
+
+  /**
+   * 95 percent bootstrap CI for {@link BenchResult.stratifiedAccuracy}'s
+   * `weightedOverall`. Absent when the run did not compute a stratified
+   * accuracy.
+   */
+  weightedAccuracyCI?: import('./metrics/index.js').BootstrapResult;
+
+  /**
+   * Per-case-type bootstrap CI over accuracy. Same keys as
+   * {@link BenchResult.byType}. Absent on legacy runs.
+   */
+  byTypeCI?: Record<string, import('./metrics/index.js').BootstrapResult>;
+
+  /**
+   * Judge-adversarial probe result when
+   * {@link RunConfig.judgeAdversarial} was enabled. Reports the
+   * false-positive rate of the judge on topically-adjacent wrong
+   * answers — a measured noise floor below which step-level
+   * improvement claims are not defensible.
+   */
+  judgeAdversarialFPR?: import('./metrics/index.js').AdversarialRateOutput;
 
   /** Per-case results. */
   cases: CaseResult[];
