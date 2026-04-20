@@ -99,6 +99,8 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     sessionRetrieval: cfg.sessionRetrieval,
     sessionRetrievalTopSessions: cfg.sessionRetrievalTopSessions,
     sessionRetrievalChunksPerSession: cfg.sessionRetrievalChunksPerSession,
+    // Step-3: hybrid retrieval flag.
+    hybridRetrieval: cfg.hybridRetrieval,
   };
 }
 
@@ -248,6 +250,13 @@ export function computeCaseRunKeyParts(
     const srTag = `session-retrieval:k=${k},m=${m}`;
     runKeyParts.push(srTag);
     resultKeyParts.push(srTag);
+  }
+
+  // Hybrid retrieval fingerprint (Step 3): conditional append so
+  // non-hybrid runs keep their cache hashes intact.
+  if (config.hybridRetrieval) {
+    runKeyParts.push('hybrid-retrieval:rrf');
+    resultKeyParts.push('hybrid-retrieval:rrf');
   }
 
   return { runKeyParts, resultKeyParts };
