@@ -55,6 +55,22 @@ export interface LocomoAdapterOptions {
    * Defaults to the CharHashEmbedder stub when omitted.
    */
   embedder?: IEmbeddingManager;
+  /**
+   * Optional session-level contextual-retrieval summarizer
+   * (`@framers/agentos/memory`). Threaded through to
+   * {@link runFullCognitiveCase} so every chunk from a LOCOMO session
+   * is prepended with a dense session summary before embedding.
+   */
+  sessionSummarizer?: import('@framers/agentos/memory').SessionSummarizer;
+  /**
+   * Step-2 session-level retrieval store. When set, SessionRetriever
+   * replaces single-stage `manager.retrieve` in runFullCognitiveCase.
+   */
+  sessionSummaryStore?: import('@framers/agentos/memory').SessionSummaryStore;
+  /** Step-2: Stage-1 session count (default 5). */
+  sessionRetrievalTopSessions?: number;
+  /** Step-2: Stage-2 chunks-per-session (default 3). */
+  sessionRetrievalChunksPerSession?: number;
 }
 
 /**
@@ -71,7 +87,24 @@ export class Locomo implements IBenchmark {
   async setup(_ctx: BenchContext): Promise<void> {}
 
   async loadTestCases(ctx: BenchContext): Promise<BenchCase[]> {
-    return loadLocomoDataset(ctx.dataDir);
+    const allCases = await loadLocomoDataset(ctx.dataDir);
+    const perType = ctx.config.samplePerType;
+    // Stratified sampling: take up to `samplePerType` cases from each
+    // LOCOMO category, preserving dataset order within a type. Mirrors
+    // the LongMemEvalS implementation so the two benchmarks behave
+    // identically under --stratified --sample-per-type N.
+    if (ctx.config.stratified && typeof perType === 'number' && perType > 0) {
+      const groups = new Map<string, BenchCase[]>();
+      for (const c of allCases) {
+        const g = groups.get(c.type) ?? [];
+        if (g.length < perType) g.push(c);
+        groups.set(c.type, g);
+      }
+      return Array.from(groups.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .flatMap(([, cases]) => cases);
+    }
+    return allCases;
   }
 
   async runCase(c: BenchCase, ctx: BenchContext): Promise<CaseRun> {
@@ -90,10 +123,16 @@ export class Locomo implements IBenchmark {
     if (mode === 'none') {
       system = buildNoMemorySystemPrompt(c);
     } else if (mode === 'base-memory') {
+      // Resolution priority for K:
+      //   1. ctx.config.readerTopK  (from --reader-top-k CLI flag)
+      //   2. this.opts.recallTopK   (from adapter construction)
+      //   3. 10                     (hardcoded fallback)
+      const effectiveRecallTopK =
+        ctx.config.readerTopK ?? this.opts.recallTopK ?? 10;
       const { prompt, replayStats, recallCount } = await runBaseMemoryCase(
         c,
         ctx,
-        this.opts.recallTopK ?? 10,
+        effectiveRecallTopK,
         retrievalPolicy,
       );
       system = prompt;
@@ -103,13 +142,21 @@ export class Locomo implements IBenchmark {
     } else {
       // full-cognitive — reuse LongMemEvalS's shared pipeline so both
       // adapters exercise the same CognitiveMemoryManager wiring.
+      // Resolution priority mirrors the base-memory branch above
+      // (CLI flag > adapter opts > hardcoded 10).
+      const effectiveRecallTopK =
+        ctx.config.readerTopK ?? this.opts.recallTopK ?? 10;
       const out = await runFullCognitiveCase(
         c,
         ctx,
-        this.opts.recallTopK ?? 10,
+        effectiveRecallTopK,
         'locomo',
         retrievalPolicy,
         this.opts.embedder,
+        this.opts.sessionSummarizer,
+        this.opts.sessionSummaryStore,
+        ctx.config.sessionRetrievalTopSessions,
+        ctx.config.sessionRetrievalChunksPerSession,
       );
       system = out.prompt;
       runMeta.replayStats = out.replayStats;
