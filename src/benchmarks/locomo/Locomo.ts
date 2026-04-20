@@ -80,6 +80,11 @@ export interface LocomoAdapterOptions {
    * Step-4: enable HyDE. Same semantics as `LongMemEvalS.hydeEnabled`.
    */
   hydeEnabled?: boolean;
+  /**
+   * Step-5: enable FactSupersession. Same semantics as
+   * `LongMemEvalAdapterOptions.factSupersessionEnabled`.
+   */
+  factSupersessionEnabled?: boolean;
 }
 
 /**
@@ -169,6 +174,7 @@ export class Locomo implements IBenchmark {
         this.opts.hybridRetrievalEnabled,
         this.opts.hydeEnabled,
         this.opts.reader,
+        this.opts.factSupersessionEnabled,
       );
       system = out.prompt;
       runMeta.replayStats = out.replayStats;
