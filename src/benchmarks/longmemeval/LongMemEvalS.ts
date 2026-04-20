@@ -127,6 +127,12 @@ export interface LongMemEvalAdapterOptions {
    * before feeding them to the reader's system prompt.
    */
   factSupersessionEnabled?: boolean;
+  /**
+   * Step-6: threshold for split-on-ambiguous rerank refinement. When
+   * > 0 and `hybridRetrievalEnabled` is true, the adapter passes this
+   * to the `HybridRetriever` constructor. Typical: 0.3.
+   */
+  splitAmbiguousThreshold?: number;
 }
 
 /**
@@ -240,6 +246,7 @@ export class LongMemEvalS implements IBenchmark {
         this.opts.hydeEnabled,
         this.opts.reader,
         this.opts.factSupersessionEnabled,
+        this.opts.splitAmbiguousThreshold,
       );
       system = out.prompt;
       runMetadata.replayStats = out.replayStats;
@@ -673,6 +680,7 @@ export async function runFullCognitiveCase(
   hydeEnabled?: boolean,
   hydeReader?: IReader,
   factSupersessionEnabled?: boolean,
+  splitAmbiguousThreshold?: number,
 ): Promise<FullCognitiveOutput> {
   // Step 3 mutex: combined hybrid + session-level retrieval is Step 7
   // territory; MVP rejects the combination explicitly.
@@ -761,6 +769,7 @@ export async function runFullCognitiveCase(
           hydeEnabled
             ? handle.manager.getHydeRetriever?.() ?? undefined
             : undefined,
+        splitAmbiguousThreshold,
       });
     }
 
