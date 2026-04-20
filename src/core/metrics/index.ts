@@ -35,3 +35,16 @@ export type { TokensPerCorrect } from './computeTokenEfficiency.js';
 
 export { computeBootstrapCI } from './computeBootstrapCI.js';
 export type { BootstrapResult, BootstrapOptions } from './computeBootstrapCI.js';
+
+export {
+  computeJudgeAdversarialRate,
+  synthesizeAdversarialAnswer,
+  ADVERSARIAL_SYNTH_VERSION,
+} from './computeJudgeAdversarial.js';
+export type {
+  AdversarialSynthInput,
+  AdversarialSynthOutput,
+  AdversarialRateInput,
+  AdversarialRateOutput,
+  AdversarialProbeCase,
+} from './computeJudgeAdversarial.js';
