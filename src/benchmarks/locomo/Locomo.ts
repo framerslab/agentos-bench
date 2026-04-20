@@ -85,6 +85,11 @@ export interface LocomoAdapterOptions {
    * `LongMemEvalAdapterOptions.factSupersessionEnabled`.
    */
   factSupersessionEnabled?: boolean;
+  /**
+   * Step-6: threshold for split-on-ambiguous rerank refinement.
+   * Same semantics as `LongMemEvalAdapterOptions.splitAmbiguousThreshold`.
+   */
+  splitAmbiguousThreshold?: number;
 }
 
 /**
@@ -175,6 +180,7 @@ export class Locomo implements IBenchmark {
         this.opts.hydeEnabled,
         this.opts.reader,
         this.opts.factSupersessionEnabled,
+        this.opts.splitAmbiguousThreshold,
       );
       system = out.prompt;
       runMeta.replayStats = out.replayStats;
