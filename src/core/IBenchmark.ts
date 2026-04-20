@@ -289,6 +289,30 @@ export interface RunConfig {
    * `byTypeCI`, `judgeAdversarialFPR`). Default: 10,000.
    */
   bootstrapResamples?: number;
+
+  /**
+   * Enable Step-2 session-level hierarchical retrieval. When true, the
+   * bench adapter constructs a `SessionRetriever` (backed by a
+   * dedicated `SessionSummaryStore`) and uses it in place of
+   * `CognitiveMemoryManager.retrieve` for full-cognitive cases.
+   *
+   * Default: false. Opt-in behind the `--session-retrieval` CLI flag.
+   */
+  sessionRetrieval?: boolean;
+
+  /**
+   * K for Stage-1: number of sessions selected by summary similarity.
+   * Ignored when {@link RunConfig.sessionRetrieval} is false.
+   * Default: 5.
+   */
+  sessionRetrievalTopSessions?: number;
+
+  /**
+   * M for Stage-2: number of chunks taken per Stage-1 session before
+   * merging. Ignored when {@link RunConfig.sessionRetrieval} is false.
+   * Default: 3.
+   */
+  sessionRetrievalChunksPerSession?: number;
 }
 
 /**
@@ -320,6 +344,9 @@ export interface BenchContext {
       | 'judgeAdversarialMaxProbes'
       | 'judgeAdversarialSynthModel'
       | 'bootstrapResamples'
+      | 'sessionRetrieval'
+      | 'sessionRetrievalTopSessions'
+      | 'sessionRetrievalChunksPerSession'
     >
   > &
     Pick<
@@ -343,6 +370,9 @@ export interface BenchContext {
       | 'judgeAdversarialMaxProbes'
       | 'judgeAdversarialSynthModel'
       | 'bootstrapResamples'
+      | 'sessionRetrieval'
+      | 'sessionRetrievalTopSessions'
+      | 'sessionRetrievalChunksPerSession'
     >;
   /** LLM-as-judge for external benchmarks. Micro-benchmarks ignore. */
   judge: IJudge;
