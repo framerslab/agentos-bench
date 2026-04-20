@@ -336,6 +336,17 @@ export interface RunConfig {
    * Default: false. Opt-in behind `--hyde` CLI flag.
    */
   hyde?: boolean;
+
+  /**
+   * Enable Step-5 FactSupersession post-retrieval filter. When true,
+   * the bench adapter builds a cheap LLM invoker (wrapping the main
+   * reader) and runs `FactSupersession.resolve()` over retrieved
+   * traces before feeding them to the reader. Orthogonal to other
+   * retrieval flags — combinable with `--hybrid-retrieval`.
+   *
+   * Default: false. Opt-in behind `--fact-supersession` CLI flag.
+   */
+  factSupersession?: boolean;
 }
 
 /**
@@ -372,6 +383,7 @@ export interface BenchContext {
       | 'sessionRetrievalChunksPerSession'
       | 'hybridRetrieval'
       | 'hyde'
+      | 'factSupersession'
     >
   > &
     Pick<
@@ -400,6 +412,7 @@ export interface BenchContext {
       | 'sessionRetrievalChunksPerSession'
       | 'hybridRetrieval'
       | 'hyde'
+      | 'factSupersession'
     >;
   /** LLM-as-judge for external benchmarks. Micro-benchmarks ignore. */
   judge: IJudge;

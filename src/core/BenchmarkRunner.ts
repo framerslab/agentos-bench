@@ -103,6 +103,8 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     hybridRetrieval: cfg.hybridRetrieval,
     // Step-4: HyDE flag.
     hyde: cfg.hyde,
+    // Step-5: FactSupersession flag.
+    factSupersession: cfg.factSupersession,
   };
 }
 
@@ -266,6 +268,13 @@ export function computeCaseRunKeyParts(
   if (config.hyde) {
     runKeyParts.push('hyde:enabled');
     resultKeyParts.push('hyde:enabled');
+  }
+
+  // FactSupersession fingerprint (Step 5): conditional append so
+  // non-FS runs keep their cache hashes intact.
+  if (config.factSupersession) {
+    runKeyParts.push('fact-supersession:llm');
+    resultKeyParts.push('fact-supersession:llm');
   }
 
   return { runKeyParts, resultKeyParts };
