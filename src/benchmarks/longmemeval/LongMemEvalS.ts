@@ -120,6 +120,13 @@ export interface LongMemEvalAdapterOptions {
    * constructor so the hypothesis queries BOTH dense and sparse.
    */
   hydeEnabled?: boolean;
+  /**
+   * Step-5: enable FactSupersession post-retrieval filter. Adapter
+   * constructs a cheap LLM invoker around the main `reader` and
+   * runs `FactSupersession.resolve()` on the retrieved traces
+   * before feeding them to the reader's system prompt.
+   */
+  factSupersessionEnabled?: boolean;
 }
 
 /**
@@ -232,6 +239,7 @@ export class LongMemEvalS implements IBenchmark {
         this.opts.hybridRetrievalEnabled,
         this.opts.hydeEnabled,
         this.opts.reader,
+        this.opts.factSupersessionEnabled,
       );
       system = out.prompt;
       runMetadata.replayStats = out.replayStats;
@@ -664,6 +672,7 @@ export async function runFullCognitiveCase(
   hybridRetrievalEnabled?: boolean,
   hydeEnabled?: boolean,
   hydeReader?: IReader,
+  factSupersessionEnabled?: boolean,
 ): Promise<FullCognitiveOutput> {
   // Step 3 mutex: combined hybrid + session-level retrieval is Step 7
   // territory; MVP rejects the combination explicitly.
@@ -819,6 +828,55 @@ export async function runFullCognitiveCase(
           hyde: hydeEnabled === true ? true : undefined,
         },
       );
+    }
+
+    // Step-5: FactSupersession post-retrieval filter. Runs when
+    // --fact-supersession is set. Uses the already-threaded
+    // `hydeReader` (the main adapter reader) as the LLM invoker.
+    // Drops traces whose facts are superseded by later traces about
+    // the same subject. Errors fall back to the unfiltered set.
+    if (factSupersessionEnabled && retrieval.retrieved.length > 0) {
+      const fsReader = hydeReader;
+      if (!fsReader) {
+        throw new Error(
+          'FactSupersession requires a reader to be threaded through runFullCognitiveCase.',
+        );
+      }
+      const { FactSupersession } = await import('@framers/agentos/memory');
+      const fsInvoker = async (system: string, user: string) => {
+        const resp = await fsReader.invoke({
+          system,
+          user,
+          maxTokens: 200,
+          temperature: 0,
+        });
+        ctx.costTracker.record({
+          category: 'reader',
+          model: resp.model,
+          tokensIn: resp.tokensIn,
+          tokensOut: resp.tokensOut,
+          tag: `fact-supersession:${c.id}`,
+        });
+        return resp.text;
+      };
+      const fs = new FactSupersession({ llmInvoker: fsInvoker });
+      const fsResult = await fs.resolve({
+        traces: retrieval.retrieved,
+        query: c.question,
+      });
+      retrieval = {
+        ...retrieval,
+        retrieved: fsResult.traces,
+        diagnostics: {
+          ...retrieval.diagnostics,
+          factSupersession: {
+            droppedIds: fsResult.droppedIds,
+            parseOk: fsResult.diagnostics.parseOk,
+            llmLatencyMs: fsResult.diagnostics.llmLatencyMs,
+            ...(fsResult.diagnostics.notes ? { notes: fsResult.diagnostics.notes } : {}),
+          },
+        },
+      };
     }
     const wmSlots = handle.manager.getWorkingMemory?.().getSlotCount?.() ?? 0;
 
