@@ -50,6 +50,7 @@ import {
 } from './index.js';
 import type { IEmbeddingManager } from '@framers/agentos/core/embeddings/IEmbeddingManager';
 import type { MemoryRetrievalProfile } from '@framers/agentos';
+import { SessionSummarizer } from '@framers/agentos/memory';
 
 interface BenchEntry {
   id: string;
@@ -63,7 +64,18 @@ interface BenchEntry {
    * the full-cognitive path so retrieval exercises real semantic
    * similarity.
    */
-  build: (ctx: { reader: IReader; embedder?: IEmbeddingManager }) => IBenchmark;
+  build: (ctx: {
+    reader: IReader;
+    embedder?: IEmbeddingManager;
+    /**
+     * Optional session-level contextual-retrieval summarizer. When
+     * `--context-summary` is set on the CLI, the CLI constructs a
+     * {@link SessionSummarizer} (from `@framers/agentos/memory`) and
+     * passes it here so the adapter can thread it through its ingest
+     * path. Most adapters (micro-benchmarks, LongMemEval-none) ignore it.
+     */
+    sessionSummarizer?: SessionSummarizer;
+  }) => IBenchmark;
 }
 
 const BENCHMARKS: BenchEntry[] = [
@@ -113,25 +125,29 @@ const BENCHMARKS: BenchEntry[] = [
     id: 'longmemeval-s',
     family: 'external',
     description: 'LongMemEval-S (500 cases, ~115k-token haystacks)',
-    build: ({ reader, embedder }) => new LongMemEvalS({ reader, variant: 's', embedder }),
+    build: ({ reader, embedder, sessionSummarizer }) =>
+      new LongMemEvalS({ reader, variant: 's', embedder, sessionSummarizer }),
   },
   {
     id: 'longmemeval-m',
     family: 'external',
     description: 'LongMemEval-M (~500 sessions per haystack) — medium-difficulty variant',
-    build: ({ reader, embedder }) => new LongMemEvalM({ reader, embedder }),
+    build: ({ reader, embedder, sessionSummarizer }) =>
+      new LongMemEvalM({ reader, embedder, sessionSummarizer }),
   },
   {
     id: 'longmemeval-oracle',
     family: 'external',
     description: 'LongMemEval-Oracle (evidence-only) — isolates reader quality from retrieval',
-    build: ({ reader, embedder }) => new LongMemEvalOracle({ reader, embedder }),
+    build: ({ reader, embedder, sessionSummarizer }) =>
+      new LongMemEvalOracle({ reader, embedder, sessionSummarizer }),
   },
   {
     id: 'locomo',
     family: 'external',
     description: 'LOCOMO (Maharana et al. 2024, 10 convos × ~300 turns, QA task only in v1)',
-    build: ({ reader, embedder }) => new Locomo({ reader, embedder }),
+    build: ({ reader, embedder, sessionSummarizer }) =>
+      new Locomo({ reader, embedder, sessionSummarizer }),
   },
   {
     id: 'beam-500k',
@@ -166,6 +182,21 @@ function resolveResultsDir(override?: string): string {
 function parseInteger(v: string): number {
   const n = Number.parseInt(v, 10);
   if (!Number.isFinite(n) || n < 0) throw new Error(`Expected non-negative integer, got ${v}`);
+  return n;
+}
+
+/**
+ * Like {@link parseInteger} but rejects 0. Used for CLI flags that
+ * cascade into `slice(0, N)` downstream where N=0 would degrade into
+ * empty-pool behavior (e.g., `--reader-top-k 0` would zero out the
+ * reader's retrieved-chunk window and fall through to a 1-chunk
+ * fallback, producing bogus answers rather than crashing).
+ */
+function parsePositiveInteger(v: string): number {
+  const n = Number.parseInt(v, 10);
+  if (!Number.isFinite(n) || n < 1) {
+    throw new Error(`Expected positive integer (>= 1), got ${v}`);
+  }
   return n;
 }
 
@@ -333,6 +364,53 @@ export function buildCli(): Command {
       'Disable one cognitive mechanism: reconsolidation | retrievalInducedForgetting | involuntaryRecall | metacognitiveFOK | temporalGist | schemaEncoding | sourceConfidenceDecay | emotionRegulation',
       parseAblateMechanism,
     )
+    .option(
+      '--rerank <provider>',
+      'Enable neural reranker. Only "cohere" is wired today. Needs COHERE_API_KEY (or --rerank-api-key).',
+    )
+    .option(
+      '--rerank-model <id>',
+      'Cohere rerank model id (e.g. rerank-v3.5, rerank-v4.0-pro, rerank-v4.0-fast). Default: rerank-v3.5.',
+    )
+    .option(
+      '--rerank-api-key <key>',
+      'Cohere API key override. Falls back to COHERE_API_KEY env.',
+    )
+    .option(
+      '--rerank-candidate-multiplier <n>',
+      'Retrieve topK × N candidates before the reranker re-sorts; reader still sees topK after rerank. Default: 3 when rerank is on.',
+      parseInteger,
+    )
+    .option(
+      '--reader-top-k <n>',
+      'How many retrieved chunks the reader sees after rerank and score-floor filtering (must be >= 1; adapter default is 10). Candidate pool for rerank scales as K × rerank.candidateMultiplier, so K=15 at the default 3× multiplier re-ranks a 45-chunk pool. Use to investigate multi-session coverage trade-offs.',
+      parsePositiveInteger,
+    )
+    .option(
+      '--context-summary <model>',
+      'Enable session-level contextual retrieval (Anthropic Sep 2024). An LLM generates a dense per-session summary that is prepended to every chunk before embedding. Value is the model id used to generate summaries (e.g. "gpt-5-mini", "claude-haiku-4-5"). Cached on disk under <dataDir>/.session-summary-cache/.',
+    )
+    .option(
+      '--judge-adversarial',
+      'Enable judge-adversarial probe: synthesize topically-adjacent wrong answers, score with the same judge, report judge false-positive rate (noise floor). Adds one cheap synth call + one judge call per probed case. Cost bounded by --judge-adversarial-max-probes.',
+    )
+    .option(
+      '--judge-adversarial-max-probes <n>',
+      'Max cases probed when --judge-adversarial is set. Default: 50.',
+      parsePositiveInteger,
+      50,
+    )
+    .option(
+      '--judge-adversarial-synth-model <model>',
+      'Cheap LLM for synthesizing adversarial distractors. Default: gpt-5-mini.',
+      'gpt-5-mini',
+    )
+    .option(
+      '--bootstrap-resamples <n>',
+      'Bootstrap resamples for accuracy confidence intervals. Default: 10000.',
+      parsePositiveInteger,
+      10_000,
+    )
     .option('--dry-run', 'Use MockReader / mock judge (no API calls)')
     .action(async (benchmarkId: string, opts) => {
       const entry = BENCHMARKS.find((b) => b.id === benchmarkId);
@@ -354,6 +432,38 @@ export function buildCli(): Command {
         );
       }
 
+      // Resolve rerank config from CLI flags. Only "cohere" is wired
+      // today; any other provider string aborts the run with a clear
+      // error so typos don't silently disable reranking.
+      let rerank: RunConfig['rerank'];
+      if (opts.rerank) {
+        const provider = String(opts.rerank).toLowerCase();
+        if (provider !== 'cohere') {
+          // eslint-disable-next-line no-console
+          console.error(
+            `Unknown rerank provider '${opts.rerank}'. Only 'cohere' is currently supported.`,
+          );
+          process.exitCode = 1;
+          return;
+        }
+        rerank = {
+          provider: 'cohere',
+          model: (opts.rerankModel as string | undefined),
+          apiKey:
+            (opts.rerankApiKey as string | undefined) ??
+            process.env.COHERE_API_KEY,
+          candidateMultiplier:
+            (opts.rerankCandidateMultiplier as number | undefined),
+        };
+        if (!rerank.apiKey) {
+          // eslint-disable-next-line no-console
+          console.warn(
+            '[cli] --rerank cohere supplied but no Cohere API key resolved. ' +
+              'Set COHERE_API_KEY or pass --rerank-api-key. Bench will fall back to cognitive-only scoring.',
+          );
+        }
+      }
+
       const runConfig: RunConfig = {
         reader: opts.reader as ReaderModel,
         memoryMode: opts.memory as MemoryMode,
@@ -371,6 +481,27 @@ export function buildCli(): Command {
         trackFootprint: opts.footprint as boolean,
         ablateSignal: opts.ablateSignal as RunConfig['ablateSignal'],
         ablateMechanism: opts.ablateMechanism as RunConfig['ablateMechanism'],
+        rerank,
+        // Fingerprint for the case-run cache key. The summarizer
+        // INSTANCE is constructed below and passed via entry.build();
+        // this field is the model id used for cache invalidation.
+        contextSummaryModel: opts.contextSummary as string | undefined,
+        // Reader's retrieved-chunk window. Undefined inherits the
+        // adapter default (currently 10). See spec
+        // 2026-04-19-reader-topk-bump-design.md for resolution
+        // priority (ctx.config.readerTopK > this.opts.recallTopK > 10).
+        readerTopK: opts.readerTopK as number | undefined,
+        // Step-1 infra: flag-gated judge-adversarial probe + CI knobs.
+        // Defaults match the umbrella spec: probe off, max 50 probes,
+        // gpt-5-mini synth, 10k bootstrap resamples.
+        judgeAdversarial: Boolean(opts.judgeAdversarial),
+        judgeAdversarialMaxProbes: opts.judgeAdversarialMaxProbes as
+          | number
+          | undefined,
+        judgeAdversarialSynthModel: opts.judgeAdversarialSynthModel as
+          | string
+          | undefined,
+        bootstrapResamples: opts.bootstrapResamples as number | undefined,
       };
 
       // Cost preflight — coarse but enough to catch "oh no I just
@@ -468,6 +599,40 @@ export function buildCli(): Command {
         });
       }
 
+      // Optional session-level contextual-retrieval summarizer
+      // (Anthropic Sep 2024 variant, agentos core). When enabled, one
+      // LLM call per session produces a dense summary that is
+      // prepended to every chunk before embedding. Disk-cached so
+      // re-runs cost ~0. The summarizer reader is an independent
+      // gpt-5-mini / claude HTTP client so summarization cost doesn't
+      // inflate the main reader's token budget tracking.
+      let sessionSummarizer: SessionSummarizer | undefined;
+      if (opts.contextSummary && !opts.dryRun && !runConfig.memoryMode.startsWith('none')) {
+        const summarizerModel = opts.contextSummary as ReaderModel;
+        const summarizerReader = createReader(summarizerModel);
+        sessionSummarizer = new SessionSummarizer({
+          invoker: async (system, user) => {
+            const resp = await summarizerReader.invoke({
+              system,
+              user,
+              maxTokens: 140,
+              temperature: 0,
+            });
+            return {
+              text: resp.text,
+              tokensIn: resp.tokensIn,
+              tokensOut: resp.tokensOut,
+              model: resp.model,
+            };
+          },
+          cacheDir: path.join(
+            resolveDataDir(opts.dataDir),
+            '.session-summary-cache',
+          ),
+          modelId: summarizerModel,
+        });
+      }
+
       const runner = new BenchmarkRunner({
         dataDir: resolveDataDir(opts.dataDir),
         resultsDir: resolveResultsDir(opts.resultsDir),
@@ -479,7 +644,7 @@ export function buildCli(): Command {
         `Running ${entry.id} reader=${runConfig.reader} memory=${runConfig.memoryMode} replay=${runConfig.replayMode}${opts.dryRun ? ' (dry-run)' : ''}${runConfig.sampleN ? ` sample=${runConfig.sampleN}` : ''}`,
       );
 
-      const benchmark = entry.build({ reader, embedder });
+      const benchmark = entry.build({ reader, embedder, sessionSummarizer });
       const result = await runner.run(benchmark, runConfig);
 
       printRunSummary(result);
@@ -700,10 +865,41 @@ export function buildCli(): Command {
     .option('--results-dir <path>', 'Results directory')
     .option('--filename <name>', 'Output filename', 'SWEEP_REPORT.md')
     .option('--label <text>', 'Optional sweep label (e.g. "Phase 0.1 smoke")')
+    .option(
+      '--recompute-ci',
+      'Re-compute bootstrap CIs over existing run JSONs and overwrite them in place. No API calls; reads the per-case scores already stored in each run file.',
+    )
+    .option(
+      '--recompute-ci-seed <n>',
+      'Seed for deterministic CI re-computation. Default: 42.',
+      parseInteger,
+      42,
+    )
+    .option(
+      '--recompute-ci-resamples <n>',
+      'Bootstrap resamples for recompute. Default: 10000.',
+      parsePositiveInteger,
+      10_000,
+    )
     .action(async (opts) => {
+      const resultsDir = resolveResultsDir(opts.resultsDir);
+      if (opts.recomputeCi) {
+        const { recomputeCIsForResultsDir } = await import(
+          './reporting/sweepReport.js'
+        );
+        const touched = await recomputeCIsForResultsDir(resultsDir, {
+          seed: opts.recomputeCiSeed as number | undefined,
+          resamples: opts.recomputeCiResamples as number | undefined,
+        });
+        // eslint-disable-next-line no-console
+        console.log(
+          `Recomputed CIs for ${touched} run file(s) in ${resultsDir}`,
+        );
+        return;
+      }
       const { renderSweepReport } = await import('./reporting/sweepReport.js');
       const outPath = await renderSweepReport({
-        resultsDir: resolveResultsDir(opts.resultsDir),
+        resultsDir,
         filename: opts.filename,
         label: opts.label,
       });
