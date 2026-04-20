@@ -110,6 +110,16 @@ export interface LongMemEvalAdapterOptions {
    * are set.
    */
   hybridRetrievalEnabled?: boolean;
+  /**
+   * Step-4: enable HyDE (Hypothetical Document Embedding). When
+   * true, the adapter builds a cheap LLM invoker wrapping the main
+   * `reader` and passes it to `createCognitiveManager` as
+   * `hydeLlmInvoker`. On the baseline branch it sets `hyde: true`
+   * in the `manager.retrieve(...)` options. On the hybrid branch it
+   * passes `manager.getHydeRetriever()` into the `HybridRetriever`
+   * constructor so the hypothesis queries BOTH dense and sparse.
+   */
+  hydeEnabled?: boolean;
 }
 
 /**
@@ -220,6 +230,8 @@ export class LongMemEvalS implements IBenchmark {
         ctx.config.sessionRetrievalTopSessions,
         ctx.config.sessionRetrievalChunksPerSession,
         this.opts.hybridRetrievalEnabled,
+        this.opts.hydeEnabled,
+        this.opts.reader,
       );
       system = out.prompt;
       runMetadata.replayStats = out.replayStats;
@@ -650,6 +662,8 @@ export async function runFullCognitiveCase(
   sessionRetrievalTopSessions?: number,
   sessionRetrievalChunksPerSession?: number,
   hybridRetrievalEnabled?: boolean,
+  hydeEnabled?: boolean,
+  hydeReader?: IReader,
 ): Promise<FullCognitiveOutput> {
   // Step 3 mutex: combined hybrid + session-level retrieval is Step 7
   // territory; MVP rejects the combination explicitly.
@@ -679,6 +693,31 @@ export async function runFullCognitiveCase(
     );
   }
 
+  // Step-4: HyDE invoker. Reuses the main reader to keep the CLI
+  // surface tiny and cost tracked through the existing CostTracker.
+  // Low-temp, short-token budget keeps per-call cost under $0.0003.
+  let hydeLlmInvoker:
+    | ((systemPrompt: string, userPrompt: string) => Promise<string>)
+    | undefined;
+  if (hydeEnabled && hydeReader) {
+    hydeLlmInvoker = async (systemPrompt: string, userPrompt: string) => {
+      const resp = await hydeReader.invoke({
+        system: systemPrompt,
+        user: userPrompt,
+        maxTokens: 150,
+        temperature: 0.3,
+      });
+      ctx.costTracker.record({
+        category: 'reader',
+        model: resp.model,
+        tokensIn: resp.tokensIn,
+        tokensOut: resp.tokensOut,
+        tag: `hyde:${c.id}`,
+      });
+      return resp.text;
+    };
+  }
+
   const handle = await createCognitiveManager({
     brainPath,
     embedder,
@@ -695,6 +734,7 @@ export async function runFullCognitiveCase(
               | undefined) ?? 'rerank-v3.5',
           }
         : undefined,
+    hydeLlmInvoker,
   });
   try {
     // Step 3: construct per-case HybridRetriever if enabled. The
@@ -708,6 +748,10 @@ export async function runFullCognitiveCase(
       hybridRetriever = new HybridRetriever({
         memoryStore: handle.manager.getStore(),
         rerankerService: handle.manager.getRerankerService?.() ?? undefined,
+        hydeRetriever:
+          hydeEnabled
+            ? handle.manager.getHydeRetriever?.() ?? undefined
+            : undefined,
       });
     }
 
@@ -772,6 +816,7 @@ export async function runFullCognitiveCase(
           neutralMood: true,
           policy: retrievalPolicy,
           scoringWeights,
+          hyde: hydeEnabled === true ? true : undefined,
         },
       );
     }
