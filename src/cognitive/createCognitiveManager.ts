@@ -26,6 +26,11 @@ import { CognitiveMemoryManager, SqliteBrain, SqliteKnowledgeGraph } from '@fram
 import type { HexacoTraits, PADState } from '@framers/agentos';
 import type { IEmbeddingManager } from '@framers/agentos/core/embeddings/IEmbeddingManager';
 import { InMemoryVectorStore } from '@framers/agentos/rag/vector_stores/InMemoryVectorStore';
+import {
+  RerankerService,
+  CohereReranker,
+  type CohereRerankerModel,
+} from '@framers/agentos/rag/reranking';
 import { CharHashEmbedder, CHAR_HASH_DIM } from './charHashEmbedder.js';
 import { MinimalWorkingMemoryBacking } from '../micro/support/MinimalWorkingMemoryBacking.js';
 
@@ -77,6 +82,37 @@ export interface CreateCognitiveManagerOptions {
     | 'schemaEncoding'
     | 'sourceConfidenceDecay'
     | 'emotionRegulation';
+
+  /**
+   * Optional Cohere reranker configuration. When set, the resulting
+   * {@link CognitiveMemoryManager} gets a {@link RerankerService}
+   * wired with a single {@link CohereReranker} provider. The manager
+   * then blends 0.7 cognitive + 0.3 neural scores on every retrieve.
+   *
+   * Leave undefined to disable neural reranking (bench default).
+   */
+  reranker?: {
+    /** Provider — currently only 'cohere' is wired in the bench. */
+    provider: 'cohere';
+    /** Cohere API key. Typically `process.env.COHERE_API_KEY`. */
+    apiKey: string;
+    /** Cohere rerank model ID. Default: `'rerank-v3.5'`. */
+    model?: CohereRerankerModel;
+  };
+
+  /**
+   * Optional LLM invoker (Step 4). When set, triggers auto-construction
+   * of a {@link MemoryHydeRetriever} inside
+   * `CognitiveMemoryManager.initialize()`. Wired to
+   * `featureDetectionLlmInvoker` so it does not activate the
+   * observer/reflector side effects.
+   *
+   * Leave undefined to keep HyDE disabled (bench default). When set,
+   * callers must also pass `options.hyde: true` on the
+   * `manager.retrieve` call (or use a `HybridRetriever` with
+   * `hydeRetriever` set) for the HyDE path to actually execute.
+   */
+  hydeLlmInvoker?: (systemPrompt: string, userPrompt: string) => Promise<string>;
 }
 
 /**
@@ -126,6 +162,35 @@ export async function createCognitiveManager(
         import('@framers/agentos').CognitiveMemoryConfig['cognitiveMechanisms'])
     : undefined;
 
+  // Wire an optional neural reranker. CognitiveMemoryManager already
+  // knows how to blend Cohere / local cross-encoder scores with the
+  // cognitive composite (0.7 cog + 0.3 neural); we just hand it a
+  // service instance with one Cohere provider registered. Declining
+  // gracefully when apiKey is missing keeps bench runs from crashing
+  // on the common "no COHERE_API_KEY set" path.
+  let rerankerService: RerankerService | undefined;
+  if (opts.reranker && opts.reranker.apiKey) {
+    rerankerService = new RerankerService({
+      config: {
+        providers: [
+          {
+            providerId: 'cohere',
+            apiKey: opts.reranker.apiKey,
+            defaultModelId: opts.reranker.model ?? 'rerank-v3.5',
+          },
+        ],
+        defaultProviderId: 'cohere',
+      },
+    });
+    rerankerService.registerProvider(
+      new CohereReranker({
+        providerId: 'cohere',
+        apiKey: opts.reranker.apiKey,
+        defaultModelId: opts.reranker.model ?? 'rerank-v3.5',
+      }),
+    );
+  }
+
   const manager = new CognitiveMemoryManager();
   await manager.initialize({
     workingMemory,
@@ -138,6 +203,8 @@ export async function createCognitiveManager(
     featureDetectionStrategy: 'keyword',
     brain,
     cognitiveMechanisms,
+    rerankerService,
+    featureDetectionLlmInvoker: opts.hydeLlmInvoker,
     // Consolidation loop would spawn timers we don't want in a
     // short-lived per-case run. Disable it for benchmark cases.
     consolidation: { enabled: false } as unknown as import('@framers/agentos').CognitiveMemoryConfig['consolidation'],
