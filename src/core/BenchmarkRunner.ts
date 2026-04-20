@@ -101,6 +101,8 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     sessionRetrievalChunksPerSession: cfg.sessionRetrievalChunksPerSession,
     // Step-3: hybrid retrieval flag.
     hybridRetrieval: cfg.hybridRetrieval,
+    // Step-4: HyDE flag.
+    hyde: cfg.hyde,
   };
 }
 
@@ -257,6 +259,13 @@ export function computeCaseRunKeyParts(
   if (config.hybridRetrieval) {
     runKeyParts.push('hybrid-retrieval:rrf');
     resultKeyParts.push('hybrid-retrieval:rrf');
+  }
+
+  // HyDE fingerprint (Step 4): conditional append so runs without
+  // the flag keep their cache hashes intact.
+  if (config.hyde) {
+    runKeyParts.push('hyde:enabled');
+    resultKeyParts.push('hyde:enabled');
   }
 
   return { runKeyParts, resultKeyParts };
