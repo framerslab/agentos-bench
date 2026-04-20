@@ -75,6 +75,18 @@ interface BenchEntry {
      * path. Most adapters (micro-benchmarks, LongMemEval-none) ignore it.
      */
     sessionSummarizer?: SessionSummarizer;
+    /**
+     * Step-2: optional session-level retrieval store. When
+     * `--session-retrieval` is set, the CLI constructs a
+     * {@link SessionSummaryStore} and passes it here so the adapter
+     * indexes summaries during replay AND constructs a
+     * {@link SessionRetriever} per-case for the retrieval step.
+     */
+    sessionSummaryStore?: import('@framers/agentos/memory').SessionSummaryStore;
+    /** Step-2: Stage-1 session count (default 5 on the adapter side). */
+    sessionRetrievalTopSessions?: number;
+    /** Step-2: Stage-2 chunks-per-session (default 3 on the adapter side). */
+    sessionRetrievalChunksPerSession?: number;
   }) => IBenchmark;
 }
 
@@ -125,29 +137,29 @@ const BENCHMARKS: BenchEntry[] = [
     id: 'longmemeval-s',
     family: 'external',
     description: 'LongMemEval-S (500 cases, ~115k-token haystacks)',
-    build: ({ reader, embedder, sessionSummarizer }) =>
-      new LongMemEvalS({ reader, variant: 's', embedder, sessionSummarizer }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession }) =>
+      new LongMemEvalS({ reader, variant: 's', embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession }),
   },
   {
     id: 'longmemeval-m',
     family: 'external',
     description: 'LongMemEval-M (~500 sessions per haystack) — medium-difficulty variant',
-    build: ({ reader, embedder, sessionSummarizer }) =>
-      new LongMemEvalM({ reader, embedder, sessionSummarizer }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession }) =>
+      new LongMemEvalM({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession }),
   },
   {
     id: 'longmemeval-oracle',
     family: 'external',
     description: 'LongMemEval-Oracle (evidence-only) — isolates reader quality from retrieval',
-    build: ({ reader, embedder, sessionSummarizer }) =>
-      new LongMemEvalOracle({ reader, embedder, sessionSummarizer }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession }) =>
+      new LongMemEvalOracle({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession }),
   },
   {
     id: 'locomo',
     family: 'external',
     description: 'LOCOMO (Maharana et al. 2024, 10 convos × ~300 turns, QA task only in v1)',
-    build: ({ reader, embedder, sessionSummarizer }) =>
-      new Locomo({ reader, embedder, sessionSummarizer }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession }) =>
+      new Locomo({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession }),
   },
   {
     id: 'beam-500k',
@@ -412,6 +424,22 @@ export function buildCli(): Command {
       10_000,
     )
     .option(
+      '--session-retrieval',
+      'Enable Step-2 session-level hierarchical retrieval (xMemory / TACITREE pattern). Stage 1 selects top-K sessions by summary similarity; Stage 2 takes top-M chunks per session. Requires --context-summary to be set so session summaries exist.',
+    )
+    .option(
+      '--session-retrieval-top-sessions <n>',
+      'K for Stage 1: number of sessions selected by summary similarity. Default: 5.',
+      parsePositiveInteger,
+      5,
+    )
+    .option(
+      '--session-retrieval-chunks-per-session <n>',
+      'M for Stage 2: chunks kept per session after post-filter. Default: 3.',
+      parsePositiveInteger,
+      3,
+    )
+    .option(
       '--seed <n>',
       'Deterministic seed for bootstrap resampling (and any future RNG-dependent pipeline). Use for reproducible findings-doc CIs.',
       parseInteger,
@@ -508,6 +536,9 @@ export function buildCli(): Command {
           | undefined,
         bootstrapResamples: opts.bootstrapResamples as number | undefined,
         seed: opts.seed as number | undefined,
+        sessionRetrieval: Boolean(opts.sessionRetrieval),
+        sessionRetrievalTopSessions: opts.sessionRetrievalTopSessions as number | undefined,
+        sessionRetrievalChunksPerSession: opts.sessionRetrievalChunksPerSession as number | undefined,
       };
 
       // Cost preflight — coarse but enough to catch "oh no I just
@@ -639,6 +670,37 @@ export function buildCli(): Command {
         });
       }
 
+      // Step 2: construct a SessionSummaryStore when --session-retrieval
+      // is set. The SessionRetriever itself is built per-case inside
+      // runFullCognitiveCase because it needs the per-case MemoryStore
+      // (owned by createCognitiveManager's internal brain). A dedicated
+      // InMemoryVectorStore decouples the summary index lifetime from
+      // the per-case trace store. The embedder is shared so cached
+      // query embeddings apply.
+      let sessionSummaryStore: import('@framers/agentos/memory').SessionSummaryStore | undefined;
+      if (runConfig.sessionRetrieval && embedder && !opts.dryRun) {
+        if (!sessionSummarizer) {
+          throw new Error(
+            '--session-retrieval requires --context-summary to be set so session summaries exist.',
+          );
+        }
+        const { InMemoryVectorStore } = await import(
+          '@framers/agentos/rag/vector_stores/InMemoryVectorStore'
+        );
+        const summaryVectorStore = new InMemoryVectorStore();
+        await summaryVectorStore.initialize({
+          id: 'bench-session-summaries',
+          type: 'in_memory',
+          defaultEmbeddingDimension: embedder.getEmbeddingDimension(),
+          similarityMetric: 'cosine',
+        } as import('@framers/agentos/core/vector-store/IVectorStore').VectorStoreProviderConfig);
+        const { SessionSummaryStore } = await import('@framers/agentos/memory');
+        sessionSummaryStore = new SessionSummaryStore({
+          vectorStore: summaryVectorStore,
+          embeddingManager: embedder,
+        });
+      }
+
       const runner = new BenchmarkRunner({
         dataDir: resolveDataDir(opts.dataDir),
         resultsDir: resolveResultsDir(opts.resultsDir),
@@ -650,7 +712,14 @@ export function buildCli(): Command {
         `Running ${entry.id} reader=${runConfig.reader} memory=${runConfig.memoryMode} replay=${runConfig.replayMode}${opts.dryRun ? ' (dry-run)' : ''}${runConfig.sampleN ? ` sample=${runConfig.sampleN}` : ''}`,
       );
 
-      const benchmark = entry.build({ reader, embedder, sessionSummarizer });
+      const benchmark = entry.build({
+        reader,
+        embedder,
+        sessionSummarizer,
+        sessionSummaryStore,
+        sessionRetrievalTopSessions: runConfig.sessionRetrievalTopSessions,
+        sessionRetrievalChunksPerSession: runConfig.sessionRetrievalChunksPerSession,
+      });
       const result = await runner.run(benchmark, runConfig);
 
       printRunSummary(result);
