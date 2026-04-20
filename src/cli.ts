@@ -99,6 +99,12 @@ interface BenchEntry {
      * and, if applicable, through the `HybridRetriever`.
      */
     hydeEnabled?: boolean;
+    /**
+     * Step-5: when true, the adapter constructs a `FactSupersession`
+     * (using the main reader as the LLM invoker) and runs it on
+     * retrieved traces before feeding them to the reader.
+     */
+    factSupersessionEnabled?: boolean;
   }) => IBenchmark;
 }
 
@@ -149,29 +155,29 @@ const BENCHMARKS: BenchEntry[] = [
     id: 'longmemeval-s',
     family: 'external',
     description: 'LongMemEval-S (500 cases, ~115k-token haystacks)',
-    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled }) =>
-      new LongMemEvalS({ reader, variant: 's', embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled }) =>
+      new LongMemEvalS({ reader, variant: 's', embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled }),
   },
   {
     id: 'longmemeval-m',
     family: 'external',
     description: 'LongMemEval-M (~500 sessions per haystack) — medium-difficulty variant',
-    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled }) =>
-      new LongMemEvalM({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled }) =>
+      new LongMemEvalM({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled }),
   },
   {
     id: 'longmemeval-oracle',
     family: 'external',
     description: 'LongMemEval-Oracle (evidence-only) — isolates reader quality from retrieval',
-    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled }) =>
-      new LongMemEvalOracle({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled }) =>
+      new LongMemEvalOracle({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled }),
   },
   {
     id: 'locomo',
     family: 'external',
     description: 'LOCOMO (Maharana et al. 2024, 10 convos × ~300 turns, QA task only in v1)',
-    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled }) =>
-      new Locomo({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled }) =>
+      new Locomo({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled }),
   },
   {
     id: 'beam-500k',
@@ -460,6 +466,10 @@ export function buildCli(): Command {
       'Enable Step-4 HyDE (Hypothetical Document Embedding) retrieval. Cheap LLM generates a hypothetical answer used as the search query; improves recall on vague/abstract queries. Orthogonal to --session-retrieval and --hybrid-retrieval. When combined with --hybrid-retrieval, the hypothesis is used for BOTH dense and sparse; rerank keeps the ORIGINAL user query.',
     )
     .option(
+      '--fact-supersession',
+      'Enable Step-5 FactSupersession post-retrieval filter. One gpt-5-mini LLM call per query identifies superseded traces (contradictory claims about the same subject) and drops them before the reader sees them. Targets the knowledge-update ceiling. Orthogonal to other retrieval flags.',
+    )
+    .option(
       '--seed <n>',
       'Deterministic seed for bootstrap resampling (and any future RNG-dependent pipeline). Use for reproducible findings-doc CIs.',
       parseInteger,
@@ -561,6 +571,7 @@ export function buildCli(): Command {
         sessionRetrievalChunksPerSession: opts.sessionRetrievalChunksPerSession as number | undefined,
         hybridRetrieval: Boolean(opts.hybridRetrieval),
         hyde: Boolean(opts.hyde),
+        factSupersession: Boolean(opts.factSupersession),
       };
 
       // Cost preflight — coarse but enough to catch "oh no I just
@@ -743,6 +754,7 @@ export function buildCli(): Command {
         sessionRetrievalChunksPerSession: runConfig.sessionRetrievalChunksPerSession,
         hybridRetrievalEnabled: runConfig.hybridRetrieval,
         hydeEnabled: runConfig.hyde,
+        factSupersessionEnabled: runConfig.factSupersession,
       });
       const result = await runner.run(benchmark, runConfig);
 
