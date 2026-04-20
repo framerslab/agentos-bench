@@ -411,6 +411,11 @@ export function buildCli(): Command {
       parsePositiveInteger,
       10_000,
     )
+    .option(
+      '--seed <n>',
+      'Deterministic seed for bootstrap resampling (and any future RNG-dependent pipeline). Use for reproducible findings-doc CIs.',
+      parseInteger,
+    )
     .option('--dry-run', 'Use MockReader / mock judge (no API calls)')
     .action(async (benchmarkId: string, opts) => {
       const entry = BENCHMARKS.find((b) => b.id === benchmarkId);
@@ -502,6 +507,7 @@ export function buildCli(): Command {
           | string
           | undefined,
         bootstrapResamples: opts.bootstrapResamples as number | undefined,
+        seed: opts.seed as number | undefined,
       };
 
       // Cost preflight — coarse but enough to catch "oh no I just
