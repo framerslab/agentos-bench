@@ -102,6 +102,14 @@ export interface LongMemEvalAdapterOptions {
   sessionRetrievalTopSessions?: number;
   /** Step-2: M chunks per session for Stage 2 (default 3). */
   sessionRetrievalChunksPerSession?: number;
+  /**
+   * Step-3: enable hybrid BM25 + dense RRF retrieval. The per-case
+   * `HybridRetriever` is constructed inside `runFullCognitiveCase`
+   * using the manager's `MemoryStore`. Mutually exclusive with
+   * `sessionSummaryStore` in MVP — throws a runtime error if both
+   * are set.
+   */
+  hybridRetrievalEnabled?: boolean;
 }
 
 /**
@@ -211,6 +219,7 @@ export class LongMemEvalS implements IBenchmark {
         this.opts.sessionSummaryStore,
         ctx.config.sessionRetrievalTopSessions,
         ctx.config.sessionRetrievalChunksPerSession,
+        this.opts.hybridRetrievalEnabled,
       );
       system = out.prompt;
       runMetadata.replayStats = out.replayStats;
@@ -640,7 +649,16 @@ export async function runFullCognitiveCase(
   sessionSummaryStore?: import('@framers/agentos/memory').SessionSummaryStore,
   sessionRetrievalTopSessions?: number,
   sessionRetrievalChunksPerSession?: number,
+  hybridRetrievalEnabled?: boolean,
 ): Promise<FullCognitiveOutput> {
+  // Step 3 mutex: combined hybrid + session-level retrieval is Step 7
+  // territory; MVP rejects the combination explicitly.
+  if (hybridRetrievalEnabled && sessionSummaryStore) {
+    throw new Error(
+      '--hybrid-retrieval and --session-retrieval are mutually exclusive in Step 3 MVP.',
+    );
+  }
+
   const brainPath = path.join(
     ctx.scratchDir,
     `${adapterId}-cog-${c.id.replace(/[^a-zA-Z0-9-_]/g, '_')}.sqlite`,
@@ -679,12 +697,27 @@ export async function runFullCognitiveCase(
         : undefined,
   });
   try {
+    // Step 3: construct per-case HybridRetriever if enabled. The
+    // reranker is pulled from the manager via the public getter added
+    // for Step 3 — matches baseline rerank wiring exactly.
+    let hybridRetriever:
+      | import('@framers/agentos/memory').HybridRetriever
+      | undefined;
+    if (hybridRetrievalEnabled) {
+      const { HybridRetriever } = await import('@framers/agentos/memory');
+      hybridRetriever = new HybridRetriever({
+        memoryStore: handle.manager.getStore(),
+        rerankerService: handle.manager.getRerankerService?.() ?? undefined,
+      });
+    }
+
     const replayStats = await replayForCognitive(
       c,
       handle,
       ctx.config.replayMode,
       sessionSummarizer,
       sessionSummaryStore,
+      hybridRetriever?.bm25,
     );
 
     // Build a per-call weight override when --ablate-signal is set.
@@ -702,13 +735,20 @@ export async function runFullCognitiveCase(
       : 1;
     const retrievalTopK = Math.max(recallTopK, recallTopK * candidateMultiplier);
 
-    // Step 2: when SessionSummaryStore is wired, swap retrieval to
-    // SessionRetriever. Same CognitiveRetrievalResult shape so
+    // Step 2/3: swap retrieval path based on which opt-in retriever is
+    // configured. HybridRetriever wins when both (guarded by mutex
+    // at function entry). Same CognitiveRetrievalResult shape so
     // downstream score-floor + slice-to-recallTopK logic continues
-    // unchanged. Reranker not threaded in MVP (see spec §Engineer's
-    // Discretion #1); Tier B still gets Stage-2 cognitive scoring.
+    // unchanged.
     let retrieval: import('@framers/agentos').CognitiveRetrievalResult;
-    if (sessionSummaryStore && embedder) {
+    if (hybridRetriever) {
+      retrieval = await hybridRetriever.retrieve(
+        c.question,
+        { valence: 0, arousal: 0, dominance: 0 },
+        { scope: 'user', scopeId: 'bench' },
+        { recallTopK: retrievalTopK },
+      );
+    } else if (sessionSummaryStore && embedder) {
       const { SessionRetriever } = await import('@framers/agentos/memory');
       const sessionRetriever = new SessionRetriever({
         summaryStore: sessionSummaryStore,
@@ -922,6 +962,7 @@ async function replayForCognitive(
   mode: 'observe' | 'ingest',
   sessionSummarizer?: SessionSummarizer,
   sessionSummaryStore?: import('@framers/agentos/memory').SessionSummaryStore,
+  hybridBm25?: import('@framers/agentos/memory').HybridRetriever['bm25'],
 ): Promise<{
   sessionsReplayed: number;
   turnsReplayed: number;
@@ -965,9 +1006,9 @@ async function replayForCognitive(
   const timedEncode = async (
     content: string,
     tags: string[],
-  ): Promise<void> => {
+  ): Promise<string> => {
     const t0 = Date.now();
-    await handle.manager.encode(content, neutralMood, '', {
+    const trace = await handle.manager.encode(content, neutralMood, '', {
       type: 'episodic',
       scope: 'user',
       scopeId: 'bench',
@@ -979,6 +1020,7 @@ async function replayForCognitive(
     // within a window, so finer sampling adds no signal but doubles
     // the observation overhead.
     if (encodeCalls % 10 === 0) sampleSlots();
+    return trace.id;
   };
 
   if (mode === 'observe') {
@@ -1019,7 +1061,11 @@ async function replayForCognitive(
           ? `[Session context] ${sessionContext}\n${turn.role}: ${turn.content}`
           : `${turn.role}: ${turn.content}`;
         for (const piece of splitForEmbedding(full)) {
-          await timedEncode(piece, [sessionTag]);
+          const traceId = await timedEncode(piece, [sessionTag]);
+          // Step 3: also index into BM25 when hybrid retrieval is active.
+          if (hybridBm25) {
+            hybridBm25.addDocument(traceId, piece, { tag: sessionTag });
+          }
         }
       }
     }
@@ -1067,7 +1113,11 @@ async function replayForCognitive(
           ? `[${session.date}] ${contextualized}`
           : contextualized;
         for (const piece of splitForEmbedding(dated)) {
-          await timedEncode(piece, [sessionTag]);
+          const traceId = await timedEncode(piece, [sessionTag]);
+          // Step 3: also index into BM25 when hybrid retrieval is active.
+          if (hybridBm25) {
+            hybridBm25.addDocument(traceId, piece, { tag: sessionTag });
+          }
         }
       }
     }

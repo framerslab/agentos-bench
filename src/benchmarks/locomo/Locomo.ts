@@ -71,6 +71,11 @@ export interface LocomoAdapterOptions {
   sessionRetrievalTopSessions?: number;
   /** Step-2: Stage-2 chunks-per-session (default 3). */
   sessionRetrievalChunksPerSession?: number;
+  /**
+   * Step-3: enable hybrid BM25 + dense RRF retrieval. Mutually
+   * exclusive with `sessionSummaryStore`.
+   */
+  hybridRetrievalEnabled?: boolean;
 }
 
 /**
@@ -157,6 +162,7 @@ export class Locomo implements IBenchmark {
         this.opts.sessionSummaryStore,
         ctx.config.sessionRetrievalTopSessions,
         ctx.config.sessionRetrievalChunksPerSession,
+        this.opts.hybridRetrievalEnabled,
       );
       system = out.prompt;
       runMeta.replayStats = out.replayStats;

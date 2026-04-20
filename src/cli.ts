@@ -87,6 +87,12 @@ interface BenchEntry {
     sessionRetrievalTopSessions?: number;
     /** Step-2: Stage-2 chunks-per-session (default 3 on the adapter side). */
     sessionRetrievalChunksPerSession?: number;
+    /**
+     * Step-3: when true, the adapter constructs a per-case
+     * `HybridRetriever` and uses it in place of `manager.retrieve`.
+     * Mutually exclusive with `sessionSummaryStore`.
+     */
+    hybridRetrievalEnabled?: boolean;
   }) => IBenchmark;
 }
 
@@ -137,29 +143,29 @@ const BENCHMARKS: BenchEntry[] = [
     id: 'longmemeval-s',
     family: 'external',
     description: 'LongMemEval-S (500 cases, ~115k-token haystacks)',
-    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession }) =>
-      new LongMemEvalS({ reader, variant: 's', embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled }) =>
+      new LongMemEvalS({ reader, variant: 's', embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled }),
   },
   {
     id: 'longmemeval-m',
     family: 'external',
     description: 'LongMemEval-M (~500 sessions per haystack) — medium-difficulty variant',
-    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession }) =>
-      new LongMemEvalM({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled }) =>
+      new LongMemEvalM({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled }),
   },
   {
     id: 'longmemeval-oracle',
     family: 'external',
     description: 'LongMemEval-Oracle (evidence-only) — isolates reader quality from retrieval',
-    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession }) =>
-      new LongMemEvalOracle({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled }) =>
+      new LongMemEvalOracle({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled }),
   },
   {
     id: 'locomo',
     family: 'external',
     description: 'LOCOMO (Maharana et al. 2024, 10 convos × ~300 turns, QA task only in v1)',
-    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession }) =>
-      new Locomo({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled }) =>
+      new Locomo({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled }),
   },
   {
     id: 'beam-500k',
@@ -440,6 +446,10 @@ export function buildCli(): Command {
       3,
     )
     .option(
+      '--hybrid-retrieval',
+      'Enable Step-3 hybrid BM25 + dense RRF retrieval. Mutually exclusive with --session-retrieval in Step 3 MVP. Preserves cognitive scoring on the dense side; reranker (if --rerank set) runs over the merged pool.',
+    )
+    .option(
       '--seed <n>',
       'Deterministic seed for bootstrap resampling (and any future RNG-dependent pipeline). Use for reproducible findings-doc CIs.',
       parseInteger,
@@ -539,6 +549,7 @@ export function buildCli(): Command {
         sessionRetrieval: Boolean(opts.sessionRetrieval),
         sessionRetrievalTopSessions: opts.sessionRetrievalTopSessions as number | undefined,
         sessionRetrievalChunksPerSession: opts.sessionRetrievalChunksPerSession as number | undefined,
+        hybridRetrieval: Boolean(opts.hybridRetrieval),
       };
 
       // Cost preflight — coarse but enough to catch "oh no I just
@@ -719,6 +730,7 @@ export function buildCli(): Command {
         sessionSummaryStore,
         sessionRetrievalTopSessions: runConfig.sessionRetrievalTopSessions,
         sessionRetrievalChunksPerSession: runConfig.sessionRetrievalChunksPerSession,
+        hybridRetrievalEnabled: runConfig.hybridRetrieval,
       });
       const result = await runner.run(benchmark, runConfig);
 

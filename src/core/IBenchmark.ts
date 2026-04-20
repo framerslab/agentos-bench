@@ -313,6 +313,14 @@ export interface RunConfig {
    * Default: 3.
    */
   sessionRetrievalChunksPerSession?: number;
+
+  /**
+   * Enable Step-3 hybrid BM25 + dense RRF retrieval. Mutually
+   * exclusive with `sessionRetrieval` in Step 3 MVP — setting both
+   * throws a documented error inside `runFullCognitiveCase`.
+   * Default: false. Opt-in behind `--hybrid-retrieval` CLI flag.
+   */
+  hybridRetrieval?: boolean;
 }
 
 /**
@@ -347,6 +355,7 @@ export interface BenchContext {
       | 'sessionRetrieval'
       | 'sessionRetrievalTopSessions'
       | 'sessionRetrievalChunksPerSession'
+      | 'hybridRetrieval'
     >
   > &
     Pick<
@@ -373,6 +382,7 @@ export interface BenchContext {
       | 'sessionRetrieval'
       | 'sessionRetrievalTopSessions'
       | 'sessionRetrievalChunksPerSession'
+      | 'hybridRetrieval'
     >;
   /** LLM-as-judge for external benchmarks. Micro-benchmarks ignore. */
   judge: IJudge;
