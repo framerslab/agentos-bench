@@ -17,6 +17,8 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { ResultStore, type ResultsSummary, type SummaryEntry } from '../core/ResultStore.js';
+import { attachBootstrapCIs } from '../core/BenchmarkRunner.js';
+import type { BenchResult } from '../core/IBenchmark.js';
 
 export interface SweepReportOptions {
   /** Results directory containing `summary.json` and `runs/`. */
@@ -203,4 +205,62 @@ const MICRO_IDS = new Set([
 
 function isMicroId(id: string): boolean {
   return MICRO_IDS.has(id);
+}
+
+/**
+ * Options for {@link recomputeCIsForResultsDir}.
+ */
+export interface RecomputeCIsOptions {
+  /** Seed for deterministic bootstrap. Default 42. */
+  seed?: number;
+  /** Bootstrap resamples. Default 10,000. */
+  resamples?: number;
+}
+
+/**
+ * Walk `resultsDir/runs/*.json`, apply {@link attachBootstrapCIs} to
+ * each loaded {@link BenchResult}, and overwrite the file. Lets us
+ * quantify the CI band on a historical Phase A run without re-burning
+ * reader + judge API dollars.
+ *
+ * Idempotent: running twice with the same seed produces identical
+ * output, and an already-CI'd run gets its CIs re-computed (which is
+ * how you'd intentionally tighten CIs by bumping resamples).
+ *
+ * @returns the number of run files touched.
+ *
+ * @example
+ * ```ts
+ * await recomputeCIsForResultsDir('packages/agentos-bench/results', {
+ *   seed: 42,
+ *   resamples: 10_000,
+ * });
+ * ```
+ */
+export async function recomputeCIsForResultsDir(
+  resultsDir: string,
+  options: RecomputeCIsOptions = {},
+): Promise<number> {
+  const runsDir = path.join(resultsDir, 'runs');
+  let entries: string[];
+  try {
+    entries = await fs.readdir(runsDir);
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return 0;
+    throw err;
+  }
+  let touched = 0;
+  for (const name of entries) {
+    if (!name.endsWith('.json')) continue;
+    const full = path.join(runsDir, name);
+    const raw = await fs.readFile(full, 'utf8');
+    const parsed = JSON.parse(raw) as BenchResult;
+    const withCIs = attachBootstrapCIs(parsed, {
+      seed: options.seed ?? 42,
+      resamples: options.resamples ?? 10_000,
+    });
+    await fs.writeFile(full, JSON.stringify(withCIs, null, 2), 'utf8');
+    touched += 1;
+  }
+  return touched;
 }
