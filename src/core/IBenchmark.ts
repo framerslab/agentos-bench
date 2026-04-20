@@ -321,6 +321,21 @@ export interface RunConfig {
    * Default: false. Opt-in behind `--hybrid-retrieval` CLI flag.
    */
   hybridRetrieval?: boolean;
+
+  /**
+   * Enable Step-4 HyDE (Hypothetical Document Embedding) retrieval.
+   * When true, the bench constructs a cheap LLM invoker and wires it
+   * into `CognitiveMemoryManager` via `featureDetectionLlmInvoker`;
+   * the manager then auto-constructs a `MemoryHydeRetriever`. The
+   * adapter additionally threads the hyde retriever into
+   * `HybridRetriever` when `--hybrid-retrieval` is also set, so the
+   * hypothesis queries BOTH dense and sparse sides while rerank
+   * uses the ORIGINAL user query.
+   *
+   * Orthogonal to `sessionRetrieval` and `hybridRetrieval`.
+   * Default: false. Opt-in behind `--hyde` CLI flag.
+   */
+  hyde?: boolean;
 }
 
 /**
@@ -356,6 +371,7 @@ export interface BenchContext {
       | 'sessionRetrievalTopSessions'
       | 'sessionRetrievalChunksPerSession'
       | 'hybridRetrieval'
+      | 'hyde'
     >
   > &
     Pick<
@@ -383,6 +399,7 @@ export interface BenchContext {
       | 'sessionRetrievalTopSessions'
       | 'sessionRetrievalChunksPerSession'
       | 'hybridRetrieval'
+      | 'hyde'
     >;
   /** LLM-as-judge for external benchmarks. Micro-benchmarks ignore. */
   judge: IJudge;
