@@ -20,12 +20,23 @@ import type {
   CaseResult,
   CaseRun,
   IBenchmark,
+  ReaderModel,
   RunConfig,
 } from './IBenchmark.js';
 import { Cache, hashKey } from './Cache.js';
 import { CostTracker } from './CostTracker.js';
 import { ResultStore } from './ResultStore.js';
 import type { IJudge } from '../judges/IJudge.js';
+import type { IReader } from '../readers/IReader.js';
+import { createReader } from '../readers/createReader.js';
+import {
+  computeBootstrapCI,
+  type BootstrapResult,
+} from './metrics/index.js';
+import {
+  computeJudgeAdversarialRate,
+  type AdversarialProbeCase,
+} from './metrics/computeJudgeAdversarial.js';
 
 /**
  * Options for constructing a {@link BenchmarkRunner}.
@@ -62,7 +73,341 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     trackFootprint: cfg.trackFootprint,
     ablateSignal: cfg.ablateSignal,
     ablateMechanism: cfg.ablateMechanism,
+    // apiKey stays on the in-memory context so the adapter can use it
+    // at retrieval time. Redaction happens in {@link redactSecretsFromConfig}
+    // before the config is persisted as part of BenchResult.
+    rerank: cfg.rerank,
+    // Fingerprint-only: consumers (BenchmarkRunner cache key, sweep
+    // reports) need to know WHICH model is generating summaries, not
+    // the summarizer instance itself. The instance is plumbed through
+    // entry.build() so it lives on the adapter, not ctx.config.
+    contextSummaryModel: cfg.contextSummaryModel,
+    // How many retrieved chunks the reader sees after rerank. When
+    // undefined, the adapter's default (typically 10) applies. When
+    // set, case-run cache keys include a `topk:${N}` fingerprint so
+    // K=10 and K=15 runs cache independently. See
+    // {@link computeCaseRunKeyParts} for the conditional-append logic
+    // that preserves pre-change cache entries for K=10 default runs.
+    readerTopK: cfg.readerTopK,
+    // Step-1 infra: judge-adversarial probe + bootstrap CI knobs.
+    // All default-off/undefined; runner treats them as opt-in.
+    judgeAdversarial: cfg.judgeAdversarial,
+    judgeAdversarialMaxProbes: cfg.judgeAdversarialMaxProbes,
+    judgeAdversarialSynthModel: cfg.judgeAdversarialSynthModel,
+    bootstrapResamples: cfg.bootstrapResamples,
   };
+}
+
+/**
+ * Produce a persistence-safe copy of a {@link RunConfig} with every
+ * secret stripped. Call this before a config is written to disk or
+ * serialized into a {@link BenchResult} — run JSONs land in
+ * `results/runs/` and can be committed, so the original apiKey must
+ * never leave memory.
+ */
+export function redactSecretsFromConfig(cfg: RunConfig): RunConfig {
+  if (!cfg.rerank) return cfg;
+  return {
+    ...cfg,
+    rerank: {
+      provider: cfg.rerank.provider,
+      model: cfg.rerank.model,
+      candidateMultiplier: cfg.rerank.candidateMultiplier,
+      // apiKey intentionally omitted — never persist secrets.
+    },
+  };
+}
+
+/**
+ * Schema-version marker for cache invalidation. Bump when the base set
+ * of parts composed into a case-run cache key changes. Parts are
+ * joined via `\x1f` in {@link hashKey}, so adding OR removing a part
+ * breaks all prior cache entries — always-append patterns for new
+ * fingerprints MUST be conditional (see `readerTopK` below) so
+ * backwards-compat stays intact.
+ *
+ * History:
+ *   v2 — initial schema (pre-prompt-version tracking)
+ *   v3 — v6 prompt experiment (reverted, regressed -10pp)
+ *   v4 — v7 prompt experiment (reverted, regressed all 3 benchmarks)
+ *   v5 — v8 prompt (explicit abstention wording, same rule)
+ *   v6 — v9 prompt (personalization rule for advice questions)
+ *   v7 — Fix A: session-diverse top-K (MAX_CHUNKS_PER_SESSION=3)
+ *   v8 — Fix A reverted. Bumped to discard v7 cache entries that
+ *        were written during the Fix A smoke — the revert restored
+ *        the code but the cache kept the regressed answers. Also
+ *        marks the readerTopK-helper extraction (no user-visible
+ *        behavior change on the default path, but clean slate lets
+ *        the K=10 baseline reflect post-revert code accurately).
+ */
+const CASE_RUN_SCHEMA_VERSION = 'v8';
+
+/**
+ * Fixed context needed for a case-run cache key beyond `RunConfig`:
+ * benchmark identity, the case id, and the judge identity.
+ */
+export interface CaseKeyContext {
+  benchmarkId: string;
+  benchmarkVersion: string;
+  caseId: string;
+  judgeModel: string;
+  judgeRubricVersion: string;
+}
+
+/**
+ * Build the ordered `runKeyParts` + `resultKeyParts` arrays that
+ * `BenchmarkRunner.runOneCase` feeds into {@link hashKey}. Extracted
+ * as a standalone helper so `readerTopK.spec.ts` can verify
+ * propagation and backwards-compatibility without spinning up a full
+ * benchmark run.
+ *
+ * Invariants pinned by tests:
+ *   - When `config.readerTopK` is undefined, arrays are exactly 12
+ *     (run) and 14 (result) elements — matching the pre-readerTopK
+ *     layout, so prior cache entries remain valid.
+ *   - When `config.readerTopK` is set, a `topk:${N}` element is
+ *     appended, producing distinct hashes for K=10 vs K=15.
+ */
+export function computeCaseRunKeyParts(
+  config: BenchContext['config'],
+  keyCtx: CaseKeyContext,
+): { runKeyParts: unknown[]; resultKeyParts: unknown[] } {
+  // When a neural reranker is active the retrieval ordering changes;
+  // cache keys MUST reflect that so cognitive-only cached runs don't
+  // accidentally pollute a reranked sweep.
+  const rerankFingerprint = config.rerank
+    ? `rerank:${config.rerank.provider}:${config.rerank.model ?? 'default'}:cm${config.rerank.candidateMultiplier ?? 3}`
+    : '';
+  // Session-level contextual retrieval (Anthropic Sep 2024 variant)
+  // changes every embedded chunk at ingest — the cache key MUST
+  // reflect that so a non-contextual run doesn't return answers
+  // embedded with context, or vice versa. Fingerprint is just the
+  // model id; the summary content hashes live in the summarizer's
+  // own on-disk cache. When contextSummaryModel is undefined, the
+  // fingerprint is empty so the cache is shared across
+  // non-contextual runs.
+  const contextSummaryFingerprint = config.contextSummaryModel
+    ? `ctx:${config.contextSummaryModel}`
+    : '';
+
+  const runKeyParts: unknown[] = [
+    'case-run',
+    CASE_RUN_SCHEMA_VERSION,
+    keyCtx.benchmarkId,
+    keyCtx.benchmarkVersion,
+    keyCtx.caseId,
+    config.reader,
+    config.memoryMode,
+    config.replayMode,
+    // Ablation flags change the retrieval behaviour, so they must
+    // participate in the cache key.
+    config.ablateSignal ?? '',
+    config.ablateMechanism ?? '',
+    rerankFingerprint,
+    contextSummaryFingerprint,
+  ];
+  const resultKeyParts: unknown[] = [
+    'case-result',
+    CASE_RUN_SCHEMA_VERSION,
+    keyCtx.benchmarkId,
+    keyCtx.benchmarkVersion,
+    keyCtx.caseId,
+    config.reader,
+    config.memoryMode,
+    config.replayMode,
+    config.ablateSignal ?? '',
+    config.ablateMechanism ?? '',
+    rerankFingerprint,
+    contextSummaryFingerprint,
+    keyCtx.judgeModel,
+    keyCtx.judgeRubricVersion,
+  ];
+
+  // Conditional append (see spec §2): add the readerTopK fingerprint
+  // ONLY when explicitly set. `hashKey` joins all parts with `\x1f`
+  // separators — appending even an empty-string part would change
+  // the canonical serialization and invalidate every prior cache
+  // entry. Leaving the array at 12 / 14 elements when readerTopK is
+  // undefined preserves pre-change hashes exactly.
+  if (config.readerTopK) {
+    const topKTag = `topk:${config.readerTopK}`;
+    runKeyParts.push(topKTag);
+    resultKeyParts.push(topKTag);
+  }
+
+  return { runKeyParts, resultKeyParts };
+}
+
+// ---------------------------------------------------------------------------
+// Post-aggregate enrichment: bootstrap CIs + judge-adversarial probe
+// ---------------------------------------------------------------------------
+
+/**
+ * Options for {@link attachBootstrapCIs}.
+ */
+export interface AttachBootstrapCIsOptions {
+  /** Bootstrap resamples. Default 10,000. */
+  resamples?: number;
+  /** Seed for deterministic CIs. When omitted, uses Math.random. */
+  seed?: number;
+}
+
+/**
+ * Layer bootstrap 95 percent CIs onto a {@link BenchResult}. Returns a
+ * new result with `accuracyCI`, `weightedAccuracyCI` (when
+ * `stratifiedAccuracy` is present), and `byTypeCI` populated.
+ *
+ * Pure CPU — no API calls. Safe to run inside
+ * {@link BenchmarkRunner.run} after `benchmark.aggregate()`.
+ *
+ * @example
+ * ```ts
+ * const withCIs = attachBootstrapCIs(aggregate, { seed: 7 });
+ * console.log(withCIs.accuracyCI); // { value: 0.85, ciLo: 0.77, ciHi: 0.92, ... }
+ * ```
+ */
+export function attachBootstrapCIs(
+  result: BenchResult,
+  options: AttachBootstrapCIsOptions = {},
+): BenchResult {
+  const resamples = options.resamples ?? 10_000;
+  const seed = options.seed;
+
+  // Indicator vector: 1 for passed, 0 for failed. Bootstrap over this
+  // matches the "sample with replacement from the cases" semantics.
+  const indicators = result.cases.map((c) => (c.passed ? 1 : 0));
+  if (indicators.length === 0) return result;
+
+  const mean = (s: number[]): number =>
+    s.reduce((a, b) => a + b, 0) / s.length;
+
+  const accuracyCI = computeBootstrapCI(indicators, mean, { resamples, seed });
+
+  // Per-type CI: partition indicator by caseType metadata.
+  const byTypeIndicators = new Map<string, number[]>();
+  for (const c of result.cases) {
+    const type =
+      ((c.metadata as Record<string, unknown> | undefined)?.caseType as
+        | string
+        | undefined) ?? 'unknown';
+    const arr = byTypeIndicators.get(type) ?? [];
+    arr.push(c.passed ? 1 : 0);
+    byTypeIndicators.set(type, arr);
+  }
+  const byTypeCI: Record<string, BootstrapResult> = {};
+  for (const [type, arr] of byTypeIndicators) {
+    if (arr.length > 0) {
+      byTypeCI[type] = computeBootstrapCI(arr, mean, { resamples, seed });
+    }
+  }
+
+  // Weighted-accuracy CI: resample cases, recompute weighted accuracy
+  // each resample using the SAME priors as the original stratified
+  // aggregate. Only when stratifiedAccuracy was computed.
+  let weightedAccuracyCI: BootstrapResult | undefined;
+  if (result.stratifiedAccuracy) {
+    const priors = result.stratifiedAccuracy.byType;
+    // Build index of case -> type so resamples can reconstruct per-type
+    // passed/n counts quickly.
+    const typedCases: Array<{ passed: number; type: string }> = result.cases.map(
+      (c) => ({
+        passed: c.passed ? 1 : 0,
+        type:
+          ((c.metadata as Record<string, unknown> | undefined)?.caseType as
+            | string
+            | undefined) ?? 'unknown',
+      }),
+    );
+    const weightedStatistic = (
+      sample: Array<{ passed: number; type: string }>,
+    ): number => {
+      const counts = new Map<string, { n: number; passed: number }>();
+      for (const s of sample) {
+        const g = counts.get(s.type) ?? { n: 0, passed: 0 };
+        g.n += 1;
+        g.passed += s.passed;
+        counts.set(s.type, g);
+      }
+      let weighted = 0;
+      for (const [type, g] of counts) {
+        if (g.n === 0) continue;
+        const prior = priors[type]?.prior ?? 0;
+        weighted += prior * (g.passed / g.n);
+      }
+      return weighted;
+    };
+    weightedAccuracyCI = computeBootstrapCI(typedCases, weightedStatistic, {
+      resamples,
+      seed,
+    });
+  }
+
+  return {
+    ...result,
+    accuracyCI,
+    byTypeCI,
+    weightedAccuracyCI,
+  };
+}
+
+/**
+ * Parameters for {@link runAdversarialProbeIfEnabled}.
+ */
+export interface RunAdversarialProbeParams {
+  /** The BenchResult produced by the runner so far. */
+  result: BenchResult;
+  /** The full case list (question, expected, type) — reader outputs unused here. */
+  cases: BenchCase[];
+  /** Benchmark id (for rubric selection by the judge). */
+  benchmarkId: string;
+  /** Same judge instance the runner used on real answers. */
+  judge: IJudge;
+  /** Synthesizer invoker (cheap LLM producing distractors). */
+  synthesizer: IReader;
+  /** Disk cache dir for synthesized distractors. */
+  cacheDir: string;
+  /** Run the probe; when false, returns `result` unchanged. */
+  enabled: boolean;
+  /** Probe count cap. Default 50. */
+  maxProbes?: number;
+  /** Bootstrap resamples for the FPR CI. Default 10,000. */
+  resamples?: number;
+  /** Seed for deterministic bootstrap. */
+  seed?: number;
+}
+
+/**
+ * Conditionally run the judge-adversarial probe and merge its result
+ * into the supplied {@link BenchResult}. When `params.enabled` is
+ * false, returns the input unchanged (no synth, no judge, zero cost).
+ *
+ * The synthesizer is typically constructed via `createReader` with
+ * `RunConfig.judgeAdversarialSynthModel`. Each distractor is
+ * cached under `cacheDir` so re-runs with warm cache pay only the
+ * judge calls.
+ */
+export async function runAdversarialProbeIfEnabled(
+  params: RunAdversarialProbeParams,
+): Promise<BenchResult> {
+  if (!params.enabled) return params.result;
+  const probe = await computeJudgeAdversarialRate({
+    cases: params.cases.map(
+      (c): AdversarialProbeCase => ({
+        id: c.id,
+        type: c.type,
+        question: c.question,
+        expected: c.expected,
+      }),
+    ),
+    benchmarkId: params.benchmarkId,
+    judge: params.judge,
+    synthesizer: params.synthesizer,
+    cacheDir: params.cacheDir,
+    maxProbes: params.maxProbes ?? 50,
+    resamples: params.resamples ?? 10_000,
+    seed: params.seed,
+  });
+  return { ...params.result, judgeAdversarialFPR: probe };
 }
 
 /**
@@ -116,7 +461,7 @@ export class BenchmarkRunner {
         ...aggregate,
         benchmarkId: benchmark.id,
         benchmarkVersion: benchmark.version,
-        config,
+        config: redactSecretsFromConfig(config),
         startedAt,
         completedAt: new Date().toISOString(),
         totalCases: results.length,
@@ -130,10 +475,47 @@ export class BenchmarkRunner {
             : Number.POSITIVE_INFINITY,
       };
 
-      const store = new ResultStore(this.opts.resultsDir);
-      await store.save(finalResult, benchmark.family);
+      // Layer bootstrap CIs over per-case results (pure CPU, no API
+      // calls). Seed flows from RunConfig for reproducibility; undefined
+      // seed falls back to Math.random.
+      const withCIs = attachBootstrapCIs(finalResult, {
+        resamples: ctx.config.bootstrapResamples ?? 10_000,
+        seed: ctx.config.seed,
+      });
 
-      return finalResult;
+      // Optionally run the judge-adversarial probe. Opt-in because it
+      // adds one cheap synth call + one judge call per probed case.
+      // Synthesizer constructed only when flag is set so runs that
+      // don't need the probe do not require OPENAI_API_KEY for a
+      // non-GPT reader.
+      const synthModel =
+        ctx.config.judgeAdversarialSynthModel ?? 'gpt-5-mini';
+      const synthesizer = ctx.config.judgeAdversarial
+        ? createReader(synthModel as ReaderModel)
+        : undefined;
+      const withProbe =
+        ctx.config.judgeAdversarial && synthesizer
+          ? await runAdversarialProbeIfEnabled({
+              result: withCIs,
+              cases: allCases,
+              benchmarkId: benchmark.id,
+              judge: this.opts.judge,
+              synthesizer,
+              cacheDir: path.join(
+                this.opts.dataDir,
+                '.judge-adversarial-cache',
+              ),
+              enabled: true,
+              maxProbes: ctx.config.judgeAdversarialMaxProbes ?? 50,
+              resamples: ctx.config.bootstrapResamples ?? 10_000,
+              seed: ctx.config.seed,
+            })
+          : withCIs;
+
+      const store = new ResultStore(this.opts.resultsDir);
+      await store.save(withProbe, benchmark.family);
+
+      return withProbe;
     } finally {
       await fs.rm(scratchDir, { recursive: true, force: true });
     }
@@ -170,40 +552,20 @@ export class BenchmarkRunner {
     c: BenchCase,
     ctx: BenchContext,
   ): Promise<CaseResult> {
-    // Bump CASE_RUN_SCHEMA_VERSION whenever CaseRun.metadata shape
-    // changes so stale entries from prior bench versions don't leak
-    // into new aggregates (e.g. v1 runs lacked encodeMsSamples /
-    // retrievalMetrics, and an aggregate over a mixed cache produces
-    // nonsense). Bumping invalidates old entries — next run rescores.
-    const CASE_RUN_SCHEMA_VERSION = 'v2';
-    const runKeyParts = [
-      'case-run',
-      CASE_RUN_SCHEMA_VERSION,
-      benchmark.id,
-      benchmark.version,
-      c.id,
-      ctx.config.reader,
-      ctx.config.memoryMode,
-      ctx.config.replayMode,
-      // Ablation flags change the retrieval behaviour, so they must
-      // participate in the cache key.
-      ctx.config.ablateSignal ?? '',
-      ctx.config.ablateMechanism ?? '',
-    ];
-    const resultKeyParts = [
-      'case-result',
-      CASE_RUN_SCHEMA_VERSION,
-      benchmark.id,
-      benchmark.version,
-      c.id,
-      ctx.config.reader,
-      ctx.config.memoryMode,
-      ctx.config.replayMode,
-      ctx.config.ablateSignal ?? '',
-      ctx.config.ablateMechanism ?? '',
-      ctx.judge.model,
-      ctx.judge.rubricVersion,
-    ];
+    // Delegate cache-key construction to the shared helper so test
+    // coverage (tests/readerTopK.spec.ts) can exercise the key-build
+    // path directly, and so conditional-append for readerTopK stays
+    // in one place rather than duplicated here and in tests.
+    const { runKeyParts, resultKeyParts } = computeCaseRunKeyParts(
+      ctx.config,
+      {
+        benchmarkId: benchmark.id,
+        benchmarkVersion: benchmark.version,
+        caseId: c.id,
+        judgeModel: ctx.judge.model,
+        judgeRubricVersion: ctx.judge.rubricVersion,
+      },
+    );
 
     // Step 1 — produce or recall the answer.
     let run = await ctx.cache.get<CaseRun>('case-run', ...runKeyParts);
