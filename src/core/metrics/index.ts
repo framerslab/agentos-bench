@@ -57,3 +57,11 @@ export type {
   EvidenceProvenance,
   EvidenceTrace,
 } from './computeEvidenceProvenance.js';
+
+export { computeRetrievalStageMetrics } from './computeRetrievalStageMetrics.js';
+export type {
+  RetrievalStageMetrics,
+  StageName,
+  StageRankedIds,
+  StageMetric,
+} from './computeRetrievalStageMetrics.js';
