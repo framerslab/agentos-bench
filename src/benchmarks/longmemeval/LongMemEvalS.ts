@@ -133,6 +133,15 @@ export interface LongMemEvalAdapterOptions {
    * to the `HybridRetriever` constructor. Typical: 0.3.
    */
   splitAmbiguousThreshold?: number;
+  /**
+   * Step-7 (Tier 2): enable Observer/Reflector pipeline. Adapter builds
+   * a gpt-5-mini invoker, passes to `createCognitiveManager` as
+   * `observerReflectorLlmInvoker`, and calls `manager.observe(...)` on
+   * each conversation turn during `replayForCognitive`. At end of each
+   * benchmark case, force-drains buffered notes through compression
+   * and reflection cycles.
+   */
+  observerReflectorEnabled?: boolean;
 }
 
 /**
@@ -247,6 +256,7 @@ export class LongMemEvalS implements IBenchmark {
         this.opts.reader,
         this.opts.factSupersessionEnabled,
         this.opts.splitAmbiguousThreshold,
+        this.opts.observerReflectorEnabled,
       );
       system = out.prompt;
       runMetadata.replayStats = out.replayStats;
@@ -681,6 +691,7 @@ export async function runFullCognitiveCase(
   hydeReader?: IReader,
   factSupersessionEnabled?: boolean,
   splitAmbiguousThreshold?: number,
+  observerReflectorEnabled?: boolean,
 ): Promise<FullCognitiveOutput> {
   // Step 3 mutex: combined hybrid + session-level retrieval is Step 7
   // territory; MVP rejects the combination explicitly.
@@ -735,6 +746,32 @@ export async function runFullCognitiveCase(
     };
   }
 
+  // Step-7 (Tier 2): Observer/Reflector invoker. Uses the bench reader
+  // abstraction — summarization doesn't need the main reader's quality,
+  // and Mastra's OM uses gpt-5-mini. Costs tracked per-case via the
+  // bench's CostTracker.
+  let observerReflectorLlmInvoker:
+    | ((systemPrompt: string, userPrompt: string) => Promise<string>)
+    | undefined;
+  if (observerReflectorEnabled && hydeReader) {
+    observerReflectorLlmInvoker = async (systemPrompt: string, userPrompt: string) => {
+      const resp = await hydeReader.invoke({
+        system: systemPrompt,
+        user: userPrompt,
+        maxTokens: 2000,
+        temperature: 0.3,
+      });
+      ctx.costTracker.record({
+        category: 'reader',
+        model: resp.model,
+        tokensIn: resp.tokensIn,
+        tokensOut: resp.tokensOut,
+        tag: `observer-reflector:${c.id}`,
+      });
+      return resp.text;
+    };
+  }
+
   const handle = await createCognitiveManager({
     brainPath,
     embedder,
@@ -752,6 +789,7 @@ export async function runFullCognitiveCase(
           }
         : undefined,
     hydeLlmInvoker,
+    observerReflectorLlmInvoker,
   });
   try {
     // Step 3: construct per-case HybridRetriever if enabled. The
@@ -780,6 +818,7 @@ export async function runFullCognitiveCase(
       sessionSummarizer,
       sessionSummaryStore,
       hybridRetriever?.bm25,
+      observerReflectorEnabled,
     );
 
     // Build a per-call weight override when --ablate-signal is set.
@@ -1075,6 +1114,7 @@ async function replayForCognitive(
   sessionSummarizer?: SessionSummarizer,
   sessionSummaryStore?: import('@framers/agentos/memory').SessionSummaryStore,
   hybridBm25?: import('@framers/agentos/memory').HybridRetriever['bm25'],
+  observerReflectorEnabled?: boolean,
 ): Promise<{
   sessionsReplayed: number;
   turnsReplayed: number;
@@ -1179,6 +1219,20 @@ async function replayForCognitive(
             hybridBm25.addDocument(traceId, piece, { tag: sessionTag });
           }
         }
+        // Step 7: feed the raw turn into Observer/Reflector pipeline.
+        // The pipeline fires internal LLM calls at its own thresholds
+        // (30k-token buffer, 50-note compression, 40k-token reflection).
+        // Reflection-derived traces get encoded automatically.
+        if (observerReflectorEnabled) {
+          const role = turn.role as 'user' | 'assistant' | 'system' | 'tool';
+          if (role === 'user' || role === 'assistant' || role === 'system' || role === 'tool') {
+            try {
+              await handle.manager.observe(role, turn.content, neutralMood);
+            } catch {
+              // Observer errors are non-critical; continue ingest.
+            }
+          }
+        }
       }
     }
   } else {
@@ -1231,6 +1285,36 @@ async function replayForCognitive(
             hybridBm25.addDocument(traceId, piece, { tag: sessionTag });
           }
         }
+      }
+      // Step 7: feed original per-turn role+content into Observer.
+      // Observer wants the conversational structure, not chunked text.
+      if (observerReflectorEnabled) {
+        for (const turn of session.turns) {
+          if (!turn.content.trim()) continue;
+          const role = turn.role as 'user' | 'assistant' | 'system' | 'tool';
+          if (role !== 'user' && role !== 'assistant' && role !== 'system' && role !== 'tool') continue;
+          try {
+            await handle.manager.observe(role, turn.content, neutralMood);
+          } catch {
+            // Observer errors are non-critical; continue ingest.
+          }
+        }
+      }
+    }
+  }
+
+  // Step 7: force-drain any remaining buffered observation notes through
+  // compression + reflection at end of replay. Without this flush, partial
+  // buffers from the last session don't produce reflection traces.
+  if (observerReflectorEnabled) {
+    const observer = handle.manager.getObserver?.();
+    if (observer) {
+      try {
+        await observer.extractNotes(neutralMood);
+        await observer.compressIfNeeded();
+        await observer.reflectIfNeeded();
+      } catch {
+        // Flush errors are non-critical; proceed to retrieve.
       }
     }
   }
