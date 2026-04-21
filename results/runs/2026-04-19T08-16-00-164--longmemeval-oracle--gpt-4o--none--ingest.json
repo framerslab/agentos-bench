@@ -430,5 +430,21 @@
         "reasoning": "No"
       }
     }
-  ]
+  ],
+  "accuracyCI": {
+    "value": 0.65,
+    "ciLo": 0.45,
+    "ciHi": 0.85,
+    "resamples": 10000,
+    "ci": 0.95
+  },
+  "byTypeCI": {
+    "temporal-reasoning": {
+      "value": 0.65,
+      "ciLo": 0.45,
+      "ciHi": 0.85,
+      "resamples": 10000,
+      "ci": 0.95
+    }
+  }
 }

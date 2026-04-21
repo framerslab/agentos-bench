@@ -1630,5 +1630,21 @@
         "reasoning": "Yes."
       }
     }
-  ]
+  ],
+  "accuracyCI": {
+    "value": 0.9,
+    "ciLo": 0.75,
+    "ciHi": 1,
+    "resamples": 10000,
+    "ci": 0.95
+  },
+  "byTypeCI": {
+    "single-session-user": {
+      "value": 0.9,
+      "ciLo": 0.75,
+      "ciHi": 1,
+      "resamples": 10000,
+      "ci": 0.95
+    }
+  }
 }
