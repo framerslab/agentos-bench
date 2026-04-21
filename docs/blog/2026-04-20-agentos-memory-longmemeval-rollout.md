@@ -244,9 +244,23 @@ Root cause has three compounding layers:
 
 The empirical rule from Steps 4-9 now stands at n=7: every variant that routes retrieval content through an LLM at ingest or query time regresses. Tuple extraction doesn't escape the pattern — it just fails in a measurably different way.
 
-### The pattern across seven negative results
+### Step 11: Tuned reflector prompt (null result)
 
-Every failed step modified or removed retrieval output before the reader saw it, OR added output that competed with the existing signal, OR introduced an LLM intermediate step that paraphrased away specific tokens.
+After Step 9 closed the fact-graph line, the cheapest remaining Mastra-gap experiment was prompt quality. The Step 7 / Step 8 findings identified four possible root causes for Observer/Reflector regression; three are mechanism-level (overlay dilution, BM25 mismatch, supersession) and one is prompt-level (the reflector paraphrases rather than preserving high-IDF tokens). Step 11 isolates the prompt-level hypothesis by adding explicit verbatim-preservation rules and concrete paraphrase-vs-literal examples to the reflector's system prompt, then re-running ADDITIVE mode at Tier A.
+
+Result: 62.5% unweighted at N=24, identical to Step 7. `evidenceOrigin` shows the reader still quoted reflection traces zero times. Prompt tuning alone does not close the gap. Ships: the tuned prompt as a strict superset of the original (no regression surface on non-benchmark workloads), `REFLECTOR_PROMPT_HASH` exported for content-addressed cache invalidation, and the bench's cache key now hashes the prompt text so future prompt edits auto-invalidate.
+
+### Step 12: BM25 parity for reflection traces (null result)
+
+Step 11 eliminated prompt-quality from the gap explanation. The remaining mechanism-level hypothesis was BM25 index parity: reflection traces in ADDITIVE mode go through `manager.encode()` which populates the dense store but bypasses the bench's BM25 ingest hook. Step 12 adds an end-of-replay sweep that enumerates every `sourceType: 'reflection'` trace in `MemoryStore` and indexes it into the sparse side.
+
+Result: 62.5% unweighted at N=24, identical to Step 7 and Step 11. Stage-level retrieval metrics match Step 11 exactly (sparse.recall 0.882, merged.recall 0.774, final.recall 0.740). `evidenceOrigin: { user_statement: 20, none: 4 }` — zero reflection attributions for the third consecutive Observer/Reflector variant. The sweep ran and reflection traces are now in BM25; they simply cannot outscore raw chunks on query-relevant high-IDF tokens. BM25's length-normalized tf-idf favors a compact raw chunk over a consolidated reflection summary on LongMemEval-S's specific-value question distribution, regardless of verbatim-preservation in the prompt.
+
+Three independent mechanisms now converge on the same conclusion: **reflection traces are not load-bearing for the reader on this benchmark**. Neither a better prompt (Step 11) nor better retrieval visibility (Step 12) nor synthetic-trace injection (Step 9) lifts the 62.5% floor.
+
+### The pattern across eight negative results
+
+Every failed step modified or removed retrieval output before the reader saw it, OR added output that competed with the existing signal, OR introduced an LLM intermediate step that paraphrased away specific tokens, OR made reflection content visible without changing the fact that it loses to raw chunks on tf-idf.
 
 - Step 2 (SessionRetriever w/o rerank): removed the rerank signal.
 - Step 4 (HyDE): replaced the query with a paraphrase.
@@ -254,8 +268,11 @@ Every failed step modified or removed retrieval output before the reader saw it,
 - Step 6 (Split-on-Ambiguous): trimmed trace content.
 - Step 7 (Observer additive overlay): added reflection traces that competed with raw chunks.
 - Step 8 (Observer replacement semantics): replaced raw chunks with LLM summaries that erased specific-value tokens.
+- Step 9 (Fact-graph tuple injection): synthetic traces with `retrievalScore: 1.0` displaced raw chunks and the reader still quoted raw.
+- Step 11 (Tuned reflector prompt): null — prompt-level fix does not move the number.
+- Step 12 (BM25 parity sweep): null — visibility-level fix does not move the number.
 
-Every destructive or competition-inducing modification regressed, regardless of mechanism. The rule that holds on this workload: add signal IN WAYS THAT COMPOSE WITH existing signal, don't replace it, remove it, have it compete, or route it through an LLM that paraphrases. BM25 alongside dense is additive AND composes through RRF. Rerank as a blend component is additive AND composes through the 0.7/0.3 weights. Every intervention that skipped that composition discipline regressed.
+Every destructive, competition-inducing, or LLM-mediated modification regressed. Every visibility- or prompt-only fix produced a null. The rule that holds on this workload: **add signal in ways that compose with existing signal without competing for rank position, and do not expect LLM-summarized content to become load-bearing for the reader on specific-value queries.** BM25 alongside dense is additive AND composes through RRF. Rerank as a blend component is additive AND composes through the 0.7/0.3 weights. Every intervention that skipped that composition discipline regressed. Every intervention that merely exposed LLM-summarized content to the retrieval stack without changing its content shape produced a null.
 
 ---
 
