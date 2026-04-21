@@ -46,6 +46,8 @@ import {
   computeRetrievalMetrics,
   computeRetrievalStageMetrics,
   type RetrievalStageMetrics,
+  computeEvidenceProvenance,
+  type EvidenceTrace,
   computeLatencyBreakdown,
   computeStratifiedAccuracy,
   computeTokenEfficiency,
@@ -272,6 +274,7 @@ export class LongMemEvalS implements IBenchmark {
         this.opts.splitAmbiguousThreshold,
         this.opts.observerReflectorEnabled,
         this.opts.observerReflectorReplaceEnabled,
+        this.opts.factGraphIngestEnabled,
       );
       system = out.prompt;
       runMetadata.replayStats = out.replayStats;
@@ -374,7 +377,15 @@ export class LongMemEvalS implements IBenchmark {
   ): CaseResult {
     const md = (run.metadata ?? {}) as Record<string, unknown>;
     const retrievedEvidence =
-      (md.retrievedEvidence as Array<{ sessionId?: string }> | undefined) ?? [];
+      (md.retrievedEvidence as
+        | Array<{
+            id?: string;
+            sessionId?: string;
+            sourceType?: string;
+            content?: string;
+            snippet?: string;
+          }>
+        | undefined) ?? [];
     const goldSessionIds =
       (c.metadata?.answerSessionIds as string[] | undefined) ?? [];
     const k = retrievedEvidence.length > 0 ? retrievedEvidence.length : 10;
@@ -448,6 +459,25 @@ export class LongMemEvalS implements IBenchmark {
       );
     }
 
+    // Step 9 Phase 1b: evidence-provenance pass. Shingle-match the
+    // reader's answer against each retrieved trace and record the
+    // max-overlap match (null if no shingles overlap). Aggregated into
+    // BenchResult.evidenceOrigin by the runner so we can see whether
+    // fact-graph synthetic traces are actually the reader's source on
+    // Step 9 vs the raw chunks that already contained the value.
+    let evidenceUsed: CaseResult['evidenceUsed'] = undefined;
+    if (retrievedEvidence.length > 0) {
+      const traces: EvidenceTrace[] = retrievedEvidence
+        .filter((e): e is typeof e & { id: string } => typeof e.id === 'string')
+        .map((e) => ({
+          id: e.id,
+          content: e.content ?? e.snippet ?? '',
+          sourceType: e.sourceType ?? 'raw_chunk',
+        }));
+      const answer = run.actualOutput ?? '';
+      evidenceUsed = computeEvidenceProvenance(answer, traces, 3);
+    }
+
     return {
       ...base,
       retrievalMetrics,
@@ -455,6 +485,7 @@ export class LongMemEvalS implements IBenchmark {
       latencyBreakdown,
       memoryFootprint,
       goldSessionIds,
+      evidenceUsed,
     };
   }
 
@@ -698,6 +729,19 @@ interface FullCognitiveOutput {
      * bench-session tag.
      */
     sessionId?: string;
+    /**
+     * Step 9: provenance of this retrieved trace ('raw_chunk',
+     * 'fact_graph', 'reflection', etc.) — used by attachPerCaseMetrics
+     * to bucket `evidenceUsed.sourceType` via shingle overlap against
+     * the reader's answer.
+     */
+    sourceType?: string;
+    /**
+     * Step 9: full trace content (not just snippet) — needed for
+     * accurate shingle matching in computeEvidenceProvenance. The
+     * snippet is still emitted for audit/CSV export.
+     */
+    content?: string;
   }>;
   /** Per-call encode wall time (ms). One entry per successful encode. */
   encodeMsSamples: number[];
@@ -770,6 +814,7 @@ export async function runFullCognitiveCase(
   splitAmbiguousThreshold?: number,
   observerReflectorEnabled?: boolean,
   observerReflectorReplaceEnabled?: boolean,
+  factGraphIngestEnabled?: boolean,
 ): Promise<FullCognitiveOutput> {
   // Step 3 mutex: combined hybrid + session-level retrieval is Step 7
   // territory; MVP rejects the combination explicitly.
@@ -851,6 +896,33 @@ export async function runFullCognitiveCase(
     };
   }
 
+  // Step-9 (Tier 3): fact-graph extractor invoker. Mirrors the
+  // observer-reflector pattern — gpt-5-mini, cost-tracked per case.
+  // The handle's FactExtractor + FactStore fields are populated when
+  // this is set (see createCognitiveManager Task 14).
+  let factExtractorLlmInvoker:
+    | ((systemPrompt: string, userPrompt: string) => Promise<string>)
+    | undefined;
+  if (factGraphIngestEnabled) {
+    const extractorReader = createReader('gpt-5-mini');
+    factExtractorLlmInvoker = async (systemPrompt: string, userPrompt: string) => {
+      const resp = await extractorReader.invoke({
+        system: systemPrompt,
+        user: userPrompt,
+        maxTokens: 1024,
+        temperature: 0,
+      });
+      ctx.costTracker.record({
+        category: 'reader',
+        model: resp.model,
+        tokensIn: resp.tokensIn,
+        tokensOut: resp.tokensOut,
+        tag: `fact-graph-ingest:${c.id}`,
+      });
+      return resp.text;
+    };
+  }
+
   const handle = await createCognitiveManager({
     brainPath,
     embedder,
@@ -869,6 +941,7 @@ export async function runFullCognitiveCase(
         : undefined,
     hydeLlmInvoker,
     observerReflectorLlmInvoker,
+    factExtractorLlmInvoker,
   });
   try {
     // Step 3: construct per-case HybridRetriever if enabled. The
@@ -887,6 +960,11 @@ export async function runFullCognitiveCase(
             ? handle.manager.getHydeRetriever?.() ?? undefined
             : undefined,
         splitAmbiguousThreshold,
+        // Step 9: thread the per-case FactStore into the retriever so
+        // synthetic fact-graph traces get prepended to the merged pool
+        // before rerank. Falls back to undefined when fact-graph ingest
+        // is disabled (handle.factStore is undefined in that case).
+        factStore: handle.factStore,
       });
     }
 
@@ -899,6 +977,7 @@ export async function runFullCognitiveCase(
       hybridRetriever?.bm25,
       observerReflectorEnabled,
       observerReflectorReplaceEnabled,
+      factGraphIngestEnabled,
     );
 
     // Build a per-call weight override when --ablate-signal is set.
@@ -1052,6 +1131,13 @@ export async function runFullCognitiveCase(
       score: t.retrievalScore ?? 0,
       snippet: String(t.content ?? '').slice(0, 280),
       sessionId: extractBenchSessionTag(t.tags),
+      // Step 9: surface provenance so attachPerCaseMetrics can compute
+      // evidenceUsed via shingle overlap. Fact-graph synthetic traces
+      // carry `sourceType: 'fact_graph'`; raw chunks carry
+      // `user_statement` (or whatever the encode call set); observer-
+      // reflector traces carry `reflection`.
+      sourceType: t.provenance?.sourceType ?? 'raw_chunk',
+      content: String(t.content ?? ''),
     }));
 
     // Snapshot footprint fields BEFORE close() deletes the brain file.
@@ -1190,13 +1276,18 @@ function buildBenchRetrievalPolicy(ctx: BenchContext): MemoryRetrievalPolicy {
  */
 async function replayForCognitive(
   c: BenchCase,
-  handle: { manager: import('@framers/agentos').CognitiveMemoryManager },
+  handle: {
+    manager: import('@framers/agentos').CognitiveMemoryManager;
+    factStore?: import('@framers/agentos').FactStore;
+    factExtractor?: import('@framers/agentos').FactExtractor;
+  },
   mode: 'observe' | 'ingest',
   sessionSummarizer?: SessionSummarizer,
   sessionSummaryStore?: import('@framers/agentos/memory').SessionSummaryStore,
   hybridBm25?: import('@framers/agentos/memory').HybridRetriever['bm25'],
   observerReflectorEnabled?: boolean,
   observerReflectorReplaceEnabled?: boolean,
+  factGraphIngestEnabled?: boolean,
 ): Promise<{
   sessionsReplayed: number;
   turnsReplayed: number;
@@ -1362,6 +1453,25 @@ async function replayForCognitive(
           // Flush errors non-critical; next session can still produce reflections.
         }
       }
+      // Step 9: fact-graph session boundary. Extract tuples from the
+      // session's turns and upsert into the per-case FactStore. The
+      // HybridRetriever queries this store at retrieve time. Errors
+      // are non-critical (retrieval continues with raw chunks only).
+      if (factGraphIngestEnabled && handle.factExtractor && handle.factStore) {
+        try {
+          const facts = await handle.factExtractor.extract({
+            sessionId: session.sessionId,
+            date: session.date,
+            turns: session.turns,
+          });
+          if (facts.length > 0) {
+            handle.factStore.upsert('user', 'bench', facts);
+          }
+        } catch {
+          // Fact-graph extraction errors non-critical; retrieval falls
+          // back to raw chunks + dense + BM25.
+        }
+      }
     }
   } else {
     for (const session of c.haystack) {
@@ -1451,6 +1561,24 @@ async function replayForCognitive(
           }
         } catch {
           // Flush errors non-critical; next session can still produce reflections.
+        }
+      }
+      // Step 9: fact-graph session boundary (ingest branch). Mirrors
+      // the observe branch — extract tuples, upsert into the per-case
+      // FactStore. Errors non-critical; retrieval falls back to raw
+      // chunks + dense + BM25.
+      if (factGraphIngestEnabled && handle.factExtractor && handle.factStore) {
+        try {
+          const facts = await handle.factExtractor.extract({
+            sessionId: session.sessionId,
+            date: session.date,
+            turns: session.turns,
+          });
+          if (facts.length > 0) {
+            handle.factStore.upsert('user', 'bench', facts);
+          }
+        } catch {
+          // Fact-graph extraction errors non-critical.
         }
       }
     }
