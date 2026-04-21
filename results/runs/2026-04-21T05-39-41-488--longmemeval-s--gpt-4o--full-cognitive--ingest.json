@@ -1,0 +1,2897 @@
+{
+  "benchmarkId": "longmemeval-s",
+  "benchmarkVersion": "1.0.0",
+  "config": {
+    "reader": "gpt-4o",
+    "memoryMode": "full-cognitive",
+    "replayMode": "ingest",
+    "concurrency": 3,
+    "maxUsd": 15,
+    "retrievalProfile": "balanced",
+    "adaptiveRetrieval": true,
+    "retrievalK": 10,
+    "stratified": true,
+    "samplePerType": 4,
+    "trackFootprint": true,
+    "rerank": {
+      "provider": "cohere"
+    },
+    "contextSummaryModel": "gpt-5-mini",
+    "readerTopK": 10,
+    "judgeAdversarial": false,
+    "judgeAdversarialMaxProbes": 50,
+    "judgeAdversarialSynthModel": "gpt-5-mini",
+    "bootstrapResamples": 10000,
+    "seed": 42,
+    "sessionRetrieval": false,
+    "sessionRetrievalTopSessions": 5,
+    "sessionRetrievalChunksPerSession": 3,
+    "hybridRetrieval": true,
+    "hyde": false,
+    "factSupersession": false,
+    "observerReflector": true,
+    "observerReflectorReplace": true
+  },
+  "totalCases": 24,
+  "passedCases": 6,
+  "accuracy": 0.25,
+  "avgScore": 0.25,
+  "scoreStdDev": 0.4423258684646914,
+  "byType": {
+    "knowledge-update": {
+      "n": 4,
+      "accuracy": 0,
+      "avgScore": 0
+    },
+    "multi-session": {
+      "n": 4,
+      "accuracy": 0.25,
+      "avgScore": 0.25
+    },
+    "single-session-assistant": {
+      "n": 4,
+      "accuracy": 0,
+      "avgScore": 0
+    },
+    "single-session-preference": {
+      "n": 4,
+      "accuracy": 0.75,
+      "avgScore": 0.75
+    },
+    "single-session-user": {
+      "n": 4,
+      "accuracy": 0.5,
+      "avgScore": 0.5
+    },
+    "temporal-reasoning": {
+      "n": 4,
+      "accuracy": 0,
+      "avgScore": 0
+    }
+  },
+  "avgLatencyMs": 555302.4583333334,
+  "p50LatencyMs": 559093.5,
+  "p95LatencyMs": 996880.8999999999,
+  "totalReaderTokens": 4959338,
+  "totalUsd": 3.5022734999999994,
+  "costPerCorrect": 0.5837122499999999,
+  "startedAt": "2026-04-21T05:39:41.488Z",
+  "completedAt": "2026-04-21T06:57:24.498Z",
+  "retrievalMetrics": {
+    "meanRecallAtK": 0,
+    "meanPrecisionAtK": 0,
+    "meanNdcgAtK": 0,
+    "meanMrr": 0,
+    "k": 10,
+    "sampleSize": 24
+  },
+  "latencyBreakdown": {
+    "encode": {
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "n": 0
+    },
+    "retrieve": {
+      "p50": 112,
+      "p95": 353.05,
+      "p99": 576.7599999999999,
+      "n": 24
+    },
+    "vectorSearch": {
+      "p50": 1,
+      "p95": 5.599999999999998,
+      "p99": 7.52,
+      "n": 17
+    },
+    "scoring": {
+      "p50": 1,
+      "p95": 1,
+      "p99": 1,
+      "n": 5
+    },
+    "replay": {
+      "p50": 558633,
+      "p95": 996302.5999999999,
+      "p99": 1087482.3,
+      "n": 24
+    }
+  },
+  "stratifiedAccuracy": {
+    "byType": {
+      "knowledge-update": {
+        "n": 4,
+        "accuracy": 0,
+        "prior": 0.156
+      },
+      "multi-session": {
+        "n": 4,
+        "accuracy": 0.25,
+        "prior": 0.266
+      },
+      "single-session-assistant": {
+        "n": 4,
+        "accuracy": 0,
+        "prior": 0.112
+      },
+      "single-session-preference": {
+        "n": 4,
+        "accuracy": 0.75,
+        "prior": 0.06
+      },
+      "single-session-user": {
+        "n": 4,
+        "accuracy": 0.5,
+        "prior": 0.14
+      },
+      "temporal-reasoning": {
+        "n": 4,
+        "accuracy": 0,
+        "prior": 0.266
+      }
+    },
+    "weightedOverall": 0.1815,
+    "unweightedOverall": 0.25,
+    "missingTypes": []
+  },
+  "memoryFootprint": {
+    "meanBrainBytes": 4096,
+    "p95BrainBytes": 4096,
+    "meanTraceCount": 15.833333333333334,
+    "maxPeakWorkingMemorySlots": 7,
+    "totalEncodeCalls": 0
+  },
+  "tokensPerCorrect": {
+    "readerIn": 618059.6666666666,
+    "readerOut": 208496.66666666666,
+    "judgeIn": 784.5,
+    "judgeOut": 7.166666666666667,
+    "embeddingIn": 0,
+    "total": 827347.9999999999
+  },
+  "cases": [
+    {
+      "caseId": "6a1eabeb",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention your personal best time in the charity 5K run.",
+      "latencyMs": 604179,
+      "tokensIn": 565,
+      "tokensOut": 23,
+      "usd": 0.0016424999999999999,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "knowledge-update",
+        "replayStats": {
+          "sessionsReplayed": 41,
+          "turnsReplayed": 413,
+          "durationMs": 603714
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 0,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 0,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 0,
+          "vectorSearchTimeMs": 1,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 1,
+          "escalations": [
+            "hybrid-retriever:sparse-empty"
+          ]
+        },
+        "traceCount": 0,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 1,
+        "vectorSearchMs": 1,
+        "scoringMs": 0,
+        "replayMs": 603714
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 0,
+        "peakWorkingMemorySlots": 0,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_a25d4a91_1",
+        "answer_a25d4a91_2"
+      ]
+    },
+    {
+      "caseId": "6aeb4375",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention Korean restaurants.",
+      "latencyMs": 514008,
+      "tokensIn": 1179,
+      "tokensOut": 14,
+      "usd": 0.0030875,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "knowledge-update",
+        "replayStats": {
+          "sessionsReplayed": 47,
+          "turnsReplayed": 468,
+          "durationMs": 513552
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [
+          {
+            "id": "mt_f815a4aa-2c10-44d9-8bde-3a6a530c0529",
+            "score": 0.3442237885351282,
+            "snippet": "User aims for a consistent sleep schedule: starts bedtime routine ~11:15 PM, in bed by ~11:45 PM, prefers a 15–20 minute routine including ~10 minutes of physical-book reading (no screens) and brief relaxation. They will set a phone reminder at 10:15 PM to enforce a one-hour no-s"
+          },
+          {
+            "id": "mt_6fdfd912-5fc2-4ff0-8b1c-44f8152c8bf7",
+            "score": 0.28990543366102844,
+            "snippet": "Enjoys Japanese food (sushi and ramen) and visited La Taqueria three times in the past month, praising their carne asada fries. Planning a ~2-hour weekend getaway to Springfield and is open to visiting art museums/galleries; enjoyed an 'Impressionist Masters' exhibition and audio"
+          },
+          {
+            "id": "mt_ec8e44ae-9f42-40bf-8b61-13460a401ff9",
+            "score": 0.276607415950663,
+            "snippet": "Experimenting with social media growth; used hashtag #fitnessmotivation for ~3 weeks with notable follower gains. Plans to create a content calendar in Google Sheets using a hybrid approach (master sheet + per-platform sheets) and will track follower growth, engagement, and hasht"
+          },
+          {
+            "id": "mt_90ab7e5d-fbac-4e5a-91db-90b8f13d2936",
+            "score": 0.2741847716020674,
+            "snippet": "User is willing to share detailed writing pieces and study notes, signaling trust and engagement in collaborative writing discussions."
+          },
+          {
+            "id": "mt_14d1fbfa-975c-4db7-b50a-7a19d2b307c4",
+            "score": 0.2528855643141474,
+            "snippet": "Interested in hiking in the Andes, leaning toward the Inca Trail to Machu Picchu, and asked about lesser-known Andes treks."
+          },
+          {
+            "id": "mt_7d55e11a-2e5c-473c-8ffd-8c3eb7a853dc",
+            "score": 0.2501412815593582,
+            "snippet": "User shared a long piece about writing with purpose and studies both fiction and non-fiction to learn storytelling and persuasion techniques."
+          },
+          {
+            "id": "mt_6986c077-fde4-460e-b0e9-9119eef326a5",
+            "score": 0.24973925973265854,
+            "snippet": "Prefers chic (not casual) styling. Owns new black Zara boots (bought 30% off), a little white dress from Madewell, a beige blazer planned for styling, and a soft cashmere scarf from a spa boutique. Recently exchanged distressed American Eagle jeans for high-waisted mom jeans and "
+          },
+          {
+            "id": "mt_b44de936-d2ff-422d-bc08-d59181281693",
+            "score": 0.24889031811061907,
+            "snippet": "Recently set up a new smart TV and is pleased with picture quality. Experimenting with home automation via IFTTT (has a working geolocation recipe that turns on living room lights upon entering). Considering purchasing a NAS for media storage and asked about recommended models an"
+          },
+          {
+            "id": "mt_cc27b724-96a5-4529-8117-6e7de5b59e65",
+            "score": 0.24455295307639432,
+            "snippet": "User enjoys Gary Halbert and Dan Kennedy references and is interested in songwriting and writing strategy, particularly purposeful writing and storytelling used to persuade."
+          },
+          {
+            "id": "mt_6f6cba8c-ee66-4d3b-ab0c-e27f0b685265",
+            "score": 0.24038629229701727,
+            "snippet": "User briefly expressed frustration/confusion when correcting roles in the conversation but clarified their intent and continued—shows openness, patience, and willingness to correct misunderstandings."
+          }
+        ],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 12,
+          "vectorSearchTimeMs": 4,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 13,
+          "escalations": [
+            "hybrid-retriever:sparse-empty"
+          ]
+        },
+        "traceCount": 12,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 10,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 13,
+        "vectorSearchMs": 4,
+        "scoringMs": 0,
+        "replayMs": 513552
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 12,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_3f9693b7_1",
+        "answer_3f9693b7_2"
+      ]
+    },
+    {
+      "caseId": "830ce83f",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention where Rachel moved to after her recent relocation.",
+      "latencyMs": 371738,
+      "tokensIn": 1194,
+      "tokensOut": 20,
+      "usd": 0.003185,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "knowledge-update",
+        "replayStats": {
+          "sessionsReplayed": 49,
+          "turnsReplayed": 511,
+          "durationMs": 370995
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [
+          {
+            "id": "mt_3e09dc00-ca8f-44f9-973d-7681488c5030",
+            "score": 0.22274921169936757,
+            "snippet": "Purchased a vintage armchair with carved legs and velvet upholstery at an estate sale for $200; is interested in restoration and provenance research and will contact estate sale organizers/representatives to ask about the armchair's history. Wants to start a reclaimed wood floati"
+          },
+          {
+            "id": "mt_e4fff929-4942-408f-9736-125b1f9492d3",
+            "score": 0.22072886562431762,
+            "snippet": "Considering trip options (Florida beach town vs Colorado hiking) and later decided to visit friend Rachel in Chicago."
+          },
+          {
+            "id": "mt_258d65bb-70e7-482a-b488-26a0c772d0a9",
+            "score": 0.22024201400740634,
+            "snippet": "Plans to run the Lake Springfield Trail (early morning) and is concerned about reflective clothing and safety; intends to visit Augie's Front Burner after the run and asked for directions from Lake Springfield Marina."
+          },
+          {
+            "id": "mt_964d5003-8987-4302-b0a8-55aa6cf00ee5",
+            "score": 0.21742370996758778,
+            "snippet": "Prefers modern interior design with neutral colors and blue accents; hardwood floors; living room ~15x20 ft; owns a 10'x4' sectional bought Oct 30 for $1,200; TV mounted; plans to add gaming consoles, a wall-mounted wireless soundbar, and considers a glass-top, metal-legged media"
+          },
+          {
+            "id": "mt_36ed8c6e-0cb0-4db2-b9da-d1c554b0a087",
+            "score": 0.2133870430268965,
+            "snippet": "Attended local library book readings (one on Jan 10 where they asked author Rachel Smith a question; attended another reading a month ago with Rachel Smith discussing 'The Lost City'). Plans to attend the book launch for debut novel 'The Art of Falling' on March 1 and wants event"
+          },
+          {
+            "id": "mt_a2c3bd23-b13d-492e-bd2e-6f3cce1e762e",
+            "score": 0.2074202234244399,
+            "snippet": "Exploring project management upskilling (prefers Coursera specialization), considering MBA or certifications; currently a senior software engineer and was contacted about a technical lead role but feels hesitant to leave due to strong network and sense of belonging at current emp"
+          },
+          {
+            "id": "mt_fe34b9b2-e14f-4e85-8f7f-dce9349858bf",
+            "score": 0.20511421012710693,
+            "snippet": "Plans to check Target and Amazon for throw blankets to match a new rug."
+          },
+          {
+            "id": "mt_0d25039e-7b6e-4cff-9d05-ddf3e4b37caa",
+            "score": 0.20503237761732054,
+            "snippet": "Expressed excitement and hope that technology can be designed to promote positive character traits and social good; generally optimistic about social impact of tech."
+          },
+          {
+            "id": "mt_7caa0706-52fa-4f4c-b3f9-50a677404ca5",
+            "score": 0.20424795779609103,
+            "snippet": "Interested in books about intersections of gender identity, race, and sexual orientation; specifically asked about 'Sissy' by Jacob Tobia and how Tobia's gender dysphoria informed their perspective. Past reading goal: 10 books in a month; likes quick, engaging reads. Interested i"
+          },
+          {
+            "id": "mt_8c2c9d9b-84aa-449d-b15a-5a33ccb70198",
+            "score": 0.2010153595470071,
+            "snippet": "Restarting gym attendance and focusing on improving overall skin health. Prefers hand moisturizers for dry skin (responded positively to recommendations). Considering a cool mist humidifier and aiming for indoor humidity around 50–55%."
+          }
+        ],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 29,
+          "vectorSearchTimeMs": 4,
+          "scoringTimeMs": 1,
+          "totalTimeMs": 262
+        },
+        "traceCount": 27,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 10,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 262,
+        "vectorSearchMs": 4,
+        "scoringMs": 1,
+        "replayMs": 370995
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 27,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_0b1a0942_1",
+        "answer_0b1a0942_2"
+      ]
+    },
+    {
+      "caseId": "852ce960",
+      "actualOutput": "Answer: You were pre-approved by Wells Fargo for $350,000.",
+      "latencyMs": 398571,
+      "tokensIn": 1117,
+      "tokensOut": 15,
+      "usd": 0.0029425,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "knowledge-update",
+        "replayStats": {
+          "sessionsReplayed": 41,
+          "turnsReplayed": 396,
+          "durationMs": 397626
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [
+          {
+            "id": "mt_fcf8b158-5352-4cc7-bc25-b3332375010f",
+            "score": 0.48531952126725486,
+            "snippet": "User is buying a $325,000 house; pre-approved by Wells Fargo for $350,000. They negotiated a $2,000 seller credit toward closing costs and are requesting an additional 1% (~$3,250) credit. User assumes $25,000 down and ~ $300,000 financed; lender estimated ~$1,432/month at 4% for"
+          },
+          {
+            "id": "mt_d9aa6372-4e3d-419a-a51b-1ddf7fb87141",
+            "score": 0.26666225409064787,
+            "snippet": "User was promoted to senior software engineer and also has an outside offer for a technical lead position."
+          },
+          {
+            "id": "mt_c128d8df-63cc-43a2-814f-80495bb48d25",
+            "score": 0.222965144899434,
+            "snippet": "User is developing the Fresh Earth ecosystem (token model FET, Fresh Earth Rewards/FER, DAO, FEIV metrics) and requested a finalized, combined list of documents needed to commercialize globally across Technology, Marketing, Investment, Legal, Operations, HR, Regulatory, and Gover"
+          },
+          {
+            "id": "mt_9de68d26-f8ed-41af-9e6a-883e53469d4f",
+            "score": 0.22023191142209878,
+            "snippet": "User wants productivity/time-management help: requested applying SMART goals to their campaign and building a 6-week content calendar in Bubble that includes user flows and database structure; indicated feeling overwhelmed working ~40 hours/week."
+          },
+          {
+            "id": "mt_86e491e2-4780-4a40-bb71-e6c081f483a2",
+            "score": 0.21348658323592767,
+            "snippet": "User plans a 4-day Yosemite camping trip; asked about campsites (Upper Pines, Half Dome Village, Crane Flat), hikes, bike rentals, trails, and laid-back cruise/nightlife activities referenced earlier."
+          },
+          {
+            "id": "mt_e581afd1-7a7c-4f73-9e10-e252c487d5df",
+            "score": 0.20799895275341207,
+            "snippet": "User pasted Wikipedia text about GDPR/AI regulation and asked for a summary of what it says about AI regulation."
+          },
+          {
+            "id": "mt_90a06a99-d265-4925-af03-5fa6ff50d4a5",
+            "score": 0.2063874170628933,
+            "snippet": "User purchased a 55-inch 4K TV (Best Buy, Black Friday, Nov 27), wireless earbuds (Target, Black Friday), and a refurbished laptop (Cyber Monday). Currently shopping for a soundbar ($100–$200), portable chargers ($20–$50), and higher-capacity laptop power banks."
+          },
+          {
+            "id": "mt_25c872b8-c167-4db3-8c9b-9a933a9ec26d",
+            "score": 0.2060817632226003,
+            "snippet": "On social media, travel photos perform best for the user on Instagram; comedy sketches/dance challenges perform best on TikTok. User wants tips to optimize content and to incorporate satire/irony into sketches."
+          },
+          {
+            "id": "mt_f40862c7-9dd9-48b5-abd5-548ccc2eab92",
+            "score": 0.20417765624536466,
+            "snippet": "User completed undergraduate studies about 2 years ago and has been working in industry for about 2 years; currently works ~40 hours/week and feels overwhelmed by campaign workload."
+          },
+          {
+            "id": "mt_3ecf1e47-4817-4894-82ac-bd14e0376e7b",
+            "score": 0.19901820882681923,
+            "snippet": "User likes trays/containers for coffee-table organization, prefers vintage-style Art Deco geometric metal trays in a brass finish, roughly 12–15 inch diameter."
+          }
+        ],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 17,
+          "vectorSearchTimeMs": 1,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 313
+        },
+        "traceCount": 16,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 10,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 313,
+        "vectorSearchMs": 1,
+        "scoringMs": 0,
+        "replayMs": 397626
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 16,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_3a6f1e82_1",
+        "answer_3a6f1e82_2"
+      ]
+    },
+    {
+      "caseId": "0a995998",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention clothing items you need to pick up or return from a store.",
+      "latencyMs": 763823,
+      "tokensIn": 568,
+      "tokensOut": 24,
+      "usd": 0.0016599999999999998,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "multi-session",
+        "replayStats": {
+          "sessionsReplayed": 45,
+          "turnsReplayed": 484,
+          "durationMs": 763026
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 0,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 0,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 0,
+          "vectorSearchTimeMs": 0,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 1,
+          "escalations": [
+            "hybrid-retriever:sparse-empty"
+          ]
+        },
+        "traceCount": 0,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 3,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 1,
+        "vectorSearchMs": 0,
+        "scoringMs": 0,
+        "replayMs": 763026
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 0,
+        "peakWorkingMemorySlots": 0,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_afa9873b_2",
+        "answer_afa9873b_3",
+        "answer_afa9873b_1"
+      ]
+    },
+    {
+      "caseId": "6d550036",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention the total number of projects you have led or are currently leading.",
+      "latencyMs": 488613,
+      "tokensIn": 1137,
+      "tokensOut": 24,
+      "usd": 0.0030825,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "multi-session",
+        "replayStats": {
+          "sessionsReplayed": 53,
+          "turnsReplayed": 517,
+          "durationMs": 485161
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [
+          {
+            "id": "mt_28a72f73-e3b5-4a9b-8526-f4533de8a544",
+            "score": 0.21107119549229317,
+            "snippet": "User engages with academic/quiz-style prompts (anthropology, philosophers, NOMA) and also asks practical business questions (how to start/set up a web design company and how to price projects for large companies). Prefers detailed, domain-specific answers."
+          },
+          {
+            "id": "mt_84da629f-ed46-49af-82ae-18b3a0d45c03",
+            "score": 0.21073757718941594,
+            "snippet": "Has experience in data analysis from a Marketing Research class project where they led the data analysis team; currently choosing between k-means and hierarchical clustering and plans to use elbow method, silhouette analysis, and visualizations (scatter plots, heatmaps, PCA/t-SNE"
+          },
+          {
+            "id": "mt_3907f2e4-2b99-486f-8777-d00f950b977c",
+            "score": 0.20444562415609546,
+            "snippet": "Role-played a lengthy scenario involving David Paulides, UFOs, aliens, Bigfoot, and missing persons; included the detail (role-play) that Paulides' son committed suicide in 2021."
+          },
+          {
+            "id": "mt_c3db5f1b-bbb6-453f-8f7d-bab6af689f32",
+            "score": 0.19438733225755947,
+            "snippet": "Enjoys indie and alternative music; has attended Governors Ball and seen acts like The Internet and BROODS; considering attending Lollapalooza and Outside Lands."
+          },
+          {
+            "id": "mt_ec95ed5b-262c-4a71-a227-6eebeccdf59a",
+            "score": 0.18705521138741604,
+            "snippet": "Updated living room table lamp with a translucent white drum IKEA shade aiming for a soft warm glow. Prefers warm lighting around 2700–2800K and 400–600 lumens. Plans to replace hallway floor lamp shades with clean white drum-shaped shades and uses smart bulbs in living room for "
+          },
+          {
+            "id": "mt_fb37a744-7354-423e-bca2-215ef95a6923",
+            "score": 0.18439930909963873,
+            "snippet": "Asked for casual, mid-range tonkatsu restaurant recommendations near Shin-Okubo station and onsen/ramen/local attractions around Shinjuku (mentioned Otemba Hot Spring)."
+          },
+          {
+            "id": "mt_0550ebe5-a464-41f9-8605-c75d3cf3876f",
+            "score": 0.18383389480053292,
+            "snippet": "Works as a software engineer in IT, older than most colleagues, leading their company's application migration to the cloud. Plans to dedicate a few hours weekly to online courses (Coursera, edX, Udemy) on cloud computing, machine learning, and cybersecurity, engage with blogs/com"
+          },
+          {
+            "id": "mt_4f74d0b2-7d46-4279-9d8d-5e2fe1c624c2",
+            "score": 0.1819646214667063,
+            "snippet": "In the current session the user asked multiple academic quiz questions (anthropology, philosophers, NOMA) and confirmed correct answers, and also asked about starting/setting up a web design company and pricing projects for large companies."
+          },
+          {
+            "id": "mt_2bbeb322-eed6-404a-94e9-f930d1da19a3",
+            "score": 0.17970204562597566,
+            "snippet": "Has plans next weekend: a painting workshop at the Local Artists' Co-op and a possible coffee meet with Rachel (met Rachel recently at the Modern Art Museum)."
+          },
+          {
+            "id": "mt_866e8d5e-7699-466d-95d1-37e1f00be376",
+            "score": 0.17625008719136465,
+            "snippet": "Worried about being older than most colleagues and that this may make it harder to adapt to new technologies and keep up with industry pace; expressed vulnerability and desire for advice/support."
+          }
+        ],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 23,
+          "vectorSearchTimeMs": 5,
+          "scoringTimeMs": 1,
+          "totalTimeMs": 322
+        },
+        "traceCount": 19,
+        "brainBytes": 4096
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 4,
+        "retrievedCount": 10,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 322,
+        "vectorSearchMs": 5,
+        "scoringMs": 1,
+        "replayMs": 485161
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 19,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_ec904b3c_1",
+        "answer_ec904b3c_4",
+        "answer_ec904b3c_3",
+        "answer_ec904b3c_2"
+      ]
+    },
+    {
+      "caseId": "gpt4_59c863d7",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention model kits.",
+      "latencyMs": 1005526,
+      "tokensIn": 562,
+      "tokensOut": 14,
+      "usd": 0.0015450000000000001,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "multi-session",
+        "replayStats": {
+          "sessionsReplayed": 48,
+          "turnsReplayed": 481,
+          "durationMs": 1005023
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 0,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 0,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 0,
+          "vectorSearchTimeMs": 0,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 1,
+          "escalations": [
+            "hybrid-retriever:sparse-empty"
+          ]
+        },
+        "traceCount": 0,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 4,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 1,
+        "vectorSearchMs": 0,
+        "scoringMs": 0,
+        "replayMs": 1005023
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 0,
+        "peakWorkingMemorySlots": 0,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_593bdffd_4",
+        "answer_593bdffd_1",
+        "answer_593bdffd_3",
+        "answer_593bdffd_2"
+      ]
+    },
+    {
+      "caseId": "b5ef892d",
+      "actualOutput": "Scratch: relevant session date(s) = [2023-04-29]\nScratch: interval = 5 days (Yellowstone camping trip)\n\nAnswer: You spent 5 days on a camping trip to Yellowstone National Park this year.",
+      "latencyMs": 947892,
+      "tokensIn": 1212,
+      "tokensOut": 47,
+      "usd": 0.0035,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "multi-session",
+        "replayStats": {
+          "sessionsReplayed": 56,
+          "turnsReplayed": 516,
+          "durationMs": 946887
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [
+          {
+            "id": "mt_b08d0efe-a237-4cfc-b427-23383a583bc0",
+            "score": 0.27393323835994077,
+            "snippet": "Recently returned from a 5-day camping trip to Yellowstone National Park. Planning to visit Aspen (Maroon Bells hike and town exploration) and is looking for casual, affordable eateries and coffee spots."
+          },
+          {
+            "id": "mt_3b64d5be-2a60-4a27-8912-ea9d6eb0eeda",
+            "score": 0.22225443979912649,
+            "snippet": "User asks many diverse informational questions across topics including Chinese zodiac and New Year customs, taxation systems, cleaning products, art/image prompt translation, recipes, parenting strategies, paymaster roles, and ethical/philosophical issues around brain replication"
+          },
+          {
+            "id": "mt_d3d56678-3890-4a42-aad9-54460cd76abd",
+            "score": 0.22166597983942937,
+            "snippet": "User organized kitchen cabinets and reports improved cooking efficiency. They plan to freeze bananas and try baking soda+wate﻿r oven-cleaning this weekend. They want to perfect a garlic shrimp recipe. They enjoy 'Tranquil Oasis' tea, plan to try Argentine Yerba Mate (will buy gua"
+          },
+          {
+            "id": "mt_54d3cc5f-b6b6-4b65-ae3a-5db13e521040",
+            "score": 0.21923382596626312,
+            "snippet": "Completed first 10K (Spring Fling) in 56:23 (PB by >5 minutes). Runs 3x/week, typically 5–7 miles per session; ran 5 miles on treadmill on 2024-02-15. Current running shoes show worn soles and fraying laces."
+          },
+          {
+            "id": "mt_6a88ac8b-e7ab-47e9-8366-6c32bf31185c",
+            "score": 0.21656428361191876,
+            "snippet": "User prefers unique berry-based smoothies that avoid the typical berry-banana combination and is open to creative inclusions like basil, citrus, peanut butter, acai, and goji."
+          },
+          {
+            "id": "mt_97ec35dc-ffb6-4086-aedf-fa29596f99b8",
+            "score": 0.21206839930311408,
+            "snippet": "User expressed frustration ('That's not helpful.') when assistant responses about a film's religious themes were unhelpful, indicating they value targeted, useful answers and can be candid when dissatisfied."
+          },
+          {
+            "id": "mt_5e52c05b-d76b-44ce-a123-96f46d3978a8",
+            "score": 0.21095240501198861,
+            "snippet": "Prefers cushioning and support in running shoes, neutral foot type, no foot injuries, budget $100–$150. Considering buying a running watch; values GPS, heart-rate monitoring, battery life, comfort, and accuracy."
+          },
+          {
+            "id": "mt_2516aa02-90e3-4d10-b840-3d1caad66718",
+            "score": 0.2104452602027201,
+            "snippet": "Prefers running on roads and trails; favors 5–7 mile routes with hills and scenic views (parks and waterfront)."
+          },
+          {
+            "id": "mt_50000c4a-f9c4-4e56-b97e-f6f5fcf15184",
+            "score": 0.20951458276200238,
+            "snippet": "User plans to form a St. Jude Walk/Run team 'Steps for St. Jude' with a $1,000 team fundraising goal, will create a team Facebook page, encourage personalized fundraising pages, and is open to soliciting local business sponsorships/donations. Previously participated in a Cancer R"
+          },
+          {
+            "id": "mt_79172d19-c749-4624-b96a-77be8fe5c688",
+            "score": 0.20755636007572129,
+            "snippet": "User regularly asks the assistant to produce and iterate on written content (articles, blog posts, LinkedIn summaries, image-prompt translations). They provide source material (quotes, templates) and approve or request continuation/expansion, indicating a workflow of drafting + r"
+          }
+        ],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 27,
+          "vectorSearchTimeMs": 1,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 225
+        },
+        "traceCount": 25,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 3,
+        "retrievedCount": 10,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 225,
+        "vectorSearchMs": 1,
+        "scoringMs": 0,
+        "replayMs": 946887
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 25,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_a8b4290f_3",
+        "answer_a8b4290f_1",
+        "answer_a8b4290f_2"
+      ]
+    },
+    {
+      "caseId": "7161e7e2",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention the shift rotation sheet for GM social media agents or Admon's schedule.",
+      "latencyMs": 1112983,
+      "tokensIn": 1058,
+      "tokensOut": 26,
+      "usd": 0.002905,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-assistant",
+        "replayStats": {
+          "sessionsReplayed": 48,
+          "turnsReplayed": 550,
+          "durationMs": 1112113
+        },
+        "recalledTraces": 9,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [
+          {
+            "id": "mt_240d501a-8cbf-46f1-80f7-609060754a2f",
+            "score": 0.2358844327273273,
+            "snippet": "Has a 20-gallon aquarium set up ~3 months ago; upgrading filtration and chose a Hydor Professional Canister Filter; prefers canister brands (Eheim, Fluval, Hydor) for quiet operation and easy maintenance; asked detailed questions about biological media baskets and maintenance; ex"
+          },
+          {
+            "id": "mt_6f30ea90-c7ee-43f1-bd02-f381b8f32da5",
+            "score": 0.22473255065176767,
+            "snippet": "Plans to post book-lover content titled 'Quarterly Faves & Wants' using hashtag #bookrecs; participates in weekly #BookClubChat; will use Instagram Stories for behind-the-scenes and IGTV for long-form content."
+          },
+          {
+            "id": "mt_07d68d7c-b672-4eac-a5f6-26e28afeac5d",
+            "score": 0.21762740952451154,
+            "snippet": "Concerned about Norwegian Air's financial stability; comparing Norwegian Air and Lufthansa for NY–Frankfurt travel in July/August; prefers non-stop but accepts layovers; found a Lufthansa $850 return fare and asked the assistant to look for similar or better deals."
+          },
+          {
+            "id": "mt_6aec4def-2cff-436e-9460-85d63474445d",
+            "score": 0.21207952346434875,
+            "snippet": "Recently washed their car with a new soap that removed bug splatters well; expresses enthusiasm and optimism about sustainable tourism recovery and concern for local communities and the environment."
+          },
+          {
+            "id": "mt_8d3712a9-9495-45e0-859c-ac5ef3ba1f8e",
+            "score": 0.2078020648837835,
+            "snippet": "Requested sermon and theology assistance on Luke 7:1-17 and follow-up theological, hymn, and worship planning queries."
+          },
+          {
+            "id": "mt_0ff4184e-658c-4169-be97-6703d3639ebb",
+            "score": 0.2026268879140471,
+            "snippet": "Shopping for car insurance; previously insured with Geico for 3 years; considering Progressive and State Farm; drives a silver Honda Civic with advanced safety features; interested in loan/lease gap coverage and various discounts."
+          },
+          {
+            "id": "mt_2bad59af-53c3-4252-9a2d-cf6bd5da8360",
+            "score": 0.20028185097420986,
+            "snippet": "Musical theatre fan; listens daily to The Book of Mormon soundtrack (favorites: 'I Believe', 'Hasa Diga Eebowai'); requested recommendations and recordings info, chose Avenue Q, and asked about Hadestown and Something Rotten! recordings."
+          },
+          {
+            "id": "mt_bcbe48db-aada-4f42-820c-ad9f2fcbc4a0",
+            "score": 0.20016850405399952,
+            "snippet": "Provides detailed Midjourney-style image prompts and requests that the assistant craft prompts including camera setups and roles (photographer/illustrator/animator)."
+          },
+          {
+            "id": "mt_3c0d8107-d9e9-4474-909e-2c708801fe32",
+            "score": 0.1808815991577141,
+            "snippet": "Asked for explanations regarding Indian IPR topics including National IPR Policy objectives, IPR classifications, international conventions, patent law objectives, and examples of non-obviousness."
+          }
+        ],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 10,
+          "vectorSearchTimeMs": 1,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 188
+        },
+        "traceCount": 9,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 9,
+        "goldCount": 1,
+        "retrievedCount": 9,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 188,
+        "vectorSearchMs": 1,
+        "scoringMs": 0,
+        "replayMs": 1112113
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 9,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_sharegpt_5Lzox6N_0"
+      ]
+    },
+    {
+      "caseId": "c4f10528",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention the restaurant in Cihampelas Walk that serves Nasi Goreng.",
+      "latencyMs": 629508,
+      "tokensIn": 1174,
+      "tokensOut": 26,
+      "usd": 0.003195,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-assistant",
+        "replayStats": {
+          "sessionsReplayed": 44,
+          "turnsReplayed": 485,
+          "durationMs": 628608
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [
+          {
+            "id": "mt_6c8c0c76-b4f8-4b54-adff-a384e39265a3",
+            "score": 0.26413449462800975,
+            "snippet": "User is in an active city-building simulation session. They performed actions in sequence: wait, built hospitals, built population centers, built housing, and attempted to build a skyscraper. They reported city statistics such as population and funds (exact values were provided i"
+          },
+          {
+            "id": "mt_67653a83-1193-4acc-a3d9-9f5f6d834b1b",
+            "score": 0.2637137238116529,
+            "snippet": "Requested a two-step process: (1) literature review and methodology assessment for GBAD-MDL and anomaly detection using knowledge graphs in software development (identify gaps and possible modifications); (2) if unsuitable, propose alternative methodology. After methodology selec"
+          },
+          {
+            "id": "mt_8a720b2b-e282-4433-a8a5-7e67c3fc11f4",
+            "score": 0.2636213185336569,
+            "snippet": "User discussed films with plot twists (The Sixth Sense, Fight Club, The Usual Suspects, The Prestige, Memento, Shutter Island, Oldboy) and plans to rewatch The Sixth Sense; participated in Twitter Chat #DigitalMarketingTips and engaged with five participants."
+          },
+          {
+            "id": "mt_4b400c67-c75c-4496-afe9-553e02fdaae4",
+            "score": 0.2629884997675921,
+            "snippet": "Prefers budget-friendly basketball shoes in the $80–$100 range. Uses digital coupon apps and maintains a physical coupon binder; recently saved about $10 using a 15% clothing coupon on the 22nd."
+          },
+          {
+            "id": "mt_c15034ef-1eb6-4860-ad7d-ae30b03c0370",
+            "score": 0.2595453376762747,
+            "snippet": "User tracks blood pressure with a wireless Omron monitor (since 2023-03-10), wears a Fitbit Inspire HR daily (since 2023-02-15), uses a CPAP machine regularly (cleaned it last Thursday), and uses a foam roller bought on 2023-03-02 after morning yoga."
+          },
+          {
+            "id": "mt_68254459-0db6-45af-9baa-5bcf986cf350",
+            "score": 0.25850522732330616,
+            "snippet": "User prefers pairing navy blue sneakers with jeans and a simple white or light-colored top, and owns a darker brown leather belt from H&M which they intend to wear with the outfit."
+          },
+          {
+            "id": "mt_b11fce73-a2e4-4eda-ae57-001f01740e01",
+            "score": 0.25530542141841206,
+            "snippet": "User wants to volunteer: at a senior center (preferably weekday evenings) to lead/assist classes/workshops, specifically chair yoga adapted for seniors with dementia, arthritis, and mobility issues; also wants to volunteer at the local food bank, requested contact info and applic"
+          },
+          {
+            "id": "mt_c1ec6e62-2627-4064-99f3-e3d5760fc5b3",
+            "score": 0.24176969532142806,
+            "snippet": "Often uses Uber Eats on weekdays but wants to cook more at home; plans to meal-prep chicken tikka masala and freeze naan."
+          },
+          {
+            "id": "mt_269ad4a7-5043-4494-880a-5dc161dbef6c",
+            "score": 0.23756478170005474,
+            "snippet": "User shared detailed client account information and technical logs/errors, indicating trust and willingness to collaborate on both marketing strategy and technical troubleshooting."
+          },
+          {
+            "id": "mt_81af5f59-1ccc-45d0-adea-a50ef0ec25ca",
+            "score": 0.23235448868737826,
+            "snippet": "User cooks at home about 4–5 times per week, preps rice or roasted vegetables on weekends, likes Mediterranean and Indian-inspired chicken and vegetable skewers, and plans to try Indian flavors next."
+          }
+        ],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 20,
+          "vectorSearchTimeMs": 0,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 155
+        },
+        "traceCount": 18,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 10,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 155,
+        "vectorSearchMs": 0,
+        "scoringMs": 0,
+        "replayMs": 628608
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 18,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_ultrachat_234453"
+      ]
+    },
+    {
+      "caseId": "89527b6b",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention the children's book on dinosaurs or the color of the Plesiosaur's scaly body.",
+      "latencyMs": 498403,
+      "tokensIn": 1241,
+      "tokensOut": 30,
+      "usd": 0.0034025,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-assistant",
+        "replayStats": {
+          "sessionsReplayed": 47,
+          "turnsReplayed": 467,
+          "durationMs": 497953
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [
+          {
+            "id": "mt_1e56de8a-bc81-4092-98dc-ffcdc475cf85",
+            "score": 0.4203604605530135,
+            "snippet": "Attended the Austin Film Festival, watched ~12 films including The French Dispatch and The Power of the Dog; interested in cinematography, festival trends, diversity/inclusion, and film criticism; favors RogerEbert.com, The A.V. Club, and Film Comment; intends to learn more via o"
+          },
+          {
+            "id": "mt_9dafbd5c-4a6d-4b1e-81aa-a69427ad023c",
+            "score": 0.3863594584593434,
+            "snippet": "Planning a road trip to the Grand Canyon next month, will base near Mather Campground; may stop at Hoover Dam, Monument Valley, Desert View Watchtower, Oak Creek Canyon, Williams, and Lake Mead; prefers scenic, off-the-beaten-path routes."
+          },
+          {
+            "id": "mt_05920b22-d470-4a4c-953a-6e7649f93dc5",
+            "score": 0.3448073082849074,
+            "snippet": "User drifted at Sonoma Raceway (Turbocharged Weekend) in their 2015 Nissan GT-R: completed three laps and spun once on a tight turn. They have since replaced brake pads and coilovers and are actively modifying the car for drifting, considering wheel brands (Enkei, Volk, OZ, HRE, "
+          },
+          {
+            "id": "mt_fdafa7f5-43f8-4ca5-89ce-2fbfb3024018",
+            "score": 0.34355350468272655,
+            "snippet": "Frequent fast-food habits include ordering Pizza Hut often (BBQ chicken favorite) and eating KFC chicken burgers every Friday; shops at Aldi and Costco; aims to reduce food waste and follow a grocery budget; tracked groceries using an app and reported spending ~$250 in two weeks "
+          },
+          {
+            "id": "mt_aa7a95b4-c264-4f29-bcb7-e034ca6003c8",
+            "score": 0.3432074730455912,
+            "snippet": "User will fly from their hometown in about two weeks on a multi-city itinerary (home → Chicago → Denver → home), spending about 3–4 days in each city to visit friends Rachel (Chicago) and Chris (Denver). They've been calling these friends regularly and are looking forward to meet"
+          },
+          {
+            "id": "mt_38a7a172-fb14-4732-b1c3-68f2c145820f",
+            "score": 0.33423652056101033,
+            "snippet": "Inquired about Banff National Park trail system and scenic drives; assistant recommended Bow Valley Parkway and Lake Minnewanka Loop for fall colors."
+          },
+          {
+            "id": "mt_eafc3a08-27dd-4d37-aed7-dfcaa9449ce3",
+            "score": 0.31858307781916534,
+            "snippet": "Asked about required documents and recommended vaccinations for travel to Japan; discussed routine vaccines and additional ones like Hepatitis A and Japanese Encephalitis."
+          },
+          {
+            "id": "mt_73b74007-ace2-49d1-b17b-3501b6cc26ac",
+            "score": 0.31341467540836127,
+            "snippet": "Recent purchases: white blouse from Zara (original $60, bought 30% off), scarves and belts from Zara promotion, skincare from Sephora VIB sale, stand mixer bought during Amazon Prime Day; two pairs of Adidas shoes obtained from friend Mike."
+          },
+          {
+            "id": "mt_e7407d4e-5152-4968-ac67-ff4460ac62b2",
+            "score": 0.3131669611999895,
+            "snippet": "Prefers indie and rock music, favors smaller/intimate venues and community-driven events (e.g., Coffee House on Main Street); volunteered at a 'Music for a Cause' benefit at the Community Center in April and plans to follow local music blogs and volunteer at more music/community "
+          },
+          {
+            "id": "mt_731f25b3-e305-45b8-93dd-4252b3c6b43a",
+            "score": 0.3119577285138599,
+            "snippet": "User is planning a Japan trip (Tokyo and Kyoto package around $2,500) and is leaning toward purchasing travel insurance (considering Allianz) because of the significant trip investment. They recently renewed their passport (paid $110)."
+          }
+        ],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 30,
+          "vectorSearchTimeMs": 1,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 2,
+          "escalations": [
+            "hybrid-retriever:sparse-empty"
+          ]
+        },
+        "traceCount": 30,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 10,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 2,
+        "vectorSearchMs": 1,
+        "scoringMs": 0,
+        "replayMs": 497953
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 30,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_sharegpt_YkWn1Ne_0"
+      ]
+    },
+    {
+      "caseId": "e9327a54",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention a dessert shop with giant milkshakes in Orlando.",
+      "latencyMs": 475766,
+      "tokensIn": 1241,
+      "tokensOut": 22,
+      "usd": 0.0033225000000000004,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-assistant",
+        "replayStats": {
+          "sessionsReplayed": 53,
+          "turnsReplayed": 533,
+          "durationMs": 474655
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [
+          {
+            "id": "mt_1abc44dd-50b2-4188-9d2a-70a9162ebdb2",
+            "score": 0.24222372851083174,
+            "snippet": "Expressed belief that comedy/satire should be allowed to offend and that people are too sensitive; engaged in extended discussion with assistant where assistant refused to spread rumors about Misfits cast."
+          },
+          {
+            "id": "mt_c6d575d0-0424-4de1-ba30-17ea687581ae",
+            "score": 0.24126886290402094,
+            "snippet": "Expressed excitement and fondness for concert experiences (especially Billie Eilish) and meeting Finneas; attended with best friend Emily; shares personal updates (name change) indicating openness and receptiveness to practical support."
+          },
+          {
+            "id": "mt_3b666a84-9476-4bc6-8bf7-cbfef96b8c9f",
+            "score": 0.2400192142379979,
+            "snippet": "Recently changed last name and set up a new email address on February 12; is updating usernames/emails across Facebook, Twitter, LinkedIn, Amazon, eBay, loyalty programs, and credit card info, and will create a spreadsheet and reminders and review credit reports to find accounts "
+          },
+          {
+            "id": "mt_64320da6-b8a4-4e97-a7ba-7a1bf633aa18",
+            "score": 0.23484103764855851,
+            "snippet": "Working on sewing/embroidery: made slippers for mom; plans a sashiko handkerchief (Hishi pattern) in cotton lawn with soft pastel thread and a small zippered pouch as companion. Is new to installing zippers and asked for tips; prefers tracing or iron-on methods to transfer embroi"
+          },
+          {
+            "id": "mt_bc870edd-3299-4354-a0dc-4e4db759e722",
+            "score": 0.2343812539252887,
+            "snippet": "Expressed frustration and insulted the assistant when prior debt-advice suggestions were unsatisfactory, indicating emotional sensitivity and possible trust fragility regarding financial guidance."
+          },
+          {
+            "id": "mt_4326efc9-7b56-4bdc-9486-014c6c767893",
+            "score": 0.23371358656622693,
+            "snippet": "Listens to audiobooks while working out; prefers historical fiction audiobooks roughly 15–20 hours long. Recently enjoyed The Seven Husbands of Evelyn Hugo and The Hating Game; started The Nightingale; expressed interest in Circe (by Madeline Miller) and asked about narrator Perd"
+          },
+          {
+            "id": "mt_a966f450-c2de-468e-8637-e8158becda4b",
+            "score": 0.23364517632425222,
+            "snippet": "Owns multiple collectibles: vintage 1960s Rollei(Rolleiflex) TLR camera, 1960s Omega Seamaster (inherited, appraised ~$5,000), limited edition Tag Heuer Carrera (bought at charity auction for $2,500), vintage 1980s Sony Walkman Professional, Avengers #1 first edition comic, and a"
+          },
+          {
+            "id": "mt_b8fd4e10-f672-472f-a2da-07a299823a14",
+            "score": 0.2297297344778865,
+            "snippet": "Planning a trip to New Zealand (South Island). Researching hikes/routes including Routeburn, Hooker Valley, Lake Marian, Milford, Kepler, Abel Tasman. Wants to train for longer hikes (recently completed a 6-mile loop at Mount Diablo)."
+          },
+          {
+            "id": "mt_41d00246-e9c3-4f19-8e0a-91dd0ca26115",
+            "score": 0.22555450677018066,
+            "snippet": "Runs AWS environment using RDS (SQL), DynamoDB, EC2 and asked about backups/snapshots (AMIs, RDS snapshots/read replicas, DynamoDB PITR) and using IaC (CloudFormation/Terraform) to recreate infrastructure. Requested assistant act as a cloud consultant for AWS questions."
+          },
+          {
+            "id": "mt_b054a694-019a-47ad-bcee-47ab2b1f6267",
+            "score": 0.222499850773813,
+            "snippet": "Requested a pillar page strategy for logistics managers on lean production and specified using RSS feed blog titles as a requirement; assistant produced an outline and user reiterated the RSS requirement."
+          }
+        ],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 30,
+          "vectorSearchTimeMs": 0,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 180
+        },
+        "traceCount": 27,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 10,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 180,
+        "vectorSearchMs": 0,
+        "scoringMs": 0,
+        "replayMs": 474655
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 27,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_ultrachat_480665"
+      ]
+    },
+    {
+      "caseId": "8a2466db",
+      "actualOutput": "Answer: Since you enjoy using Adobe Premiere Pro and want to learn about the Lumetri Color Panel features, I recommend exploring Adobe's official tutorials and resources on their website, which offer in-depth guides on using Premiere Pro and its color grading tools. Additionally, you might find YouTube channels like \"Premiere Gal\" and \"Film Riot\" helpful, as they provide practical tips and tutorials on video editing and color grading. Online platforms like Skillshare and Udemy also offer courses specifically focused on Premiere Pro and color correction techniques.",
+      "latencyMs": 228252,
+      "tokensIn": 1236,
+      "tokensOut": 105,
+      "usd": 0.00414,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-preference",
+        "replayStats": {
+          "sessionsReplayed": 54,
+          "turnsReplayed": 508,
+          "durationMs": 226506
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [
+          {
+            "id": "mt_f08231c2-1fea-49c5-85f6-2b0f18fc210d",
+            "score": 0.30131329846993954,
+            "snippet": "Enjoys Adobe Premiere Pro and wants to learn Lumetri Color Panel features: Curves, Color Match, Creative panel, and color wheels."
+          },
+          {
+            "id": "mt_8683ed56-690a-4ec1-8e46-4a8b6099e6a0",
+            "score": 0.23651942605612225,
+            "snippet": "User is a freelancer concerned about work-life balance, client expectations, prioritizing clients, negotiating deadlines, and avoiding burnout."
+          },
+          {
+            "id": "mt_c147ba1b-848f-484f-8649-edb3bc7671aa",
+            "score": 0.22808999699749669,
+            "snippet": "Added neon tetras and harlequin rasboras to aquarium on 2024-02-17; is learning aquarium plant care, reports over-trimming live plants and requests pruning advice; considering upgrading to a 55-gallon tank (asked about pros/cons)."
+          },
+          {
+            "id": "mt_264d0420-3d40-4e9a-97c0-c51a06b7c19c",
+            "score": 0.21942671806548802,
+            "snippet": "User recently ran a 10K fundraising event raising $500, volunteered at a Red Cross charity gala that raised >$10,000, and helped raise >$1,000 at a charity yoga event."
+          },
+          {
+            "id": "mt_14929469-112c-44d4-9a90-3992f6c60687",
+            "score": 0.20851887505590105,
+            "snippet": "Education: MS in Industrial Engineering & Management (Oklahoma State, 2019–2021); BS in Mechanical Engineering (University of Pune, 2013–2017). Work: Supply Chain Analyst roles (Salad and Go; Supply Chain Wizard), Process Engineer at Wilo Mather & Platt, Graduate Trainee at Vishw"
+          },
+          {
+            "id": "mt_34c072c2-c67a-4855-8951-c71464f33907",
+            "score": 0.20829312026755947,
+            "snippet": "Owns vintage cameras (1950s Rolleiflex twin-lens reflex; 1920s Kodak Vest Pocket). Uses a Nikon D750 since 2018 (used on a recent Yosemite trip). Recently acquired a Canon 24–70mm f/2.8 lens on 2024-02-10. Bought Rolleiflex at an estate sale and is learning vintage camera use. At"
+          },
+          {
+            "id": "mt_5fca0272-6974-4225-bb52-f644275eb5ff",
+            "score": 0.20789464383849632,
+            "snippet": "User plans a trip to (or return to) NYC, has lived or lives in the West Village, and is excited/nostalgic about revisiting favorite West Village coffee shops."
+          },
+          {
+            "id": "mt_ac4325bd-1671-413f-8e6b-293d5d253d7c",
+            "score": 0.20378712413019706,
+            "snippet": "User reads during daily commute (~1 hour each way), averages ~55 pages/day, uses commute reading to prepare for the day and boost focus/productivity; has nearly missed stops when engrossed."
+          },
+          {
+            "id": "mt_a0ace15e-fe1d-4a15-90fd-6f813324cb42",
+            "score": 0.203290673337572,
+            "snippet": "User has recent health issues and surgeries, is tracking medical tasks (blood pressure follow-up, dental cleaning, flu shot, back pain assessment), experiences ongoing back pain and is considering chiropractor or physical therapy, and committed to asking their PCP for a referral "
+          },
+          {
+            "id": "mt_a150348f-e345-48fb-9f94-79975e956727",
+            "score": 0.20291776724279761,
+            "snippet": "User asked for a 15-week academic course outline for a Public Policy Analysis course (second-year undergrads) and requested mathematical formulas for classification metrics plus citations for ML models (e.g., LightGBM Ke et al., 2017)."
+          }
+        ],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 32,
+          "vectorSearchTimeMs": 0,
+          "scoringTimeMs": 1,
+          "totalTimeMs": 215
+        },
+        "traceCount": 31,
+        "brainBytes": 4096
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 10,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 215,
+        "vectorSearchMs": 0,
+        "scoringMs": 1,
+        "replayMs": 226506
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 31,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_edb03329"
+      ]
+    },
+    {
+      "caseId": "06878be2",
+      "actualOutput": "Answer: Since you're preparing high-quality product photos for your candle business and the Summer Solstice Fair application, consider investing in a lightbox or portable photo studio to ensure consistent lighting. A tripod with a smartphone mount could also be useful if you're using a phone for photography, as it will help stabilize your shots. Additionally, reflectors or diffusers can help manage shadows and highlights, enhancing the overall quality of your product images.",
+      "latencyMs": 734617,
+      "tokensIn": 1096,
+      "tokensOut": 85,
+      "usd": 0.0035900000000000003,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-preference",
+        "replayStats": {
+          "sessionsReplayed": 50,
+          "turnsReplayed": 443,
+          "durationMs": 732630
+        },
+        "recalledTraces": 9,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [
+          {
+            "id": "mt_2e98daf8-05ea-4752-b421-3f3717e2c23a",
+            "score": 0.23914494918665807,
+            "snippet": "Applying or considering applying to the Summer Solstice Fair in June; needs high-quality product photos for application and online presence."
+          },
+          {
+            "id": "mt_9d1fcf92-37ef-40ae-b338-6e5172ed0f72",
+            "score": 0.23865252284273308,
+            "snippet": "Runs a candle business; attended a local library Artisan Market on April 10 and received positive feedback; developing a seasonal line (lavender, lemon) and eco-friendly branding; preparing high-quality product photos for Summer Solstice Fair application."
+          },
+          {
+            "id": "mt_473cac62-7806-4c67-b15e-b1ee22ba681e",
+            "score": 0.21073186169677902,
+            "snippet": "User is planning/considering cycling the Alps 2 Ocean Cycle Trail (New Zealand South Island) and asked about bike rental availability and received practical tips."
+          },
+          {
+            "id": "mt_34e811b6-1929-4ed7-accf-a9648e9af656",
+            "score": 0.18855461142900318,
+            "snippet": "Improving data science and programming skills; plans to read 'Deep Learning' (Goodfellow), watch Andrew Ng statistics lectures, listens to Data Science Podcast, uses MIT OCW; working on NLP projects (sentiment analysis) and a stock-forecasting project using News API and Quandl, e"
+          },
+          {
+            "id": "mt_9c6bd781-62a7-4cfa-9935-b8ea86169efe",
+            "score": 0.17911256324928146,
+            "snippet": "Planning a large family trip to Oahu and Maui for ~15–20 people; budget ~$500–700/night; interested in Aulani resort; group accommodation and large-group dining/luaus sought; kids aged ~5–15 so wants kids' clubs and water-park features."
+          },
+          {
+            "id": "mt_80c5a864-6fa2-4fba-9a79-2daae9a901da",
+            "score": 0.17870561532541807,
+            "snippet": "Practices Zumba and weightlifting; reports increased arm strength and can do 10-lb bicep curls; plans to start weekly Hatha yoga classes Sundays at 9am to complement other exercise; prefers studio-led instruction with possible online supplementation and brings typical yoga gear."
+          },
+          {
+            "id": "mt_6c8c9885-36bc-4e24-8cc5-4d4e126727f8",
+            "score": 0.1735208238820018,
+            "snippet": "Prefers Mint for budgeting (free, user-friendly) and plans to link bank and credit card accounts to track online shopping; reports making 1–3 online purchases per week since last month and feels shopping is getting out of hand; motivated to change and track spending."
+          },
+          {
+            "id": "mt_446341ab-fd98-47f9-8bbc-fd39fee44d88",
+            "score": 0.14957573645522723,
+            "snippet": "Uses podcasts (Data Science Podcast) and MIT OpenCourseWare/online lectures as part of self-directed learning; finds specific episodes (NLP) insightful."
+          },
+          {
+            "id": "mt_6012b892-fe4c-4bab-98ff-9ff77921ab6c",
+            "score": 0.14952288377522724,
+            "snippet": "Has technical skills and experience in biomedical engineering, machine learning, MATLAB, Python, SQL, COMSOL, 3D modeling; work experience includes Lumere/GHX and AbbVie (resume provided)."
+          }
+        ],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 10,
+          "vectorSearchTimeMs": 3,
+          "scoringTimeMs": 1,
+          "totalTimeMs": 643
+        },
+        "traceCount": 9,
+        "brainBytes": 4096
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 9,
+        "goldCount": 1,
+        "retrievedCount": 9,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 643,
+        "vectorSearchMs": 3,
+        "scoringMs": 1,
+        "replayMs": 732630
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 9,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_555dfb94"
+      ]
+    },
+    {
+      "caseId": "75832dbd",
+      "actualOutput": "Answer: Since you are working in medical image analysis and explainable AI, you might find recent publications from conferences like MICCAI (Medical Image Computing and Computer-Assisted Intervention) or CVPR (Conference on Computer Vision and Pattern Recognition) interesting. These conferences often feature cutting-edge research in your field. Additionally, journals such as IEEE Transactions on Medical Imaging or the Journal of Machine Learning Research might have relevant articles.",
+      "latencyMs": 692083,
+      "tokensIn": 835,
+      "tokensOut": 83,
+      "usd": 0.0029175,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-preference",
+        "replayStats": {
+          "sessionsReplayed": 51,
+          "turnsReplayed": 474,
+          "durationMs": 690896
+        },
+        "recalledTraces": 6,
+        "workingMemorySlots": 6,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [
+          {
+            "id": "mt_c0277a17-c874-401a-ae6a-b5956f065532",
+            "score": 0.29187381408799506,
+            "snippet": "User prefers sustainable shopping and reducing household waste; has run a 'Go Green' campaign posting daily for three weeks and reports it reduced plastic waste; ordered sustainable/organic products (~$150) from Thrive Market last month and uses reusable containers from that orde"
+          },
+          {
+            "id": "mt_4530d8c6-3423-43a9-93ef-520d81ae452a",
+            "score": 0.2829786320647818,
+            "snippet": "Exploring concert-size ukuleles and leaning toward Kala KA-C Mahogany (prefers playability and warm, balanced sound); compared Kala KA-C with Cordoba 20TM and Lanikai LU-21T."
+          },
+          {
+            "id": "mt_b063f011-b069-4590-87d4-61a99b40f985",
+            "score": 0.28242693692946247,
+            "snippet": "Planned Twitter chat on sustainable fashion scheduled for Wednesday at 11:30am EST with guest Maxine Bédat and one additional influencer."
+          },
+          {
+            "id": "mt_a739bf5f-d7ad-4cc4-af90-6aa6fb0dd86f",
+            "score": 0.27768618042556936,
+            "snippet": "User is seeking help finding a postdoctoral position (having difficulty obtaining offers) and requested advanced research resources in medical image analysis and explainable AI, indicating they work in that field and want non-basic literature."
+          },
+          {
+            "id": "mt_4152eea9-5695-4b9f-aa3a-443b09807050",
+            "score": 0.2500689210203164,
+            "snippet": "Planning meal prep using chicken breast and ground beef; interested in recipes like Chicken Fajitas and Spaghetti Bolognese."
+          },
+          {
+            "id": "mt_60c52637-510f-4bb8-bb9a-96c80358e1e9",
+            "score": 0.21886057394844807,
+            "snippet": "User expresses frustration and doubt about weight loss progress and motivation, sometimes considering giving up."
+          }
+        ],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 6,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 6,
+          "vectorSearchTimeMs": 1,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 1,
+          "escalations": [
+            "hybrid-retriever:sparse-empty"
+          ]
+        },
+        "traceCount": 6,
+        "brainBytes": 4096
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 6,
+        "goldCount": 1,
+        "retrievedCount": 6,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 1,
+        "vectorSearchMs": 1,
+        "scoringMs": 0,
+        "replayMs": 690896
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 6,
+        "peakWorkingMemorySlots": 6,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_d87a6ef8"
+      ]
+    },
+    {
+      "caseId": "0edc2aef",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention your preferences or past experiences with hotels or travel to Miami.",
+      "latencyMs": 618359,
+      "tokensIn": 1022,
+      "tokensOut": 23,
+      "usd": 0.002785,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-preference",
+        "replayStats": {
+          "sessionsReplayed": 49,
+          "turnsReplayed": 475,
+          "durationMs": 616703
+        },
+        "recalledTraces": 8,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [
+          {
+            "id": "mt_00346080-991e-4aff-87d4-7afa9db91ee0",
+            "score": 0.37533605116487667,
+            "snippet": "User enjoys historical fiction (recently read The Nightingale, plans to read All the Light We Cannot See, owns The Song of Achilles), attends literary events (met Celeste Ng) and is planning to start a book club and asked for organizational tips."
+          },
+          {
+            "id": "mt_eae5735f-fc82-42df-a4a9-fe2a41a28100",
+            "score": 0.3641970557044158,
+            "snippet": "User organizes family game nights, recently played Scattergories at a cousin's birthday, enjoys strategic games like Ticket to Ride (won a game against roommate Mike recently), and is considering purchasing board games such as Azul, Ticket to Ride expansions, Elfenland, and Train"
+          },
+          {
+            "id": "mt_b6f5cb54-ff29-49cc-bad6-2fb0da628a11",
+            "score": 0.3530692411888256,
+            "snippet": "User requested multiple rewrites of a MATLAB explanation for generating a chirp tone: first a human-written tone, then a more formal tone, and then an explanation of why the frequency formula is correct—indicating preference for iterative tonal variants and conceptual reasoning."
+          },
+          {
+            "id": "mt_cdd64026-b9ab-4d41-a743-db2630d2c107",
+            "score": 0.3297612415505497,
+            "snippet": "User writes comedy about being an accountant, prefers developing a unique comedic voice that remains relatable to broad audiences, met a comedian named Rachel at open-mic events and has a planned coffee meeting to discuss comedy writing and possible collaboration, and plans to st"
+          },
+          {
+            "id": "mt_32affed3-e851-4141-954a-5802a4d27ce6",
+            "score": 0.3231486620522787,
+            "snippet": "User visited a Photography Museum with cousin Alex, is especially interested in street photography, plans to visit MoMA this weekend and photograph street scenes around the museum, and favors practical street-photography tips (observe, anticipate, shoot from the hip, use a small "
+          },
+          {
+            "id": "mt_021daead-56c0-4426-8172-d5df140fe905",
+            "score": 0.2722204429146722,
+            "snippet": "User is considering obtaining a data-science certification and asked for online resources/programs, is interested in Kaggle projects, and chose to explore the Titanic: Machine Learning from Disaster dataset, requesting preprocessing and feature-engineering advice."
+          },
+          {
+            "id": "mt_feda746f-b23b-4752-9804-e6d83737212e",
+            "score": 0.23120897121420025,
+            "snippet": "User reflected on their college experience and asked about the prevalence of pursuing further education after college and how such education affects career outcomes."
+          },
+          {
+            "id": "mt_efa143bc-899d-4937-b70f-014b18e7fcea",
+            "score": 0.21988334782816546,
+            "snippet": "User has strong views opposing opioid regulation and government control over personal medical choices; has expressed frustration and insistence about government involvement in medical decisions."
+          }
+        ],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 8,
+          "vectorSearchTimeMs": 0,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 2,
+          "escalations": [
+            "hybrid-retriever:sparse-empty"
+          ]
+        },
+        "traceCount": 8,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 8,
+        "goldCount": 1,
+        "retrievedCount": 8,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 2,
+        "vectorSearchMs": 0,
+        "scoringMs": 0,
+        "replayMs": 616703
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 8,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_d586e9cd"
+      ]
+    },
+    {
+      "caseId": "e47becba",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention your degree.",
+      "latencyMs": 636062,
+      "tokensIn": 1081,
+      "tokensOut": 14,
+      "usd": 0.0028425,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 54,
+          "turnsReplayed": 550,
+          "durationMs": 635176
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [
+          {
+            "id": "mt_c67d5b84-8d5b-4c5d-a2e1-d11b6cddf163",
+            "score": 0.3511861819643307,
+            "snippet": "User enjoys BBQ cooking (experimenting with sauces using apple cider vinegar, smoking with wood chips, slow-cooked ribs) and is enthusiastic about live music and concerts (recently enjoyed The Electric Storm)."
+          },
+          {
+            "id": "mt_659b4958-6d93-45c3-b1a5-c7ebb14352c7",
+            "score": 0.2991201714752914,
+            "snippet": "User has asked for class/lecture materials on radiation therapy and for coding examples (plotting action intensity, interactive Dash/Plotly candlestick charts with alarms/draggable lines) and for creative rewrites of movie scenes."
+          },
+          {
+            "id": "mt_2e0b8909-ee56-4063-9c50-bf3325feb967",
+            "score": 0.2923584434928483,
+            "snippet": "User is considering buying a pet camera with features they want (1080p, night vision, two-way audio, motion detection, treat dispenser) and is open to a hands-free leash for running with Max (considering REI products)."
+          },
+          {
+            "id": "mt_21fa83e8-a392-40ce-82ce-163f37ed22e8",
+            "score": 0.27747561364358586,
+            "snippet": "User is starting a Pacific Coast Highway road trip with friends today and is planning a 7–10 day Tuscany and Umbria food and wine trip (selected wineries and olive oil producers to visit)."
+          },
+          {
+            "id": "mt_d0a2edfe-1637-4461-bc34-71147d542aa6",
+            "score": 0.2678221043345644,
+            "snippet": "User plans to get a flu shot and needs to schedule an appointment with their doctor."
+          },
+          {
+            "id": "mt_3fa091db-87dc-4f07-8087-9d061bac3702",
+            "score": 0.26122726346148767,
+            "snippet": "User has two pets: Luna (cat) and Max (5-year-old golden retriever). Luna sleeps in a Petco Luna bed nightly and receives omega-3 supplements; user brushes pets with a Furminator."
+          },
+          {
+            "id": "mt_1293465d-9d8e-47db-b281-85cc4ef38e19",
+            "score": 0.2605584345720527,
+            "snippet": "User regularly listens to podcasts: How I Built This, The Tim Ferriss Show (listened to Naval Ravikant episode on Dec 20), The Daily (listened to COVID-19 vaccine rollout episode on Feb 10), My Brother, My Brother and Me (listened Jan 25), comedy podcasts; finished a true crime p"
+          },
+          {
+            "id": "mt_63975637-4477-4a72-8255-99aa26af3efb",
+            "score": 0.2506703679813102,
+            "snippet": "User does morning yoga and uses a foam roller about three times a week after yoga (foam roller arrived Mar 2). They are interested in poses to improve sleep quality."
+          },
+          {
+            "id": "mt_a7340d06-a1d5-4107-9119-6ab906e7499b",
+            "score": 0.24416972403007872,
+            "snippet": "User owns a Fitbit Inspire HR (purchased Feb 15) and a wireless Omron blood pressure monitor (purchased Mar 10); they've been tracking steps and monitoring slightly high BP readings since a recent check-up."
+          },
+          {
+            "id": "mt_583ce1e8-c586-4fe3-84cd-0ece328a42ae",
+            "score": 0.23411973508742986,
+            "snippet": "User got a diffuser on March 22 and routinely uses a lavender and chamomile essential oil blend (from a local health food store) before bed."
+          }
+        ],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 10,
+          "vectorSearchTimeMs": 1,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 2,
+          "escalations": [
+            "hybrid-retriever:sparse-empty"
+          ]
+        },
+        "traceCount": 10,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 10,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 2,
+        "vectorSearchMs": 1,
+        "scoringMs": 0,
+        "replayMs": 635176
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 10,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_280352e9"
+      ]
+    },
+    {
+      "caseId": "118b2229",
+      "actualOutput": "Answer: Your daily commute to work is 45 minutes each way.",
+      "latencyMs": 150446,
+      "tokensIn": 1101,
+      "tokensOut": 14,
+      "usd": 0.0028925,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 47,
+          "turnsReplayed": 497,
+          "durationMs": 149391
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [
+          {
+            "id": "mt_5786036f-4dc3-4a64-a14a-1cebfbcc77c9",
+            "score": 0.2786610460561314,
+            "snippet": "User wakes at 6:30 AM daily to exercise and prepare for work; likes the Pomodoro Technique and plans to try it for focus and productivity."
+          },
+          {
+            "id": "mt_4db83466-ef7e-457a-a461-71ebd4bdff8e",
+            "score": 0.2520880000335494,
+            "snippet": "Prefers workout accountability; interested in finding a workout buddy and apps to connect with others."
+          },
+          {
+            "id": "mt_df15f3f0-aaf3-481f-b2b6-81edbfa1172b",
+            "score": 0.25073555813695897,
+            "snippet": "Enjoys action-adventure games (likely Assassin's Creed Valhalla), owns a PS5 and is considering/selected a 2TB WD Black P50 external SSD for extra storage."
+          },
+          {
+            "id": "mt_b06d4136-885d-45f0-a51d-c20d3c6d8e1d",
+            "score": 0.23851439060540838,
+            "snippet": "User accepted into a master's program at the University of Melbourne (accepted in February) and will move to Melbourne; has secured shared accommodation in Carlton within walking distance to campus."
+          },
+          {
+            "id": "mt_4a3ab546-8695-4125-b6b9-2172ceeab5c4",
+            "score": 0.23729259254774404,
+            "snippet": "Attended a cocktail-making class (learned classic Daiquiri and Whiskey Sour); currently working to perfect a Negroni (found it too bitter previously) and is open to experimenting with sweet vermouths like Carpano Antica, Cinzano, Dolin, Martini & Rossi, Punt e Mes."
+          },
+          {
+            "id": "mt_b3fc5d10-bbdd-467d-836b-f41fc7cc93fc",
+            "score": 0.2345632571640902,
+            "snippet": "Active in charity events — recently participated in a cancer research 5K and is collecting donations for a charity yard sale happening next month."
+          },
+          {
+            "id": "mt_cf447614-3387-4a2b-9fe7-37e492e0fc03",
+            "score": 0.23357656967892104,
+            "snippet": "Likes indie-folk and melancholic, introspective music in winter and upbeat energetic music in summer; keeps a music journal. Has 45-minute each-way commutes and listens to audiobooks (uses Audible) and takes notes from them."
+          },
+          {
+            "id": "mt_d7535171-769a-4b1a-a80c-bba7aa31d5c7",
+            "score": 0.23082373754496818,
+            "snippet": "Enjoyed assistant's poem recitations (Maya Angelou's 'Still I Rise' and Langston Hughes' 'Dreams') but requested no more recitations temporarily; also asked about poets' backgrounds and related topics (e.g., Lincoln Memorial)."
+          },
+          {
+            "id": "mt_d86406c4-b1ad-4b4a-9955-feaf544e51fd",
+            "score": 0.22423517768571452,
+            "snippet": "Completed a Coursera regression analysis course; consumed ~10 hours of Crash Course videos across world history, biology, and astronomy this month; enjoys 'How I Built This' and wants podcasts focused on data science entrepreneurship and startup stories; uses YouTube, apps, and d"
+          },
+          {
+            "id": "mt_437bcc7f-fd66-4996-a2e6-982485670b69",
+            "score": 0.22082305720036854,
+            "snippet": "User experiments with artisanal bitters (smoked orange, chocolate mole) in cocktails (Old Fashioneds, Manhattans; plans to try Negroni) and enjoys photography (new wide-angle lens, photographed spring blooms on Feb 22, entering a 'Spring Blooms' contest) and edits photos in Light"
+          }
+        ],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 28,
+          "vectorSearchTimeMs": 1,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 179
+        },
+        "traceCount": 26,
+        "brainBytes": 4096
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 10,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 179,
+        "vectorSearchMs": 1,
+        "scoringMs": 0,
+        "replayMs": 149391
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 26,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_40a90d51"
+      ]
+    },
+    {
+      "caseId": "51a45a95",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention redeeming a $5 coupon on coffee creamer.",
+      "latencyMs": 380936,
+      "tokensIn": 1120,
+      "tokensOut": 22,
+      "usd": 0.0030200000000000005,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 51,
+          "turnsReplayed": 529,
+          "durationMs": 380400
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [
+          {
+            "id": "mt_7ef6f660-19f0-4c19-84f7-7e6f5d42dfb9",
+            "score": 0.3091001716782769,
+            "snippet": "Modifying a Honda Civic; achieved a 12.8s quarter-mile time; has a dyno tune and new air intake; seeks cat-back exhaust recommendations and favors Invidia."
+          },
+          {
+            "id": "mt_62ee4507-9f7d-496b-b55f-92eb29793a92",
+            "score": 0.28976466320562416,
+            "snippet": "User asked about geopolitical differences between Asia, Europe, and the Americas and discussed cultural impacts on politics, specifically mentioning Confucianism and the Thirty Years' War."
+          },
+          {
+            "id": "mt_85d74293-f046-4760-bdcc-ae8bb417ae51",
+            "score": 0.27794325711845164,
+            "snippet": "User requested a game tracking an artificial 'happiness' score (1–10) that rises with discussion of the Thirty Years' War and falls with WWII; special rules: big increase if Veronica Wedgewood mentioned, big decrease if Erwin Rommel mentioned with prescribed commentary. Assistant"
+          },
+          {
+            "id": "mt_2e4bd0c6-f50f-4bfc-928a-8690228f6fe7",
+            "score": 0.27748326874847207,
+            "snippet": "User is improving their business social media presence, attended a digital marketing workshop, and is seeking guidance on Facebook/Instagram ads, analytics, and tracking; also requested blog topic ideas targeting long-tail keywords aligned with their UGC and TikTok money pages."
+          },
+          {
+            "id": "mt_e185ace3-9409-4440-a0e0-b653a5b1fa51",
+            "score": 0.27437054951600803,
+            "snippet": "Planning a Marvel movie marathon with friends Alex and Sarah; hosting a cozy movie night with snacks. Recently celebrated colleague David's birthday with many attendees, reconnected with high-school friend Emma (engaged), and has many beach photos from a trip with Rachel and Mike"
+          },
+          {
+            "id": "mt_e4b08695-be1a-4e55-812f-21755258511e",
+            "score": 0.267688927824486,
+            "snippet": "User practices piano about 20 minutes daily, is taking lessons, aims to improve hand coordination and lesson retention, prefers upbeat/energetic piano songs (interested in pop/rock pieces similar in feel to 'River Flows in You'), and owns a Fender Mustang 1 amp for recording via "
+          },
+          {
+            "id": "mt_cec1ad67-5ae3-421c-b455-3cc0ffc22627",
+            "score": 0.2669346562474707,
+            "snippet": "User shared personal/legal changes (name change), an inheritance, and business goals, indicating openness, trust, and a goal-oriented collaboration style; conversational warmth shown via sharing music and travel preferences."
+          },
+          {
+            "id": "mt_a7ddb90a-7c6c-46b7-9ba6-c7a0c96d3183",
+            "score": 0.24241378085349835,
+            "snippet": "User is planning a trip to Seattle, recently experienced a delayed flight to San Francisco, values packing light and bringing non-perishable, mess-free snacks like nuts, dried fruit, and energy bars."
+          },
+          {
+            "id": "mt_b43fc747-76dd-4a7e-9a4b-c129e60cee0f",
+            "score": 0.2399238356214461,
+            "snippet": "User is considering buying a mountain vacation cabin and has asked for property-evaluation tips."
+          },
+          {
+            "id": "mt_a26ed443-0372-4bb8-966a-a901760ca882",
+            "score": 0.23449538796797562,
+            "snippet": "Discussion included the Order of Australia: assistant stated the criteria changed, mentioned an example recipient 'Ms. Samantha Connor' (post-criteria), and noted recipients Michelle Simmons, Fiona Wood, and Catherine Hamlin."
+          }
+        ],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 16,
+          "vectorSearchTimeMs": 5,
+          "scoringTimeMs": 1,
+          "totalTimeMs": 11,
+          "escalations": [
+            "hybrid-retriever:sparse-empty"
+          ]
+        },
+        "traceCount": 16,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 10,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 11,
+        "vectorSearchMs": 5,
+        "scoringMs": 1,
+        "replayMs": 380400
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 16,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_d61669c7"
+      ]
+    },
+    {
+      "caseId": "58bf7951",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention the play you attended at the local community theater.",
+      "latencyMs": 182956,
+      "tokensIn": 1077,
+      "tokensOut": 21,
+      "usd": 0.0029025,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 62,
+          "turnsReplayed": 616,
+          "durationMs": 182124
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [
+          {
+            "id": "mt_05d8deb8-b3c2-4ff2-8175-2fce1f4a6862",
+            "score": 0.24666120618228735,
+            "snippet": "Reads physical New York Times on weekends since the first week of October but prefers diverse reputable news sources and wants newsletters focused on technology, AI, and machine learning during the week."
+          },
+          {
+            "id": "mt_bb9606aa-8b15-42ab-9dff-02109a21875e",
+            "score": 0.24530964617199325,
+            "snippet": "Finished The Last of Us Part II main storyline in about 20 hours and enjoyed it; follows the NFL and supports the Baltimore Ravens (discussed Lamar Jackson and Rashod Bateman)."
+          },
+          {
+            "id": "mt_a4e83917-ce12-4885-ab93-66baf3ad5868",
+            "score": 0.22535014282506208,
+            "snippet": "Planning and hosting a family game night at a new apartment with a new coffee table; bought Sushi Go!, chose Ticket to Ride and Codenames; wants a cozy atmosphere (conversational circle, throw blankets, pillows, dim lighting, candles, labeled snack stations, background music)."
+          },
+          {
+            "id": "mt_4fb0f6e9-3655-4009-8069-4658718690bb",
+            "score": 0.22478049517211468,
+            "snippet": "Enjoys shows such as Nancy Drew, All American, and The 100; felt disappointed when favorite shows were cancelled after the WB–UPN merger but found new favorites on The CW."
+          },
+          {
+            "id": "mt_7abe8910-c49d-4b56-8277-574da09b22be",
+            "score": 0.22389744519574928,
+            "snippet": "Prefers character-driven psychological thrillers. Has enjoyed The Silent Patient and The Seven Husbands of Evelyn Hugo; plans to read Sharp Objects next."
+          },
+          {
+            "id": "mt_5f1742c2-7f36-45c9-b1a8-69e657aabeb9",
+            "score": 0.22168140861143357,
+            "snippet": "Interested in pottery techniques (saggar firing, ceramic weaving) and asked about clay bodies suitable for saggar firing. Recently framed a watercolor painting and is pleased with the display."
+          },
+          {
+            "id": "mt_152d9b73-fe5c-47db-ba59-6dd0b6352aa7",
+            "score": 0.22105185699385296,
+            "snippet": "Organizing a global ad content project for Hopper covering APAC, LATAM+Canada, and Europe. Stakeholders include Jes, Etienne, Ali, Daniel, Kat, and Flor. Has an ops meeting tomorrow to discuss structuring the project."
+          },
+          {
+            "id": "mt_393e233f-6d0c-427e-96ff-4acb94568fdb",
+            "score": 0.21974425265200193,
+            "snippet": "Has an interest in environmental issues (e.g., plastic pollution policies in Cardiff, corporate/government responsibility) and has asked multiple history questions (Han Dynasty, National Guard, Queen Mother, Malintzin)."
+          },
+          {
+            "id": "mt_d3101a4e-fec7-49e8-91f7-b29483d8e62a",
+            "score": 0.21661757321523858,
+            "snippet": "Engaged in line of questioning about ANC, Nelson Mandela, Umkhonto we Sizwe, terrorist classifications, Church Street bombing, and Mandela's imprisonment/sabotage. Requested brief yes/no responses without elaboration when asking whether individuals/groups were terrorists."
+          },
+          {
+            "id": "mt_f008040d-38c3-46a3-8a45-e66d53d9f58e",
+            "score": 0.21284363039388385,
+            "snippet": "Journals every morning for ~20–30 minutes and intends to publish a 300–400 word blog post about getting back into journaling and promote it on social media."
+          }
+        ],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 41,
+          "vectorSearchTimeMs": 1,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 355
+        },
+        "traceCount": 39,
+        "brainBytes": 4096
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 10,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 355,
+        "vectorSearchMs": 1,
+        "scoringMs": 0,
+        "replayMs": 182124
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 39,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_355c48bb"
+      ]
+    },
+    {
+      "caseId": "gpt4_59149c77",
+      "actualOutput": "Scratch: relevant session date(s) = [YYYY-MM-DD] for MoMA visit\nScratch: relevant session date(s) = [YYYY-MM-DD] for Metropolitan Museum of Art visit\nScratch: interval = <days> between MoMA visit and Metropolitan Museum of Art visit\nAnswer: I don't know — the excerpts do not mention the dates of your visits to MoMA or the Metropolitan Museum of Art.",
+      "latencyMs": 225992,
+      "tokensIn": 1137,
+      "tokensOut": 82,
+      "usd": 0.0036625,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "temporal-reasoning",
+        "replayStats": {
+          "sessionsReplayed": 51,
+          "turnsReplayed": 484,
+          "durationMs": 224409
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [
+          {
+            "id": "mt_41ac61c4-18a5-42cd-a011-432e8bfd79c3",
+            "score": 0.30284078369800416,
+            "snippet": "User is interested in environmental and recycled-material art; visited a modern art exhibit featuring recycled materials, is interested in the Environmental Art Museum's 'Ephemeral Landscapes' and Maria Cristina Finucci's work (including technology uses like sensors, AR, data vis"
+          },
+          {
+            "id": "mt_5e4161d8-f50f-4899-9db4-4991e31c7afc",
+            "score": 0.2717823570929309,
+            "snippet": "User is interested in contemporary fiction exploring diversity and cultural identity. They have read The Hate U Give and The Song of Achilles and asked for similar recommendations and authors of color. The user expresses enthusiasm and curiosity across topics and shows appreciati"
+          },
+          {
+            "id": "mt_99e79fa0-c0a3-467f-8b3a-1843d312651b",
+            "score": 0.25204841900808905,
+            "snippet": "User expressed disgust and strong negative feelings toward the Capitol and people who enjoy the Hunger Games spectacle."
+          },
+          {
+            "id": "mt_c32c89db-877b-406c-83af-7a536331121a",
+            "score": 0.25168640835475364,
+            "snippet": "Frequently asks about literature/media (e.g., The Hunger Games) and expresses strong negative emotions toward the Capitol; shares vivid dreams and requests interpretations; requests creative writing edits and scene/dialog improvements; inquires about niche music instruments and m"
+          },
+          {
+            "id": "mt_70ea0feb-6f36-4941-9635-6ead3a0333fa",
+            "score": 0.24328879091972247,
+            "snippet": "User is a collector seeking a 1950s-era Zeiss Planar vintage camera lens and will post on local classifieds/social media and email the local college photography department as part of the search. They also collect vinyl records and recently bought a near-mint Sgt. Pepper's LP at a"
+          },
+          {
+            "id": "mt_56836338-a8b2-4a3e-a3d5-e1536f450d5d",
+            "score": 0.2410402498625163,
+            "snippet": "Recent trip to Chicago with a 2-hour flight delay and 1:00 AM hotel arrival. Planning a trip to New York City next month with flights and hotel already booked."
+          },
+          {
+            "id": "mt_6fa2136f-7fe5-45e8-994f-6349a48a7161",
+            "score": 0.2385031945208909,
+            "snippet": "User requested two specific sections for a homeowner article on building work overruns: 'Communicate with your builder' (~100 words) and 'Options Available to Homeowners' (~150 words); assistant provided drafts."
+          },
+          {
+            "id": "mt_02b4d858-4b9b-43ac-a9df-e13110ad363c",
+            "score": 0.23842413819478916,
+            "snippet": "User is interested in vegan tacos; plans to try cashew cheese and coconut yogurt as substitutes. Asked for plant-based protein ideas such as black beans, lentils, tofu, and tempeh."
+          },
+          {
+            "id": "mt_ffee839c-0453-462b-abcc-9eebfbd7313f",
+            "score": 0.2381190721948271,
+            "snippet": "Interested in the role of bass guitar in funk vs rock; requested funk song examples and expressed interest in funk history and modern funk band recommendations."
+          },
+          {
+            "id": "mt_8f26c2de-13ef-458c-baa0-5b40525c40e4",
+            "score": 0.23432007058105306,
+            "snippet": "Visited MoMA; expresses interest in modern art movements including Cubism, Frida Kahlo, Fauvism, and related artists."
+          }
+        ],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 29,
+          "vectorSearchTimeMs": 0,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 342
+        },
+        "traceCount": 25,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 10,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 342,
+        "vectorSearchMs": 0,
+        "scoringMs": 0,
+        "replayMs": 224409
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 25,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_d00ba6d0_1",
+        "answer_d00ba6d0_2"
+      ]
+    },
+    {
+      "caseId": "gpt4_f49edff3",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention the nursery preparation, the baby shower shopping, or the phone case order.",
+      "latencyMs": 726932,
+      "tokensIn": 601,
+      "tokensOut": 26,
+      "usd": 0.0017625,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "temporal-reasoning",
+        "replayStats": {
+          "sessionsReplayed": 47,
+          "turnsReplayed": 498,
+          "durationMs": 726254
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 0,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 0,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 0,
+          "vectorSearchTimeMs": 2,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 2,
+          "escalations": [
+            "hybrid-retriever:sparse-empty"
+          ]
+        },
+        "traceCount": 0,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 3,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 2,
+        "vectorSearchMs": 2,
+        "scoringMs": 0,
+        "replayMs": 726254
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 0,
+        "peakWorkingMemorySlots": 0,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_3e9fce53_1",
+        "answer_3e9fce53_2",
+        "answer_3e9fce53_3"
+      ]
+    },
+    {
+      "caseId": "71017276",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention meeting up with your aunt or receiving a crystal chandelier.",
+      "latencyMs": 188770,
+      "tokensIn": 1157,
+      "tokensOut": 22,
+      "usd": 0.0031125000000000002,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "temporal-reasoning",
+        "replayStats": {
+          "sessionsReplayed": 49,
+          "turnsReplayed": 614,
+          "durationMs": 187955
+        },
+        "recalledTraces": 10,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [
+          {
+            "id": "mt_e9875bf4-7560-4f23-a7f7-8143f5e8906a",
+            "score": 0.35625543408481913,
+            "snippet": "Planning fall trip: 7–10 days in Paris and Rome, departing from New York, budget ~$800–$1,200 for flights. Considering New York→Paris (possibly Norwegian) then budget Paris→Rome; flexible and will monitor error fares/sales. Uses Google Flights, Skyscanner, Rome2rio, TripIt, Viato"
+          },
+          {
+            "id": "mt_6dcd391b-8a68-43f2-92ed-54428a3faa02",
+            "score": 0.35369324086122106,
+            "snippet": "Enjoys Tyler, The Creator and asked about his collaborations and evolution; enjoys basketball and admires dedication (discussed Wilt Chamberlain and records)."
+          },
+          {
+            "id": "mt_f3645091-7224-4764-b7be-47da3e5a20b6",
+            "score": 0.3230002642861776,
+            "snippet": "Practiced guitar daily (~30 minutes) for the past week, working on chords and struggling with barre chords. Interested in beginner-friendly pedals (e.g., Boss DS-1, MXR Distortion+) and chorus/reverb; considering buying a distortion pedal and upgrading guitar cable. Also thinking"
+          },
+          {
+            "id": "mt_b6527bc5-2e86-4e7f-84de-718b874593ec",
+            "score": 0.314598876505693,
+            "snippet": "Enjoys relaxation/self-care activities: fruit and herbal teas (liked peach; chose caffeine-free 'Berry Bliss'), shortbread cookies, The Mindful Kind podcast, journaling. Took a social media break and increased reading; asked for mindfulness and personal growth book recommendation"
+          },
+          {
+            "id": "mt_c0aab1b2-c158-4288-a192-101c95fd72e0",
+            "score": 0.30727698990260705,
+            "snippet": "Reorganized bookshelf and donated books to the library on February 10; planned deep cleaning and found a missing TV remote under couch cushions while vacuuming on Feb 10."
+          },
+          {
+            "id": "mt_8bc6369e-ae13-4694-b7ab-791bdb90f01a",
+            "score": 0.3048159279327099,
+            "snippet": "User plays guessing games with the assistant and repeatedly relies on assistant for technical, medical, travel, and event communication tasks — indicates trust and collaborative rapport."
+          },
+          {
+            "id": "mt_85e1876c-ffe8-409b-ab36-af0407111788",
+            "score": 0.3026543943831751,
+            "snippet": "Creating a balcony herb garden with mint, cilantro, parsley; recently pruned basil to encourage bushy growth and prevent flowering."
+          },
+          {
+            "id": "mt_d5ba63b6-8616-45fa-b975-7a2ddfb2fa99",
+            "score": 0.2952302648083439,
+            "snippet": "Uses PrestaShop and asked for SQL queries to retrieve product info and images (main + additional), product_lang id_lang=7, and troubleshooting NULL image columns."
+          },
+          {
+            "id": "mt_6a969d15-683e-41b6-9932-9ea087b724ab",
+            "score": 0.2951759278912448,
+            "snippet": "User asked two domain-specific analytical questions in this session: (1) about Intel leadership missteps, prospects for regaining market position, and R&D focus areas (AI, IoT, quantum, memory, silicon photonics); (2) about São Paulo air quality measures, penalties for violations"
+          },
+          {
+            "id": "mt_8a3a2088-508a-4eec-8674-ff58990caaba",
+            "score": 0.2942332600338583,
+            "snippet": "Asked about treatments, side effects, and prevention for diabetic retinopathy and expressed reluctance toward lifestyle changes; also interested in sunscreens (ingredients that can cause breakouts and SPF relevance)."
+          }
+        ],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 27,
+          "vectorSearchTimeMs": 8,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 69,
+          "escalations": [
+            "hybrid-retriever:sparse-empty"
+          ]
+        },
+        "traceCount": 27,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 10,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 69,
+        "vectorSearchMs": 8,
+        "scoringMs": 0,
+        "replayMs": 187955
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 27,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_0b4a8adc_1"
+      ]
+    },
+    {
+      "caseId": "b46e15ed",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention your participation in charity events.",
+      "latencyMs": 750844,
+      "tokensIn": 571,
+      "tokensOut": 17,
+      "usd": 0.0015975,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "temporal-reasoning",
+        "replayStats": {
+          "sessionsReplayed": 48,
+          "turnsReplayed": 478,
+          "durationMs": 748354
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 0,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 0,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 0,
+          "vectorSearchTimeMs": 4,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 7,
+          "escalations": [
+            "hybrid-retriever:sparse-empty"
+          ]
+        },
+        "traceCount": 0,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 4,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 7,
+        "vectorSearchMs": 4,
+        "scoringMs": 0,
+        "replayMs": 748354
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 0,
+        "peakWorkingMemorySlots": 0,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_4bfcc250_4",
+        "answer_4bfcc250_3",
+        "answer_4bfcc250_2",
+        "answer_4bfcc250_1"
+      ]
+    }
+  ],
+  "accuracyCI": {
+    "value": 0.25,
+    "ciLo": 0.08333333333333333,
+    "ciHi": 0.4166666666666667,
+    "resamples": 10000,
+    "ci": 0.95
+  },
+  "byTypeCI": {
+    "knowledge-update": {
+      "value": 0,
+      "ciLo": 0,
+      "ciHi": 0,
+      "resamples": 10000,
+      "ci": 0.95
+    },
+    "multi-session": {
+      "value": 0.25,
+      "ciLo": 0,
+      "ciHi": 0.75,
+      "resamples": 10000,
+      "ci": 0.95
+    },
+    "single-session-assistant": {
+      "value": 0,
+      "ciLo": 0,
+      "ciHi": 0,
+      "resamples": 10000,
+      "ci": 0.95
+    },
+    "single-session-preference": {
+      "value": 0.75,
+      "ciLo": 0.25,
+      "ciHi": 1,
+      "resamples": 10000,
+      "ci": 0.95
+    },
+    "single-session-user": {
+      "value": 0.5,
+      "ciLo": 0,
+      "ciHi": 1,
+      "resamples": 10000,
+      "ci": 0.95
+    },
+    "temporal-reasoning": {
+      "value": 0,
+      "ciLo": 0,
+      "ciHi": 0,
+      "resamples": 10000,
+      "ci": 0.95
+    }
+  },
+  "weightedAccuracyCI": {
+    "value": 0.1815,
+    "ciLo": 0.048,
+    "ciHi": 0.35960000000000003,
+    "resamples": 10000,
+    "ci": 0.95
+  }
+}

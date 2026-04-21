@@ -1,0 +1,1971 @@
+{
+  "benchmarkId": "longmemeval-s",
+  "benchmarkVersion": "1.0.0",
+  "config": {
+    "reader": "gpt-4o",
+    "memoryMode": "full-cognitive",
+    "replayMode": "ingest",
+    "concurrency": 3,
+    "maxUsd": 10,
+    "retrievalProfile": "balanced",
+    "adaptiveRetrieval": true,
+    "retrievalK": 10,
+    "stratified": true,
+    "samplePerType": 4,
+    "trackFootprint": true,
+    "rerank": {
+      "provider": "cohere"
+    },
+    "contextSummaryModel": "gpt-5-mini",
+    "readerTopK": 10,
+    "judgeAdversarial": false,
+    "judgeAdversarialMaxProbes": 50,
+    "judgeAdversarialSynthModel": "gpt-5-mini",
+    "bootstrapResamples": 10000,
+    "seed": 42,
+    "sessionRetrieval": false,
+    "sessionRetrievalTopSessions": 5,
+    "sessionRetrievalChunksPerSession": 3,
+    "hybridRetrieval": true,
+    "hyde": false,
+    "factSupersession": false,
+    "observerReflector": true,
+    "observerReflectorReplace": true
+  },
+  "totalCases": 24,
+  "passedCases": 1,
+  "accuracy": 0.041666666666666664,
+  "avgScore": 0.041666666666666664,
+  "scoreStdDev": 0.20412414523193156,
+  "byType": {
+    "knowledge-update": {
+      "n": 4,
+      "accuracy": 0,
+      "avgScore": 0
+    },
+    "multi-session": {
+      "n": 4,
+      "accuracy": 0,
+      "avgScore": 0
+    },
+    "single-session-assistant": {
+      "n": 4,
+      "accuracy": 0,
+      "avgScore": 0
+    },
+    "single-session-preference": {
+      "n": 4,
+      "accuracy": 0,
+      "avgScore": 0
+    },
+    "single-session-user": {
+      "n": 4,
+      "accuracy": 0.25,
+      "avgScore": 0.25
+    },
+    "temporal-reasoning": {
+      "n": 4,
+      "accuracy": 0,
+      "avgScore": 0
+    }
+  },
+  "avgLatencyMs": 660155.9166666666,
+  "p50LatencyMs": 642812,
+  "p95LatencyMs": 1041922.6,
+  "totalReaderTokens": 0,
+  "totalUsd": 0,
+  "costPerCorrect": 0,
+  "startedAt": "2026-04-21T05:37:27.009Z",
+  "completedAt": "2026-04-21T05:37:27.776Z",
+  "retrievalMetrics": {
+    "meanRecallAtK": 0,
+    "meanPrecisionAtK": 0,
+    "meanNdcgAtK": 0,
+    "meanMrr": 0,
+    "k": 10,
+    "sampleSize": 24
+  },
+  "latencyBreakdown": {
+    "encode": {
+      "p50": 0,
+      "p95": 0,
+      "p99": 0,
+      "n": 0
+    },
+    "retrieve": {
+      "p50": 2,
+      "p95": 6.949999999999999,
+      "p99": 40.179999999999964,
+      "n": 22
+    },
+    "vectorSearch": {
+      "p50": 1,
+      "p95": 4.5,
+      "p99": 6.500000000000002,
+      "n": 11
+    },
+    "scoring": {
+      "p50": 1,
+      "p95": 5.5,
+      "p99": 5.9,
+      "n": 3
+    },
+    "replay": {
+      "p50": 642153.5,
+      "p95": 1041355.35,
+      "p99": 1249205.5799999998,
+      "n": 24
+    }
+  },
+  "stratifiedAccuracy": {
+    "byType": {
+      "knowledge-update": {
+        "n": 4,
+        "accuracy": 0,
+        "prior": 0.156
+      },
+      "multi-session": {
+        "n": 4,
+        "accuracy": 0,
+        "prior": 0.266
+      },
+      "single-session-assistant": {
+        "n": 4,
+        "accuracy": 0,
+        "prior": 0.112
+      },
+      "single-session-preference": {
+        "n": 4,
+        "accuracy": 0,
+        "prior": 0.06
+      },
+      "single-session-user": {
+        "n": 4,
+        "accuracy": 0.25,
+        "prior": 0.14
+      },
+      "temporal-reasoning": {
+        "n": 4,
+        "accuracy": 0,
+        "prior": 0.266
+      }
+    },
+    "weightedOverall": 0.035,
+    "unweightedOverall": 0.041666666666666664,
+    "missingTypes": []
+  },
+  "memoryFootprint": {
+    "meanBrainBytes": 4096,
+    "p95BrainBytes": 4096,
+    "meanTraceCount": 14.833333333333334,
+    "maxPeakWorkingMemorySlots": 7,
+    "totalEncodeCalls": 0
+  },
+  "tokensPerCorrect": {
+    "readerIn": 0,
+    "readerOut": 0,
+    "judgeIn": 0,
+    "judgeOut": 0,
+    "embeddingIn": 0,
+    "total": 0
+  },
+  "cases": [
+    {
+      "caseId": "6a1eabeb",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention your personal best time in the charity 5K run.",
+      "latencyMs": 920333,
+      "tokensIn": 565,
+      "tokensOut": 23,
+      "usd": 0.0016424999999999999,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "knowledge-update",
+        "replayStats": {
+          "sessionsReplayed": 41,
+          "turnsReplayed": 413,
+          "durationMs": 919739
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 6,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 6,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 0,
+          "vectorSearchTimeMs": 0,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 1,
+          "escalations": [
+            "hybrid-retriever:sparse-empty"
+          ]
+        },
+        "traceCount": 6,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 1,
+        "vectorSearchMs": 0,
+        "scoringMs": 0,
+        "replayMs": 919739
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 6,
+        "peakWorkingMemorySlots": 6,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_a25d4a91_1",
+        "answer_a25d4a91_2"
+      ]
+    },
+    {
+      "caseId": "6aeb4375",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention how many Korean restaurants you have tried in your city.",
+      "latencyMs": 1311275,
+      "tokensIn": 562,
+      "tokensOut": 22,
+      "usd": 0.0016250000000000001,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "knowledge-update",
+        "replayStats": {
+          "sessionsReplayed": 47,
+          "turnsReplayed": 468,
+          "durationMs": 1310490
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 0,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 0,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 0,
+          "vectorSearchTimeMs": 0,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 0,
+          "escalations": [
+            "hybrid-retriever:sparse-empty"
+          ]
+        },
+        "traceCount": 0,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 0,
+        "vectorSearchMs": 0,
+        "scoringMs": 0,
+        "replayMs": 1310490
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 0,
+        "peakWorkingMemorySlots": 0,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_3f9693b7_1",
+        "answer_3f9693b7_2"
+      ]
+    },
+    {
+      "caseId": "830ce83f",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention where Rachel moved to after her recent relocation.",
+      "latencyMs": 702430,
+      "tokensIn": 561,
+      "tokensOut": 20,
+      "usd": 0.0016025000000000002,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "knowledge-update",
+        "replayStats": {
+          "sessionsReplayed": 49,
+          "turnsReplayed": 511,
+          "durationMs": 701581
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 1,
+          "vectorSearchTimeMs": 7,
+          "scoringTimeMs": 6,
+          "totalTimeMs": 49
+        },
+        "traceCount": 29,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 49,
+        "vectorSearchMs": 7,
+        "scoringMs": 6,
+        "replayMs": 701581
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 29,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_0b1a0942_1",
+        "answer_0b1a0942_2"
+      ]
+    },
+    {
+      "caseId": "852ce960",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention the pre-approved amount for your mortgage from Wells Fargo.",
+      "latencyMs": 409208,
+      "tokensIn": 569,
+      "tokensOut": 22,
+      "usd": 0.0016424999999999999,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "knowledge-update",
+        "replayStats": {
+          "sessionsReplayed": 41,
+          "turnsReplayed": 396,
+          "durationMs": 408510
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 1,
+          "vectorSearchTimeMs": 0,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 3
+        },
+        "traceCount": 16,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 3,
+        "vectorSearchMs": 0,
+        "scoringMs": 0,
+        "replayMs": 408510
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 16,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_3a6f1e82_1",
+        "answer_3a6f1e82_2"
+      ]
+    },
+    {
+      "caseId": "0a995998",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention any items of clothing you need to pick up or return from a store.",
+      "latencyMs": 1044604,
+      "tokensIn": 568,
+      "tokensOut": 26,
+      "usd": 0.0016799999999999999,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "multi-session",
+        "replayStats": {
+          "sessionsReplayed": 45,
+          "turnsReplayed": 484,
+          "durationMs": 1044036
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 0,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 0,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 0,
+          "vectorSearchTimeMs": 0,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 1,
+          "escalations": [
+            "hybrid-retriever:sparse-empty"
+          ]
+        },
+        "traceCount": 0,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 3,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 1,
+        "vectorSearchMs": 0,
+        "scoringMs": 0,
+        "replayMs": 1044036
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 0,
+        "peakWorkingMemorySlots": 0,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_afa9873b_2",
+        "answer_afa9873b_3",
+        "answer_afa9873b_1"
+      ]
+    },
+    {
+      "caseId": "6d550036",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention how many projects you have led or are currently leading.",
+      "latencyMs": 858333,
+      "tokensIn": 562,
+      "tokensOut": 22,
+      "usd": 0.0016250000000000001,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "multi-session",
+        "replayStats": {
+          "sessionsReplayed": 53,
+          "turnsReplayed": 517,
+          "durationMs": 857801
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 3,
+          "vectorSearchTimeMs": 1,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 2
+        },
+        "traceCount": 14,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 4,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 2,
+        "vectorSearchMs": 1,
+        "scoringMs": 0,
+        "replayMs": 857801
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 14,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_ec904b3c_1",
+        "answer_ec904b3c_4",
+        "answer_ec904b3c_3",
+        "answer_ec904b3c_2"
+      ]
+    },
+    {
+      "caseId": "gpt4_59c863d7",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention model kits.",
+      "latencyMs": 804932,
+      "tokensIn": 562,
+      "tokensOut": 14,
+      "usd": 0.0015450000000000001,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "multi-session",
+        "replayStats": {
+          "sessionsReplayed": 48,
+          "turnsReplayed": 481,
+          "durationMs": 804531
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 1,
+          "vectorSearchTimeMs": 1,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 3
+        },
+        "traceCount": 9,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 4,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 3,
+        "vectorSearchMs": 1,
+        "scoringMs": 0,
+        "replayMs": 804531
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 9,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_593bdffd_4",
+        "answer_593bdffd_1",
+        "answer_593bdffd_3",
+        "answer_593bdffd_2"
+      ]
+    },
+    {
+      "caseId": "b5ef892d",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention your camping trips in the United States.",
+      "latencyMs": 636389,
+      "tokensIn": 567,
+      "tokensOut": 19,
+      "usd": 0.0016075,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "multi-session",
+        "replayStats": {
+          "sessionsReplayed": 56,
+          "turnsReplayed": 516,
+          "durationMs": 635691
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 0,
+          "vectorSearchTimeMs": 2,
+          "scoringTimeMs": 1,
+          "totalTimeMs": 7,
+          "escalations": [
+            "hybrid-retriever:sparse-empty"
+          ]
+        },
+        "traceCount": 8,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 3,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 7,
+        "vectorSearchMs": 2,
+        "scoringMs": 1,
+        "replayMs": 635691
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 8,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_a8b4290f_3",
+        "answer_a8b4290f_1",
+        "answer_a8b4290f_2"
+      ]
+    },
+    {
+      "caseId": "7161e7e2",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention the shift rotation for Admon on a Sunday.",
+      "latencyMs": 726433,
+      "tokensIn": 582,
+      "tokensOut": 21,
+      "usd": 0.0016649999999999998,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-assistant",
+        "replayStats": {
+          "sessionsReplayed": 48,
+          "turnsReplayed": 550,
+          "durationMs": 725984
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 0,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 0,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 0,
+          "vectorSearchTimeMs": 0,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 1,
+          "escalations": [
+            "hybrid-retriever:sparse-empty"
+          ]
+        },
+        "traceCount": 0,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 1,
+        "vectorSearchMs": 0,
+        "scoringMs": 0,
+        "replayMs": 725984
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 0,
+        "peakWorkingMemorySlots": 0,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_sharegpt_5Lzox6N_0"
+      ]
+    },
+    {
+      "caseId": "c4f10528",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention the restaurant in Cihampelas Walk that serves Nasi Goreng.",
+      "latencyMs": 649235,
+      "tokensIn": 587,
+      "tokensOut": 26,
+      "usd": 0.0017275,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-assistant",
+        "replayStats": {
+          "sessionsReplayed": 44,
+          "turnsReplayed": 485,
+          "durationMs": 648616
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 0,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 0,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 0,
+          "vectorSearchTimeMs": 1,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 2,
+          "escalations": [
+            "hybrid-retriever:sparse-empty"
+          ]
+        },
+        "traceCount": 0,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 2,
+        "vectorSearchMs": 1,
+        "scoringMs": 0,
+        "replayMs": 648616
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 0,
+        "peakWorkingMemorySlots": 0,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_ultrachat_234453"
+      ]
+    },
+    {
+      "caseId": "89527b6b",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention the color of the Plesiosaur's scaly body in the children's book on dinosaurs.",
+      "latencyMs": 364392,
+      "tokensIn": 586,
+      "tokensOut": 30,
+      "usd": 0.0017649999999999999,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-assistant",
+        "replayStats": {
+          "sessionsReplayed": 47,
+          "turnsReplayed": 467,
+          "durationMs": 363901
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 3,
+          "vectorSearchTimeMs": 1,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 5
+        },
+        "traceCount": 28,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 5,
+        "vectorSearchMs": 1,
+        "scoringMs": 0,
+        "replayMs": 363901
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 28,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_sharegpt_YkWn1Ne_0"
+      ]
+    },
+    {
+      "caseId": "e9327a54",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention the dessert shop with the giant milkshakes.",
+      "latencyMs": 1026728,
+      "tokensIn": 582,
+      "tokensOut": 21,
+      "usd": 0.0016649999999999998,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-assistant",
+        "replayStats": {
+          "sessionsReplayed": 53,
+          "turnsReplayed": 533,
+          "durationMs": 1026165
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 0,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 0,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 0,
+          "vectorSearchTimeMs": 0,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 1,
+          "escalations": [
+            "hybrid-retriever:sparse-empty"
+          ]
+        },
+        "traceCount": 0,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 1,
+        "vectorSearchMs": 0,
+        "scoringMs": 0,
+        "replayMs": 1026165
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 0,
+        "peakWorkingMemorySlots": 0,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_ultrachat_480665"
+      ]
+    },
+    {
+      "caseId": "8a2466db",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention video editing resources.",
+      "latencyMs": 853607,
+      "tokensIn": 565,
+      "tokensOut": 15,
+      "usd": 0.0015624999999999999,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-preference",
+        "replayStats": {
+          "sessionsReplayed": 54,
+          "turnsReplayed": 508,
+          "durationMs": 853102
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 0,
+          "vectorSearchTimeMs": 1,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 1,
+          "escalations": [
+            "hybrid-retriever:sparse-empty"
+          ]
+        },
+        "traceCount": 8,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 1,
+        "vectorSearchMs": 1,
+        "scoringMs": 0,
+        "replayMs": 853102
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 8,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_edb03329"
+      ]
+    },
+    {
+      "caseId": "06878be2",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention your current photography setup.",
+      "latencyMs": 899912,
+      "tokensIn": 564,
+      "tokensOut": 16,
+      "usd": 0.0015699999999999998,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-preference",
+        "replayStats": {
+          "sessionsReplayed": 50,
+          "turnsReplayed": 443,
+          "durationMs": 899383
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 0,
+          "vectorSearchTimeMs": 0,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 1,
+          "escalations": [
+            "hybrid-retriever:sparse-empty"
+          ]
+        },
+        "traceCount": 15,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 1,
+        "vectorSearchMs": 0,
+        "scoringMs": 0,
+        "replayMs": 899383
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 15,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_555dfb94"
+      ]
+    },
+    {
+      "caseId": "75832dbd",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention your interests or field of study.",
+      "latencyMs": 457677,
+      "tokensIn": 565,
+      "tokensOut": 18,
+      "usd": 0.0015925,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-preference",
+        "replayStats": {
+          "sessionsReplayed": 51,
+          "turnsReplayed": 474,
+          "durationMs": 456995
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 1,
+          "vectorSearchTimeMs": 0,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 0
+        },
+        "traceCount": 24,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 0,
+        "vectorSearchMs": 0,
+        "scoringMs": 0,
+        "replayMs": 456995
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 24,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_d87a6ef8"
+      ]
+    },
+    {
+      "caseId": "0edc2aef",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention your preferences or past experiences with hotels in Miami.",
+      "latencyMs": 908881,
+      "tokensIn": 563,
+      "tokensOut": 21,
+      "usd": 0.0016175,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-preference",
+        "replayStats": {
+          "sessionsReplayed": 49,
+          "turnsReplayed": 475,
+          "durationMs": 907697
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 1,
+          "vectorSearchTimeMs": 0,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 1
+        },
+        "traceCount": 22,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 1,
+        "vectorSearchMs": 0,
+        "scoringMs": 0,
+        "replayMs": 907697
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 22,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_d586e9cd"
+      ]
+    },
+    {
+      "caseId": "e47becba",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention your degree.",
+      "latencyMs": 211206,
+      "tokensIn": 558,
+      "tokensOut": 14,
+      "usd": 0.0015350000000000001,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 54,
+          "turnsReplayed": 550,
+          "durationMs": 210486
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 0,
+          "vectorSearchTimeMs": 1,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 1,
+          "escalations": [
+            "hybrid-retriever:sparse-empty"
+          ]
+        },
+        "traceCount": 30,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 1,
+        "vectorSearchMs": 1,
+        "scoringMs": 0,
+        "replayMs": 210486
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 30,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_280352e9"
+      ]
+    },
+    {
+      "caseId": "118b2229",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention your daily commute to work.",
+      "latencyMs": 493141,
+      "tokensIn": 560,
+      "tokensOut": 17,
+      "usd": 0.0015700000000000002,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 47,
+          "turnsReplayed": 497,
+          "durationMs": 491581
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 0,
+          "vectorSearchTimeMs": 0,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 6,
+          "escalations": [
+            "hybrid-retriever:sparse-empty"
+          ]
+        },
+        "traceCount": 8,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 6,
+        "vectorSearchMs": 0,
+        "scoringMs": 0,
+        "replayMs": 491581
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 8,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_40a90d51"
+      ]
+    },
+    {
+      "caseId": "51a45a95",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention redeeming a $5 coupon on coffee creamer.",
+      "latencyMs": 627440,
+      "tokensIn": 564,
+      "tokensOut": 22,
+      "usd": 0.0016299999999999997,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 51,
+          "turnsReplayed": 529,
+          "durationMs": 626692
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 0,
+          "vectorSearchTimeMs": 1,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 2,
+          "escalations": [
+            "hybrid-retriever:sparse-empty"
+          ]
+        },
+        "traceCount": 17,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 2,
+        "vectorSearchMs": 1,
+        "scoringMs": 0,
+        "replayMs": 626692
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 17,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_d61669c7"
+      ]
+    },
+    {
+      "caseId": "58bf7951",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention the play you attended at the local community theater.",
+      "latencyMs": 468031,
+      "tokensIn": 562,
+      "tokensOut": 21,
+      "usd": 0.0016150000000000001,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "replayStats": {
+          "sessionsReplayed": 62,
+          "turnsReplayed": 616,
+          "durationMs": 467412
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 1,
+          "vectorSearchTimeMs": 0,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 1
+        },
+        "traceCount": 21,
+        "brainBytes": 4096
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 1,
+        "vectorSearchMs": 0,
+        "scoringMs": 0,
+        "replayMs": 467412
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 21,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_355c48bb"
+      ]
+    },
+    {
+      "caseId": "gpt4_59149c77",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention your visit to the Museum of Modern Art (MoMA) or the 'Ancient Civilizations' exhibit at the Metropolitan Museum of Art.",
+      "latencyMs": 458181,
+      "tokensIn": 584,
+      "tokensOut": 39,
+      "usd": 0.0018499999999999999,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "temporal-reasoning",
+        "replayStats": {
+          "sessionsReplayed": 51,
+          "turnsReplayed": 484,
+          "durationMs": 457306
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 5,
+          "vectorSearchTimeMs": 0,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 6
+        },
+        "traceCount": 27,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 6,
+        "vectorSearchMs": 0,
+        "scoringMs": 0,
+        "replayMs": 457306
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 27,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_d00ba6d0_1",
+        "answer_d00ba6d0_2"
+      ]
+    },
+    {
+      "caseId": "gpt4_f49edff3",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention any events related to helping a friend prepare a nursery, helping a cousin pick out stuff for a baby shower, or ordering a customized phone case for a friend's birthday.",
+      "latencyMs": 312075,
+      "tokensIn": 601,
+      "tokensOut": 44,
+      "usd": 0.0019424999999999998,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "temporal-reasoning",
+        "replayStats": {
+          "sessionsReplayed": 47,
+          "turnsReplayed": 498,
+          "durationMs": 311147
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 7,
+          "vectorSearchTimeMs": 1,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 4
+        },
+        "traceCount": 20,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 3,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 4,
+        "vectorSearchMs": 1,
+        "scoringMs": 0,
+        "replayMs": 311147
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 20,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_3e9fce53_1",
+        "answer_3e9fce53_2",
+        "answer_3e9fce53_3"
+      ]
+    },
+    {
+      "caseId": "71017276",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention meeting up with your aunt or receiving a crystal chandelier.",
+      "latencyMs": 345396,
+      "tokensIn": 568,
+      "tokensOut": 22,
+      "usd": 0.0016399999999999997,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "temporal-reasoning",
+        "replayStats": {
+          "sessionsReplayed": 49,
+          "turnsReplayed": 614,
+          "durationMs": 344982
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 0,
+          "vectorSearchTimeMs": 2,
+          "scoringTimeMs": 1,
+          "totalTimeMs": 5,
+          "escalations": [
+            "hybrid-retriever:sparse-empty"
+          ]
+        },
+        "traceCount": 23,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 5,
+        "vectorSearchMs": 2,
+        "scoringMs": 1,
+        "replayMs": 344982
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 23,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_0b4a8adc_1"
+      ]
+    },
+    {
+      "caseId": "b46e15ed",
+      "actualOutput": "Answer: I don't know — the excerpts do not mention your participation in charity events.",
+      "latencyMs": 353903,
+      "tokensIn": 571,
+      "tokensOut": 17,
+      "usd": 0.0015975,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "temporal-reasoning",
+        "replayStats": {
+          "sessionsReplayed": 48,
+          "turnsReplayed": 478,
+          "durationMs": 353353
+        },
+        "recalledTraces": 0,
+        "workingMemorySlots": 7,
+        "observationsEmitted": 0,
+        "retrievedEvidence": [],
+        "retrievalPolicy": {
+          "profile": "balanced",
+          "adaptive": true
+        },
+        "encodeMsSamples": [],
+        "peakWorkingMemorySlots": 7,
+        "retrieveDiagnostics": {
+          "candidatesScanned": 6,
+          "vectorSearchTimeMs": 0,
+          "scoringTimeMs": 0,
+          "totalTimeMs": 3
+        },
+        "traceCount": 31,
+        "brainBytes": 4096
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 4,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "latencyBreakdown": {
+        "encodeMs": 0,
+        "retrieveMs": 3,
+        "vectorSearchMs": 0,
+        "scoringMs": 0,
+        "replayMs": 353353
+      },
+      "memoryFootprint": {
+        "brainBytes": 4096,
+        "traceCount": 31,
+        "peakWorkingMemorySlots": 7,
+        "encodeCalls": 0
+      },
+      "goldSessionIds": [
+        "answer_4bfcc250_4",
+        "answer_4bfcc250_3",
+        "answer_4bfcc250_2",
+        "answer_4bfcc250_1"
+      ]
+    }
+  ],
+  "accuracyCI": {
+    "value": 0.041666666666666664,
+    "ciLo": 0,
+    "ciHi": 0.125,
+    "resamples": 10000,
+    "ci": 0.95
+  },
+  "byTypeCI": {
+    "knowledge-update": {
+      "value": 0,
+      "ciLo": 0,
+      "ciHi": 0,
+      "resamples": 10000,
+      "ci": 0.95
+    },
+    "multi-session": {
+      "value": 0,
+      "ciLo": 0,
+      "ciHi": 0,
+      "resamples": 10000,
+      "ci": 0.95
+    },
+    "single-session-assistant": {
+      "value": 0,
+      "ciLo": 0,
+      "ciHi": 0,
+      "resamples": 10000,
+      "ci": 0.95
+    },
+    "single-session-preference": {
+      "value": 0,
+      "ciLo": 0,
+      "ciHi": 0,
+      "resamples": 10000,
+      "ci": 0.95
+    },
+    "single-session-user": {
+      "value": 0.25,
+      "ciLo": 0,
+      "ciHi": 0.75,
+      "resamples": 10000,
+      "ci": 0.95
+    },
+    "temporal-reasoning": {
+      "value": 0,
+      "ciLo": 0,
+      "ciHi": 0,
+      "resamples": 10000,
+      "ci": 0.95
+    }
+  },
+  "weightedAccuracyCI": {
+    "value": 0.035,
+    "ciLo": 0,
+    "ciHi": 0.14,
+    "resamples": 10000,
+    "ci": 0.95
+  }
+}
