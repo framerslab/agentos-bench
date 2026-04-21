@@ -323,6 +323,15 @@ export function computeCaseRunKeyParts(
     // invalidates cached answers. No manual fingerprint bump needed.
     runKeyParts.push(`reflector-prompt:${REFLECTOR_PROMPT_HASH.slice(0, 12)}`);
     resultKeyParts.push(`reflector-prompt:${REFLECTOR_PROMPT_HASH.slice(0, 12)}`);
+    // Step 12 BM25 parity fingerprint (ADDITIVE mode only). Present
+    // whenever ADDITIVE observer is enabled so cached entries are
+    // separated from pre-Step-12 Step 7 / Step 11 runs. REPLACEMENT
+    // mode already indexed reflection traces into BM25 via its own
+    // block, so no fingerprint change is needed for `replace-v2`.
+    if (!config.observerReflectorReplace) {
+      runKeyParts.push('step-12-bm25-parity-sweep');
+      resultKeyParts.push('step-12-bm25-parity-sweep');
+    }
   }
 
   // Fact-graph ingest fingerprint (Step 9): conditional append so runs

@@ -1255,6 +1255,52 @@ function buildBenchRetrievalPolicy(ctx: BenchContext): MemoryRetrievalPolicy {
 }
 
 /**
+ * Step 12 helper — index reflection-derived trace IDs into the bench's
+ * BM25 index so sparse retrieval sees them in ADDITIVE mode.
+ *
+ * Mirrors the REPLACEMENT-mode inline block (LongMemEvalS.ts session
+ * boundary) but factored out for unit-testing and reuse across the
+ * per-session `flushReflection` call and the end-of-replay sweep.
+ *
+ * `BM25Index.addDocument` is idempotent — it calls `removeDocument(id)`
+ * internally before inserting — so re-indexing an id is safe but
+ * wasteful. The `indexed` Set short-circuits previously-seen ids.
+ * Empty or missing traces are silently skipped (BM25Index throws on
+ * empty text; we pre-check to keep the helper no-throw).
+ *
+ * @param ids - Trace IDs to index. Typically `flushReflection.encodedTraceIds`
+ *   or the filtered result of `store.listTraces(...)`.
+ * @param store - MemoryStore-shaped object exposing `getTrace(id)`.
+ * @param hybridBm25 - Per-run BM25Index instance owned by the bench.
+ * @param sessionTag - Tag applied to the BM25 document metadata so
+ *   retrieval-time session filters match. Pass `'reflection-sweep'`
+ *   for the end-of-replay sweep (no specific session).
+ * @param indexed - Mutable Set tracking ids already indexed. Mutated
+ *   in place; callers should pass a single Set across all invocations
+ *   within one replay.
+ */
+export function indexReflectionTracesIntoBm25(
+  ids: readonly string[],
+  store: { getTrace?: (id: string) => { id: string; content: string } | undefined },
+  hybridBm25: { addDocument: (id: string, text: string, metadata?: Record<string, unknown>) => void },
+  sessionTag: string,
+  indexed: Set<string>,
+): void {
+  for (const id of ids) {
+    if (indexed.has(id)) continue;
+    const trace = store.getTrace?.(id);
+    if (!trace || !trace.content) continue;
+    try {
+      hybridBm25.addDocument(id, trace.content, { tag: sessionTag });
+      indexed.add(id);
+    } catch {
+      // Non-critical: BM25Index throws only on empty id/text, both
+      // guarded above. Catch is defensive for future changes.
+    }
+  }
+}
+
+/**
  * Replay the haystack into a cognitive manager. The observer /
  * reflector pipeline requires an LLM invoker which benchmarks run
  * without, so we fall back to direct {@link CognitiveMemoryManager.encode}
@@ -1321,6 +1367,17 @@ async function replayForCognitive(
   const encodeMsSamples: number[] = [];
   const traceIdToSessionId = new Map<string, string>();
   let peakWorkingMemorySlots = 0;
+  // Step 12 — reflection IDs already indexed into `hybridBm25`.
+  // Consumed only by the end-of-replay sweep (Layer 3) which enumerates
+  // `store.listTraces` for `sourceType: 'reflection'` and indexes any
+  // not-yet-seen IDs. Initial design also forced per-session
+  // `flushReflection`, but that multiplied LLM load ~50× per case and
+  // stalled Tier A; removed in favour of sweep-only, which catches the
+  // reflection traces produced by (a) observer auto-trigger at its
+  // natural 40k-token threshold, (b) the existing end-of-replay Step 7
+  // drain, and (c) `ContextWindowManager.onTracesCreated`. Same
+  // visibility, zero per-session LLM cost.
+  const indexedReflectionIds: Set<string> = new Set();
 
   // Build the full text of a session once so the summarizer can hash
   // it for cache-key generation. `speaker: content` matches what the
@@ -1598,6 +1655,40 @@ async function replayForCognitive(
         // Flush errors are non-critical; proceed to retrieve.
       }
     }
+  }
+
+  // Step 12 Layer 3 — end-of-replay reflection-trace sweep. Catches
+  // reflection traces encoded via (a) the Step 7 drain above, (b)
+  // observer auto-trigger mid-session, (c) `ContextWindowManager.
+  // onTracesCreated` callback. All three paths bypass the per-session
+  // `flushReflection` blocks, so we enumerate the store at end of
+  // replay and index any orphan reflection IDs. Idempotent via
+  // `indexedReflectionIds` Set. Only runs in ADDITIVE mode; REPLACEMENT
+  // mode's per-session blocks already own the BM25 wiring for it.
+  if (
+    observerReflectorEnabled &&
+    !observerReflectorReplaceEnabled &&
+    hybridBm25
+  ) {
+    const store = handle.manager.getStore();
+    const scoped = store.listTraces({
+      scope: 'user',
+      scopeId: 'bench',
+      activeOnly: true,
+    });
+    const orphanIds: string[] = [];
+    for (const trace of scoped) {
+      if (trace.provenance.sourceType !== 'reflection') continue;
+      if (indexedReflectionIds.has(trace.id)) continue;
+      orphanIds.push(trace.id);
+    }
+    indexReflectionTracesIntoBm25(
+      orphanIds,
+      store,
+      hybridBm25,
+      'reflection-sweep',
+      indexedReflectionIds,
+    );
   }
 
   // Final sample so the peak covers the end of replay.
