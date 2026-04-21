@@ -553,6 +553,23 @@ export interface CaseResult extends CaseRun {
    * so CSV export can render the ground-truth without re-loading the dataset.
    */
   goldSessionIds?: string[];
+
+  /**
+   * Shingle-based max-overlap evidence trace attributed to the reader's
+   * answer. `null` explicitly means the case ran the provenance pass but
+   * no retrieved trace matched >=1 shingle with the answer. `undefined`
+   * means the case did not run the provenance pass at all (legacy runs
+   * or benchmarks that don't surface it).
+   *
+   * Populated per-case inside the benchmark adapter after the reader
+   * emits its answer; aggregated into {@link BenchResult.evidenceOrigin}
+   * by the runner.
+   */
+  evidenceUsed?: {
+    traceId: string;
+    sourceType: string;
+    overlapScore: number;
+  } | null;
 }
 
 /**
@@ -657,6 +674,16 @@ export interface BenchResult {
    * improvement claims are not defensible.
    */
   judgeAdversarialFPR?: import('./metrics/index.js').AdversarialRateOutput;
+
+  /**
+   * Aggregate of {@link CaseResult.evidenceUsed}.sourceType across cases.
+   * Counts the number of cases where each source type was the
+   * max-overlap provenance; a `none` bucket captures cases where the
+   * provenance pass ran but no retrieved trace matched. Absent when no
+   * case carried `evidenceUsed` (i.e., benchmarks or legacy runs that
+   * don't surface provenance).
+   */
+  evidenceOrigin?: Record<string, number>;
 
   /** Per-case results. */
   cases: CaseResult[];

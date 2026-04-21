@@ -545,6 +545,24 @@ export class BenchmarkRunner {
             : Number.POSITIVE_INFINITY,
       };
 
+      // Evidence-origin aggregate: bucket per-case evidenceUsed.sourceType
+      // across cases that ran the provenance pass. `undefined` on a case
+      // means the pass did not run (legacy or non-participating benchmark);
+      // `null` means the pass ran but no retrieved trace matched. Attach
+      // only when at least one case participated so legacy runs stay
+      // clean.
+      let evidenceOriginSamples = 0;
+      const evidenceOrigin: Record<string, number> = {};
+      for (const c of results) {
+        if (c.evidenceUsed === undefined) continue;
+        evidenceOriginSamples++;
+        const key = c.evidenceUsed?.sourceType ?? 'none';
+        evidenceOrigin[key] = (evidenceOrigin[key] ?? 0) + 1;
+      }
+      if (evidenceOriginSamples > 0) {
+        finalResult.evidenceOrigin = evidenceOrigin;
+      }
+
       // Layer bootstrap CIs over per-case results (pure CPU, no API
       // calls). Seed flows from RunConfig for reproducibility; undefined
       // seed falls back to Math.random.
