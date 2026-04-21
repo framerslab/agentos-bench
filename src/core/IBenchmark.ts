@@ -389,6 +389,24 @@ export interface RunConfig {
    * Requires `observerReflector: true`. Default: false.
    */
   observerReflectorReplace?: boolean;
+
+  /**
+   * Step-9 (Tier 3): Mem0-style fact-graph ingest. When true, the bench
+   * adapter builds a per-case `FactStore` at session-ingest time using a
+   * gpt-5-mini extractor, extracts `(subject, predicate, object, timestamp)`
+   * tuples with a closed 25-predicate schema, and threads the store into
+   * the `HybridRetriever`. At query time, synthetic fact-graph traces
+   * (retrievalScore: 1.0, sourceType: 'fact_graph') are prepended to the
+   * merged pool BEFORE rerank so the blend can still downrank them if
+   * they're not relevant.
+   *
+   * Preserves literal `object` tokens where summary-based approaches
+   * (Steps 5 FactSupersession, 7/8 Observer/Reflector) paraphrased them
+   * away. Mutually exclusive with `observerReflector*` flags.
+   *
+   * Default: false. Opt-in behind `--fact-graph-ingest` CLI flag.
+   */
+  factGraphIngest?: boolean;
 }
 
 /**
@@ -429,6 +447,7 @@ export interface BenchContext {
       | 'splitAmbiguous'
       | 'observerReflector'
       | 'observerReflectorReplace'
+      | 'factGraphIngest'
     >
   > &
     Pick<
@@ -461,6 +480,7 @@ export interface BenchContext {
       | 'splitAmbiguous'
       | 'observerReflector'
       | 'observerReflectorReplace'
+      | 'factGraphIngest'
     >;
   /** LLM-as-judge for external benchmarks. Micro-benchmarks ignore. */
   judge: IJudge;
