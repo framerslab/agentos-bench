@@ -90,6 +90,11 @@ export interface LocomoAdapterOptions {
    * Same semantics as `LongMemEvalAdapterOptions.splitAmbiguousThreshold`.
    */
   splitAmbiguousThreshold?: number;
+  /**
+   * Step-7 (Tier 2): enable Observer/Reflector. Same semantics as
+   * `LongMemEvalAdapterOptions.observerReflectorEnabled`.
+   */
+  observerReflectorEnabled?: boolean;
 }
 
 /**
@@ -181,6 +186,7 @@ export class Locomo implements IBenchmark {
         this.opts.reader,
         this.opts.factSupersessionEnabled,
         this.opts.splitAmbiguousThreshold,
+        this.opts.observerReflectorEnabled,
       );
       system = out.prompt;
       runMeta.replayStats = out.replayStats;
