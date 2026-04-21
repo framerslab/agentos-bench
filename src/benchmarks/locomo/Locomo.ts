@@ -95,6 +95,11 @@ export interface LocomoAdapterOptions {
    * `LongMemEvalAdapterOptions.observerReflectorEnabled`.
    */
   observerReflectorEnabled?: boolean;
+  /**
+   * Step-8: REPLACEMENT semantics. Same semantics as
+   * `LongMemEvalAdapterOptions.observerReflectorReplaceEnabled`.
+   */
+  observerReflectorReplaceEnabled?: boolean;
 }
 
 /**
@@ -187,6 +192,7 @@ export class Locomo implements IBenchmark {
         this.opts.factSupersessionEnabled,
         this.opts.splitAmbiguousThreshold,
         this.opts.observerReflectorEnabled,
+        this.opts.observerReflectorReplaceEnabled,
       );
       system = out.prompt;
       runMeta.replayStats = out.replayStats;
