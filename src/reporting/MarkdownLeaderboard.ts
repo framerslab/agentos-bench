@@ -41,6 +41,7 @@ interface RenderedRow {
   reader: string;
   memoryMode: string;
   replayMode: string;
+  totalCases?: number;
   accuracy: number;
   avgLatencyMs?: number;
   costPerCorrect?: number;
@@ -123,6 +124,7 @@ function buildExternalSection(benchId: string, summary: ResultsSummary): string 
       reader: o.reader,
       memoryMode: o.memoryMode,
       replayMode: o.replayMode,
+      totalCases: o.totalCases,
       accuracy: o.accuracy,
       avgLatencyMs: o.avgLatencyMs,
       costPerCorrect: o.costPerCorrect,
@@ -147,8 +149,8 @@ function buildExternalSection(benchId: string, summary: ResultsSummary): string 
     '',
     targetLine,
     '',
-    '| System | Reader | Memory | Replay | Accuracy | Avg latency | $/correct | Source |',
-    '|---|---|---|---|---:|---:|---:|---|',
+    '| System | Reader | Memory | Replay | Cases | Accuracy | Avg latency | $/correct | Source |',
+    '|---|---|---|---|---:|---:|---:|---:|---|',
   ].filter(Boolean);
 
   const body = rows.map((r) =>
@@ -157,6 +159,7 @@ function buildExternalSection(benchId: string, summary: ResultsSummary): string 
       r.reader,
       r.memoryMode,
       r.replayMode,
+      r.totalCases !== undefined ? `${r.totalCases}` : '—',
       `${(r.accuracy * 100).toFixed(1)}%`,
       r.avgLatencyMs !== undefined ? `${r.avgLatencyMs.toFixed(0)} ms` : '—',
       r.costPerCorrect !== undefined
@@ -249,6 +252,7 @@ function buildFooter(): string {
     '',
     '- Our `memory` column shows the AgentOS memory mode under test: `full-cognitive` uses `CognitiveMemoryManager` with all eight cognitive mechanisms active (reconsolidation, RIF, involuntary recall, metacognitive FOK, temporal gist, schema encoding, source confidence decay, emotion regulation); `base-memory` uses the standalone `Memory` facade; `none` is the haystack-in-context baseline.',
     '- Our `replay` column shows how the haystack was fed to memory: `observe` drives per-turn `CognitiveMemoryManager.encode()` calls (matching live-conversation cadence); `ingest` collapses each session into one `encode()` call. The observer / reflector pipeline only activates when an LLM invoker is configured; benchmark runs typically ship without one to keep costs bounded, so both modes exercise the encoding + decay + scoring stack directly.',
+    '- `Cases` shows the actual evaluated sample size for that row. Benchmark section titles describe the full dataset; exploratory smokes and canonical full runs can coexist in the same section.',
     '- Per-case scoring uses the upstream rubric (see `RUBRIC_SOURCE` in `src/judges/rubrics/`).',
     '- Judge model is GPT-4o unless otherwise noted, to avoid same-family self-preference bias when the reader is also Claude.',
     '- Cost-per-correct divides total USD (reader + embedding + judge) by passed cases; it is the primary efficiency metric once accuracy is competitive.',
