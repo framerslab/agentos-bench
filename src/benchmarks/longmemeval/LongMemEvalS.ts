@@ -1258,7 +1258,10 @@ async function replayForCognitive(
       // index them into BM25 so sparse retrieval sees them too.
       if (observerReflectorReplaceEnabled) {
         try {
-          const flush = await handle.manager.flushReflection(neutralMood);
+          const flush = await handle.manager.flushReflection(
+            neutralMood,
+            { scope: 'user', scopeId: 'bench' },
+          );
           if (hybridBm25 && flush.encodedTraceIds.length > 0) {
             const store = handle.manager.getStore();
             for (const id of flush.encodedTraceIds) {
@@ -1346,7 +1349,10 @@ async function replayForCognitive(
       // index them into BM25 so sparse retrieval sees them too.
       if (observerReflectorReplaceEnabled) {
         try {
-          const flush = await handle.manager.flushReflection(neutralMood);
+          const flush = await handle.manager.flushReflection(
+            neutralMood,
+            { scope: 'user', scopeId: 'bench' },
+          );
           if (hybridBm25 && flush.encodedTraceIds.length > 0) {
             const store = handle.manager.getStore();
             for (const id of flush.encodedTraceIds) {
