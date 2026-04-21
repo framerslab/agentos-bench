@@ -188,4 +188,27 @@ describe('compareRuns', () => {
     expect(diff.unmatched.onlyInBaseline).toEqual(['b']);
     expect(diff.unmatched.onlyInChallenger).toEqual([]);
   });
+
+  it('carries a paired McNemar result when both runs have cases', () => {
+    const baseline = makeResult({
+      name: 'baseline',
+      cases: [makeCase('a', true), makeCase('b', false)],
+    });
+    const challenger = makeResult({
+      name: 'challenger',
+      cases: [makeCase('a', false), makeCase('b', true)],
+    });
+    const diff = compareRuns(baseline, challenger);
+    expect(diff.paired).toBeDefined();
+    expect(diff.paired!.totalPaired).toBe(2);
+    expect(diff.paired!.bCount).toBe(1); // baseline-correct, challenger-wrong on 'a'
+    expect(diff.paired!.cCount).toBe(1); // baseline-wrong, challenger-correct on 'b'
+  });
+
+  it('omits paired McNemar when either run has zero cases', () => {
+    const empty = makeResult({ name: 'empty', cases: [] });
+    const filled = makeResult({ name: 'filled', cases: [makeCase('a', true)] });
+    const diff = compareRuns(empty, filled);
+    expect(diff.paired).toBeUndefined();
+  });
 });

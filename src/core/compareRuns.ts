@@ -25,6 +25,7 @@
  */
 
 import type { BenchResult, CaseResult } from './IBenchmark.js';
+import { computePairedMcNemar, type McNemarResult } from './metrics/computePairedMcNemar.js';
 
 /**
  * Which side of the comparison came out ahead on the headline metric.
@@ -90,6 +91,13 @@ export interface RunComparison {
   regressions: CaseDelta[];
   improvements: CaseDelta[];
   byType: Record<string, TypeComparison>;
+  /**
+   * Paired McNemar significance result. Populated when both runs carry
+   * cases, allowing run-to-run deltas to report a chi-squared statistic
+   * and two-sided p-value in addition to the point-estimate delta.
+   * Absent when either run has zero cases.
+   */
+  paired?: McNemarResult;
 }
 
 /**
@@ -143,6 +151,10 @@ export function compareRuns(baseline: BenchResult, challenger: BenchResult): Run
     regressions: regressions.sort((a, b) => a.caseId.localeCompare(b.caseId)),
     improvements: improvements.sort((a, b) => a.caseId.localeCompare(b.caseId)),
     byType: byTypeComparison(baseline, challenger),
+    paired:
+      baseline.cases.length > 0 && challenger.cases.length > 0
+        ? computePairedMcNemar(baseline, challenger)
+        : undefined,
   };
 }
 
