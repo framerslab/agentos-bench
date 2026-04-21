@@ -1,0 +1,63 @@
+
+> @framers/agentos-bench@0.1.0 bench /Users/johnn/Documents/git/voice-chat-assistant/packages/agentos-bench
+> node ./dist/cli.js run longmemeval-s --reader gpt-4o --judge-model gpt-4o --memory full-cognitive --replay ingest --hybrid-retrieval --rerank cohere --context-summary gpt-5-mini --observer-reflector --reader-top-k 10 --stratified --sample-per-type 4 --bootstrap-resamples 10000 --seed 42 --concurrency 2
+
+Preflight cost estimate: ~$6.79 for 500 cases ($0.0110/case reader, $0.0026/case judge).
+Running longmemeval-s reader=gpt-4o memory=full-cognitive replay=ingest
+InMemoryVectorStore (ID: in-memory-store-b79cdf9e-73f8-4012-ac3f-ac82877b7326, Config ID: bench-vector) initialized successfully.
+InMemoryVectorStore (ID: in-memory-store-37627272-c8fc-4373-95b9-5b95206b6ef1, Config ID: bench-vector) initialized successfully.
+InMemoryVectorStore (ID: in-memory-store-b79cdf9e-73f8-4012-ac3f-ac82877b7326): Collection 'cogmem_user_bench' created with dimension 128.
+InMemoryVectorStore (ID: in-memory-store-37627272-c8fc-4373-95b9-5b95206b6ef1): Collection 'cogmem_user_bench' created with dimension 128.
+InMemoryVectorStore (ID: in-memory-store-9f7d8ac7-6628-423d-9774-81d6417dde7a, Config ID: bench-vector) initialized successfully.
+InMemoryVectorStore (ID: in-memory-store-9f7d8ac7-6628-423d-9774-81d6417dde7a): Collection 'cogmem_user_bench' created with dimension 128.
+InMemoryVectorStore (ID: in-memory-store-ea3fd4d2-1d97-4cf6-b4f1-8004646290cf, Config ID: bench-vector) initialized successfully.
+InMemoryVectorStore (ID: in-memory-store-ea3fd4d2-1d97-4cf6-b4f1-8004646290cf): Collection 'cogmem_user_bench' created with dimension 128.
+InMemoryVectorStore (ID: in-memory-store-6d0b4005-c56c-459b-a7ab-7e6ce60cf583, Config ID: bench-vector) initialized successfully.
+InMemoryVectorStore (ID: in-memory-store-6d0b4005-c56c-459b-a7ab-7e6ce60cf583): Collection 'cogmem_user_bench' created with dimension 128.
+InMemoryVectorStore (ID: in-memory-store-fac45048-e4f0-47ca-b043-6a62aa6f192b, Config ID: bench-vector) initialized successfully.
+InMemoryVectorStore (ID: in-memory-store-fac45048-e4f0-47ca-b043-6a62aa6f192b): Collection 'cogmem_user_bench' created with dimension 128.
+InMemoryVectorStore (ID: in-memory-store-4a9493b3-fa18-4943-b492-72cd33090247, Config ID: bench-vector) initialized successfully.
+InMemoryVectorStore (ID: in-memory-store-4a9493b3-fa18-4943-b492-72cd33090247): Collection 'cogmem_user_bench' created with dimension 128.
+InMemoryVectorStore (ID: in-memory-store-3e72ab9c-acb3-4694-afab-f865daa8d580, Config ID: bench-vector) initialized successfully.
+InMemoryVectorStore (ID: in-memory-store-3e72ab9c-acb3-4694-afab-f865daa8d580): Collection 'cogmem_user_bench' created with dimension 128.
+InMemoryVectorStore (ID: in-memory-store-39eec4e0-aa21-4956-8c61-32be246e59c6, Config ID: bench-vector) initialized successfully.
+InMemoryVectorStore (ID: in-memory-store-39eec4e0-aa21-4956-8c61-32be246e59c6): Collection 'cogmem_user_bench' created with dimension 128.
+InMemoryVectorStore (ID: in-memory-store-b9ba1fcf-8257-4a49-af48-17ccc25e4daf, Config ID: bench-vector) initialized successfully.
+InMemoryVectorStore (ID: in-memory-store-b9ba1fcf-8257-4a49-af48-17ccc25e4daf): Collection 'cogmem_user_bench' created with dimension 128.
+InMemoryVectorStore (ID: in-memory-store-1ae2c22f-88a1-445f-afff-47264b745166, Config ID: bench-vector) initialized successfully.
+InMemoryVectorStore (ID: in-memory-store-1ae2c22f-88a1-445f-afff-47264b745166): Collection 'cogmem_user_bench' created with dimension 128.
+InMemoryVectorStore (ID: in-memory-store-650e4ce8-9a12-4a97-9536-a020d656d971, Config ID: bench-vector) initialized successfully.
+InMemoryVectorStore (ID: in-memory-store-650e4ce8-9a12-4a97-9536-a020d656d971): Collection 'cogmem_user_bench' created with dimension 128.
+InMemoryVectorStore (ID: in-memory-store-3149e83b-e9cb-4c66-8417-47d3a5790cc6, Config ID: bench-vector) initialized successfully.
+InMemoryVectorStore (ID: in-memory-store-3149e83b-e9cb-4c66-8417-47d3a5790cc6): Collection 'cogmem_user_bench' created with dimension 128.
+InMemoryVectorStore (ID: in-memory-store-fc48f537-68c9-433d-b48d-1751e9b7ce61, Config ID: bench-vector) initialized successfully.
+InMemoryVectorStore (ID: in-memory-store-fc48f537-68c9-433d-b48d-1751e9b7ce61): Collection 'cogmem_user_bench' created with dimension 128.
+InMemoryVectorStore (ID: in-memory-store-f7f04649-89a7-4063-9642-cde1f0f43f67, Config ID: bench-vector) initialized successfully.
+InMemoryVectorStore (ID: in-memory-store-f7f04649-89a7-4063-9642-cde1f0f43f67): Collection 'cogmem_user_bench' created with dimension 128.
+InMemoryVectorStore (ID: in-memory-store-9a41a581-3d1a-4975-b020-97d8d64e0cee, Config ID: bench-vector) initialized successfully.
+InMemoryVectorStore (ID: in-memory-store-9a41a581-3d1a-4975-b020-97d8d64e0cee): Collection 'cogmem_user_bench' created with dimension 128.
+InMemoryVectorStore (ID: in-memory-store-3ea3b53c-a53e-4d91-88e4-e34addbdbfa7, Config ID: bench-vector) initialized successfully.
+InMemoryVectorStore (ID: in-memory-store-3ea3b53c-a53e-4d91-88e4-e34addbdbfa7): Collection 'cogmem_user_bench' created with dimension 128.
+InMemoryVectorStore (ID: in-memory-store-9226e232-ac77-44d3-8529-e5f5e9109c7c, Config ID: bench-vector) initialized successfully.
+InMemoryVectorStore (ID: in-memory-store-9226e232-ac77-44d3-8529-e5f5e9109c7c): Collection 'cogmem_user_bench' created with dimension 128.
+InMemoryVectorStore (ID: in-memory-store-f35fcefe-f21e-438c-ab4e-b0d8211c22b5, Config ID: bench-vector) initialized successfully.
+InMemoryVectorStore (ID: in-memory-store-f35fcefe-f21e-438c-ab4e-b0d8211c22b5): Collection 'cogmem_user_bench' created with dimension 128.
+InMemoryVectorStore (ID: in-memory-store-1ccd6041-c3a8-4728-99d8-46f89699296c, Config ID: bench-vector) initialized successfully.
+InMemoryVectorStore (ID: in-memory-store-1ccd6041-c3a8-4728-99d8-46f89699296c): Collection 'cogmem_user_bench' created with dimension 128.
+InMemoryVectorStore (ID: in-memory-store-645b6558-fb0a-4021-a252-67de62cf714b, Config ID: bench-vector) initialized successfully.
+InMemoryVectorStore (ID: in-memory-store-645b6558-fb0a-4021-a252-67de62cf714b): Collection 'cogmem_user_bench' created with dimension 128.
+InMemoryVectorStore (ID: in-memory-store-a859d6c2-0bcf-4f40-84cb-3f07cafc7b42, Config ID: bench-vector) initialized successfully.
+InMemoryVectorStore (ID: in-memory-store-a859d6c2-0bcf-4f40-84cb-3f07cafc7b42): Collection 'cogmem_user_bench' created with dimension 128.
+InMemoryVectorStore (ID: in-memory-store-61b01777-6582-44da-84b4-5f9aafe18916, Config ID: bench-vector) initialized successfully.
+InMemoryVectorStore (ID: in-memory-store-61b01777-6582-44da-84b4-5f9aafe18916): Collection 'cogmem_user_bench' created with dimension 128.
+InMemoryVectorStore (ID: in-memory-store-9d7ec1c3-ac5e-443b-bf07-d0746fe02cac, Config ID: bench-vector) initialized successfully.
+InMemoryVectorStore (ID: in-memory-store-9d7ec1c3-ac5e-443b-bf07-d0746fe02cac): Collection 'cogmem_user_bench' created with dimension 128.
+[ResultStore] N-regression guard: skipping summary update for "longmemeval-s|gpt-4o|full-cognitive|ingest" — new run has 24 cases, existing row has 500. Summary row not overwritten. Run file written to runs/2026-04-21T21-14-00-689--longmemeval-s--gpt-4o--full-cognitive--ingest.json.
+Done. accuracy=62.5% passed=15/24 avg=132129ms p50=127556ms p95=165877ms totalUsd=$1.4738 costPerCorrect=$0.0983
+By type:
+  single-session-user        n=  4  acc=100.0%  avgScore=1.000
+  knowledge-update           n=  4  acc= 75.0%  avgScore=0.750
+  single-session-assistant   n=  4  acc= 75.0%  avgScore=0.750
+  single-session-preference  n=  4  acc= 50.0%  avgScore=0.500
+  temporal-reasoning         n=  4  acc= 50.0%  avgScore=0.500
+  multi-session              n=  4  acc= 25.0%  avgScore=0.250
