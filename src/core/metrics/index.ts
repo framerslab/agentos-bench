@@ -48,3 +48,6 @@ export type {
   AdversarialRateOutput,
   AdversarialProbeCase,
 } from './computeJudgeAdversarial.js';
+
+export { computePairedMcNemar } from './computePairedMcNemar.js';
+export type { McNemarResult } from './computePairedMcNemar.js';
