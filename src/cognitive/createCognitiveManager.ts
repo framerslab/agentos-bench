@@ -22,7 +22,13 @@
  */
 
 import { promises as fs } from 'node:fs';
-import { CognitiveMemoryManager, SqliteBrain, SqliteKnowledgeGraph } from '@framers/agentos';
+import {
+  CognitiveMemoryManager,
+  SqliteBrain,
+  SqliteKnowledgeGraph,
+  FactExtractor,
+  FactStore,
+} from '@framers/agentos';
 import type { HexacoTraits, PADState } from '@framers/agentos';
 import type { IEmbeddingManager } from '@framers/agentos/core/embeddings/IEmbeddingManager';
 import { InMemoryVectorStore } from '@framers/agentos/rag/vector_stores/InMemoryVectorStore';
@@ -124,6 +130,20 @@ export interface CreateCognitiveManagerOptions {
    * (bench default pre-Step-7).
    */
   observerReflectorLlmInvoker?: (systemPrompt: string, userPrompt: string) => Promise<string>;
+
+  /**
+   * Step-9 (Tier 3): LLM invoker for Mem0-style fact-graph ingest.
+   * When set, the returned handle carries a fresh {@link FactStore}
+   * plus a {@link FactExtractor} wired with this invoker. The adapter
+   * calls `factExtractor.extract(session)` at session-ingest time,
+   * upserts the resulting facts into `factStore`, and threads the
+   * store into `HybridRetriever` so synthetic fact-graph traces are
+   * prepended to the merged pool before rerank.
+   *
+   * Typically wraps a cheap reader (gpt-5-mini). Leave undefined to
+   * keep the fact-graph path dormant (bench default pre-Step-9).
+   */
+  factExtractorLlmInvoker?: (systemPrompt: string, userPrompt: string) => Promise<string>;
 }
 
 /**
@@ -140,6 +160,18 @@ export interface BenchCognitiveHandle {
    * Idempotent — safe to call multiple times.
    */
   close: () => Promise<void>;
+  /**
+   * Step-9: per-case {@link FactStore}. Populated when
+   * {@link CreateCognitiveManagerOptions.factExtractorLlmInvoker} is
+   * set. Adapters upsert into this store at session-ingest time and
+   * pass it through to `HybridRetriever`.
+   */
+  factStore?: FactStore;
+  /**
+   * Step-9: per-case {@link FactExtractor}. Populated alongside
+   * {@link factStore} when the LLM invoker is provided.
+   */
+  factExtractor?: FactExtractor;
 }
 
 /**
@@ -239,5 +271,15 @@ export async function createCognitiveManager(
     await fs.rm(opts.brainPath, { force: true }).catch(() => {});
   };
 
-  return { manager, brain, close };
+  // Step-9: wire fact-graph ingest when the invoker is provided.
+  // Per-case FactStore is ephemeral — lives as long as the handle.
+  const factStore = opts.factExtractorLlmInvoker ? new FactStore() : undefined;
+  const factExtractor = opts.factExtractorLlmInvoker
+    ? new FactExtractor({
+        llmInvoker: opts.factExtractorLlmInvoker,
+        cacheFingerprint: 'fact-graph-ingest:gpt-5-mini:v1',
+      })
+    : undefined;
+
+  return { manager, brain, close, factStore, factExtractor };
 }
