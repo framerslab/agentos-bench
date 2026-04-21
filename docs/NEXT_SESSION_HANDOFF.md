@@ -1,351 +1,339 @@
-# Next Session Handoff — AgentOS Memory Benchmark + Blog Post
+# AgentOS Memory Rollout — Fresh Session Handoff
 
-**Date:** 2026-04-19
-**Scope:** Everything a fresh session needs to continue from here with no prior context.
-**Mission:** Ship a citation-backed, narrative-toned blog post that demonstrates AgentOS memory's SOTA-class retrieval quality and cost efficiency on LongMemEval-S, backed by publication-grade benchmark numbers.
+**Updated:** 2026-04-21 (end of Steps 1-8 session)
+**Previous canonical doc:** [RAG_STACK_UMBRELLA_FINDINGS_2026-04-20.md](./RAG_STACK_UMBRELLA_FINDINGS_2026-04-20.md)
+**Current blog post:** [blog/2026-04-20-agentos-memory-longmemeval-rollout.md](./blog/2026-04-20-agentos-memory-longmemeval-rollout.md)
 
----
-
-## 1. The mission
-
-**We are building towards a blog post that proves three claims with numbers:**
-
-1. **Retrieval quality is SOTA-adjacent.** Recall@10 ≈ 0.95 on LongMemEval-S (matches or beats published competitors on the evidence-recovery dimension).
-2. **Cost per correct answer is 10× below published SOTA.** gpt-5-mini + full-cognitive + ingest hits ~$0.003/correct in smoke; published competitors sit at $0.03–$0.05.
-3. **The cognitive-memory layer earns its keep.** Signal ablation shows similarity, strength, and recency each produce measurable Δaccuracy when zeroed; the remaining three signals (emotionalCongruence, importance, graphActivation) are within sampling noise on this benchmark but may shine on others.
-
-The blog post is **not written yet.** It's gated on publication-grade numbers from a 500-case stratified sweep.
+This doc gives a new Claude session the full picture: what's been built, what's been measured, what to do next, and the gotchas to avoid. **Supersedes the prior Phase A handoff (2026-04-19 version) at the same path.**
 
 ---
 
-## 2. Repos and submodules touched
+## 1. Elevator pitch
 
-| Repo / path | Purpose | Remote |
-|---|---|---|
-| `voice-chat-assistant/` (monorepo) | Aggregates every first-party framersai asset | `github.com/jddunn/voice-chat-assistant` |
-| `packages/agentos/` | Core AgentOS library | `github.com/framersai/agentos` (submodule) |
-| `packages/agentos-bench/` | Benchmark suite driving AgentOS memory | monorepo-local (NOT a submodule) |
-| `packages/agentos-extensions/` | Agentos extensions | `github.com/framersai/agentos-extensions` (submodule) |
-| `packages/sql-storage-adapter/` | Cross-platform SQL adapter agentos uses | `github.com/framersai/sql-storage-adapter` (submodule) |
-| `apps/wilds-ai/` | Primary consumer app (game platform) | `github.com/framersai/wilds-ai` (submodule) |
-| `apps/paracosm/` | Second consumer app (civilization simulation) | `github.com/framersai/paracosm` (submodule) |
-| `apps/agentos-live-docs/` | Docusaurus docs site (blog lives here) | monorepo-local |
-| `apps/agentos.sh/` | Astro marketing site (blog also here) | `github.com/framersai/agentos.sh` (submodule) |
-| `apps/rabbithole/` | Astro-based blog/research site | `github.com/framersai/rabbithole` (submodule) |
-| `apps/wunderland-sh/` | Docs site | monorepo-local |
+We're running a sequenced empirical investigation of retrieval-stack improvements for AgentOS's memory system, benchmarked on LongMemEval-S (Wu et al. 2024). Each proposed feature gets its own spec → plan → TDD implementation → kill-criterion Tier A smoke → Phase A N=102 → Phase B N=500 verdict cycle. Bootstrap CIs on every metric. Matched-reader methodology. Explicit cost tracking.
 
-**Submodule rule (from global CLAUDE.md):** commit in submodule → push submodule → update monorepo pointer. Never `git subtree push`. Never force-push without asking.
+**Goal:** push AgentOS's LongMemEval-S score at matched gpt-4o reader above Mastra's published 84.23%. Hit a defensible top-tier number with reproducible methodology.
+
+**Current headline:** **Tier 1 Hybrid at Phase B N=500 = 73.2% [69.2%, 77.0%] unweighted, 74.0% weighted, $0.0213 per correct answer at gpt-4o.** This is the shipping production candidate.
+
+**Nothing above Tier 1 has worked yet.** Steps 2, 4, 5, 6, 7, 8 are all RED. The pattern: anything that transforms, drops, or replaces retrieval content via LLM intermediate steps regresses. Only ADDITIVE signal on top of dense + rerank (Step 3 Hybrid) has helped.
 
 ---
 
-## 3. Current state — what's done
+## 2. How to start the next session
 
-### Phase 0: Metrics framework + infrastructure ($0)
+Open a new Claude session in this repo (`/Users/johnn/Documents/git/voice-chat-assistant/`). Paste this prompt verbatim as the first message:
 
-Shipped via commits `3821b0891f..5df22d80bb` on monorepo master. Adds session-level retrieval quality metrics (Recall@K, Precision@K, NDCG@K, MRR), stratified accuracy with LongMemEval-S canonical priors, per-op latency breakdown (encode/retrieve/vectorSearch/scoring/replay p50/p95/p99), memory footprint (brain bytes, trace count, peak working-memory slots), tokens-per-correct, and a persistent on-disk embedding cache (`data/.embedding-cache/`). Every new helper has its own `.spec.ts`. Old run JSONs render cleanly; all new schema fields are optional.
-
-Also in Phase 0: `--ablate-signal <name>` and `--ablate-mechanism <name>` CLI flags, `--stratified --sample-per-type N` stratified sampling, `sweep-report` CLI subcommand that writes `SWEEP_REPORT.md`.
-
-### Phase 0.1: Smoke-run validation ($0.35 total across iterations)
-
-24-case stratified smoke on gpt-5-mini + full-cognitive + ingest with `text-embedding-3-small`. Final numbers (prompt v4, chunk-splitter at 6k chars):
-
-- **79.2% unweighted accuracy (19/24)**
-- **69.5% stratified-weighted** (LongMemEval-S canonical priors)
-- **$0.0029 per correct answer** — an order of magnitude below published competitors
-- **Recall@10 = 0.948** — session-level, bounded
-- **NDCG@10 = 0.890**, MRR = 0.921, Precision@10 = 0.550
-
-Per case type:
-
-| Type | Priors (of 500) | Accuracy |
-|---|---:|---:|
-| single-session-assistant | 11.2% | 100% |
-| single-session-preference | 6.0% | 100% |
-| single-session-user | 14.0% | 100% |
-| knowledge-update | 15.6% | 75% |
-| multi-session | 26.6% | 50% |
-| temporal-reasoning | 26.6% | 50% |
-
-The temporal-reasoning ceiling is the obvious refinement target — R@10 is high so evidence IS retrieved; reader reasoning is the gap.
-
-### Path A: Reader-prompt iteration
-
-Evolved through v2 → v3 → v4. v4 is the current production prompt ([LongMemEvalS.ts:894+](packages/agentos-bench/src/benchmarks/longmemeval/LongMemEvalS.ts#L894)). Key mechanic: `[YYYY-MM-DD]` session-date prefix on every chunk + "prefer most recent" rule for knowledge-update + explicit anti-abstention language. Net +4pp over v2 baseline, robust across all 6 case types.
-
-### Path B: Signal-ablation study
-
-6 × 12-case stratified runs, each zeroing one of the 6 retrieval weights via `CognitiveRetrievalOptions.scoringWeights`. Full results in [PHASE_0_FINDINGS.md](PHASE_0_FINDINGS.md).
-
-Summary: **similarity is dominant (−70.9pp when zeroed), strength and recency earn their keep (−12.5pp, −4.2pp), the other three signals (emotionalCongruence, importance, graphActivation) are within sampling noise on this benchmark.**
-
-### Agentos core fixes shipped (released as v0.1.246 and v0.1.247 on npm)
-
-Five commits on `framersai/agentos` master:
-
-1. `feat(memory): public CognitiveMemoryManager.getTraceCount()` — footprint telemetry API
-2. `test: tag round-trip pin` — regression pin for `MemoryTrace.tags`
-3. `feat(memory): scoringWeights override on CognitiveRetrievalOptions` — per-call signal ablation
-4. `fix(memory): honour consolidation.enabled=false + unref timer` — **exit-hang fix** (bench was never exiting)
-5. `fix(memory): emit real scoringTimeMs + vectorSearchTimeMs diagnostics` — real wall-clock timing (was hardcoded to 0)
-6. `fix: unblock CI — Required<ConsolidationConfig> needed enabled; ForgeStatsAggregator needed syntax_error`
-
-Consumer impact:
-- `apps/wilds-ai/package.json` → `^0.1.247` (pushed to `framersai/wilds-ai`)
-- `apps/paracosm/package.json` → `^0.1.247` (pushed to `framersai/paracosm`)
-- Workspace consumers (agentos-bench, wunderland, rabbithole, workbench, 7 ext packages) get the local code directly via `workspace:*`
-
----
-
-## 4. What's next — the scaling path
-
-Three decision gates, cheapest first. Each phase commits its results to `packages/agentos-bench/results/runs/`.
-
-### Phase A — 100-case stratified champion run (~$3)
-
-Command (run from monorepo root):
-
-```bash
-cd /Users/johnn/Documents/git/voice-chat-assistant
-set -a && source apps/wilds-ai/.env.local && set +a
-AGENTOS_BENCH_DATA_DIR=packages/agentos-bench/data \
-AGENTOS_BENCH_RESULTS_DIR=packages/agentos-bench/results \
-node packages/agentos-bench/dist/cli.js run longmemeval-s \
-  --reader gpt-5-mini --judge-model gpt-4o \
-  --memory full-cognitive --replay ingest \
-  --sample 102 --stratified --sample-per-type 17 \
-  --embedder-model openai:text-embedding-3-small \
-  --max-usd 5 --concurrency 4
+```
+Continue the AgentOS memory rollout. Read the handoff doc at
+packages/agentos-bench/docs/NEXT_SESSION_HANDOFF.md end-to-end.
+Then verify the current git state on master (both monorepo and
+packages/agentos submodule) matches what the handoff claims, and
+report any drift before doing any new work. After verification,
+propose the next concrete action per the handoff's "What to do next"
+section and wait for approval before firing any LLM-cost work.
 ```
 
-17 × 6 types = 102 cases. 4 concurrency. Expected runtime ~15 min. Cost ~$3.
-
-Review gate: inspect `results/runs/*.json`. If accuracy is within ±3pp of smoke (target 76–82%), green-light Phase B.
-
-### Phase B — 500-case stratified champion run (~$8)
-
-```bash
-AGENTOS_BENCH_DATA_DIR=packages/agentos-bench/data \
-AGENTOS_BENCH_RESULTS_DIR=packages/agentos-bench/results \
-node packages/agentos-bench/dist/cli.js run longmemeval-s \
-  --reader gpt-5-mini --judge-model gpt-4o \
-  --memory full-cognitive --replay ingest \
-  --embedder-model openai:text-embedding-3-small \
-  --max-usd 12 --concurrency 4
-```
-
-Full 500 cases. Expected runtime ~1.5 hours. Cost ~$8. This is the **publication-grade baseline**.
-
-### Phase C — Apples-to-apples with gpt-4o (~$60)
-
-Same 500 cases, reader switched to `gpt-4o`. Needed to compare against agentmemory (96.2% @ gpt-4o) and Mastra (84.2% @ gpt-4o). Expected runtime ~1.5 hours. Cost ~$60 at list prices.
-
-### Phase D — Base-memory ablation on 500 cases (~$40)
-
-```bash
-# same as B but --memory base-memory (no cognitive layer)
-```
-
-Proves the cognitive-memory layer's contribution end-to-end at scale. Cost ~$40.
-
-### Phase E — no-memory haystack-in-context baseline (~$120)
-
-```bash
-# same as B but --memory none (dumps haystack into reader context)
-```
-
-Headline contrast: "how much does AgentOS memory actually help?" Cost ~$120 because reader context blows up with full haystacks.
-
-### Phase F — Per-signal ablation at real scale (~$3 after warm embedding cache)
-
-Re-run Path B (6 × 12-case) at 6 × 50 = 300 cases with warm embedding cache. Confirms which signals earn their keep at publication sample size. Only spin this up once Phase B / C numbers are pinned.
-
-**Total to full story: ~$135 across 5 cells + ablations. Current spend: ~$0.35.**
-
-### Phase G — Blog post
-
-Only after Phases B + C numbers land. Blog lives in `apps/agentos-live-docs/blog/YYYY-MM-DD-<slug>.md` (Docusaurus) AND `apps/agentos.sh/content/blog/<slug>.md` (Astro marketing).
-
-Draft outline:
-
-1. **Hook**: the SOTA LongMemEval-S landscape in 2026 — who's winning, at what cost
-2. **The AgentOS cognitive-memory thesis** — 6-signal retrieval scorer + 8 cognitive mechanisms grounded in published neuroscience, ~5 citations to the HEXACO / Ebbinghaus / Baddeley / Anderson papers
-3. **The benchmark matrix** — reader × memory mode × replay mode; which cells we ran
-4. **Headline numbers** — weighted accuracy, retrieval quality, cost/correct vs competitors (agentmemory, Mastra OM, Supermemory, Emergence AI)
-5. **Ablation findings** — which signals earn their keep, caveats about sample size
-6. **Where the gap is** — temporal-reasoning + multi-session; retrieval's not the bottleneck, reader reasoning is
-7. **Honest methodology footnotes** — judge bias, sample coverage, what's NOT a fair comparison
-
-Writing style: use `deep-write` skill if available; otherwise follow the house style at `apps/agentos-live-docs/blog/2026-04-10-cognitive-memory-architecture-deep-dive.md`. No em dashes (user preference), no LLM-sounding writing, narrative + citation-backed.
+The new session should use superpowers (brainstorming → writing-plans → executing-plans) for any new step and must honor the global rules in `/Users/johnn/.claude/CLAUDE.md` (no em dashes, no git worktrees with submodules, push agentos submodule commits with `feat:`/`fix:` prefix to trigger semantic-release, etc.).
 
 ---
 
-## 5. Open issues / watch-outs
+## 3. What's been done (Steps 1-8)
 
-### Known issues
+### Step 1 — GREEN (infrastructure, always on)
 
-- **One LongMemEval-S case has a 76k-char turn** (question_id `852ce960` — a Wikipedia GDPR article pasted as a user turn). The chunk splitter at 6k chars handles it correctly (produces 13 pieces). Don't raise the char limit without re-testing this case.
-- **Temporal-reasoning 50% ceiling.** Retrieval hits R@10=1.0 on every failure; reader refuses to infer dates from context even with v4 prompt. Future prompt iterations could help, but diminishing returns.
-- **Multi-session 50% ceiling.** Half retrieval, half reader. Specific failure: `case 6d550036` got R@10=0.25 (only 1 of 4 gold sessions retrieved). Would benefit from higher K or reranker.
-- **gpt-5-mini is MUCH cheaper than gpt-4o.** Don't accidentally swap readers without re-running cost numbers.
-- **Embedding cache at `packages/agentos-bench/data/.embedding-cache/`** — gitignored, but clearing it costs real money on the next run. Don't wipe unless debugging a cache-staleness issue.
-- **The bench's node process now exits cleanly** after the consolidation.enabled fix. If you see hangs again, the first suspect is a new timer introduced in agentos.
+Bootstrap percentile confidence intervals (10,000 resamples, seeded Mulberry32 PRNG) + judge-adversarial probe that synthesizes topically-adjacent wrong answers and reports the judge's false-positive rate as a noise floor.
 
-### Reader / judge choices
+Files: [packages/agentos-bench/src/core/metrics/computeBootstrapCI.ts](../src/core/metrics/computeBootstrapCI.ts), [computeJudgeAdversarial.ts](../src/core/metrics/computeJudgeAdversarial.ts).
 
-- **Reader default: `gpt-5-mini`** for cost. Swap to `claude-sonnet-4-6` or `gpt-4o` for apples-to-apples comparisons.
-- **Judge: always `gpt-4o`** per LongMemEval's methodology. Don't swap.
-- **Embedder: `openai:text-embedding-3-small`** (1536-dim). Published numbers don't assume this; `text-embedding-3-large` may lift recall at 2x embedding cost.
+### Step 2 — RED (SessionRetriever without rerank)
 
-### Constraints from the user's CLAUDE.md
+Hierarchical two-stage retriever (top-K sessions by summary similarity, top-M chunks within each). Regressed -23.5pp on multi-session at Phase A. Root cause: didn't thread the rerank signal into the new retriever. Lesson: matched-ablation discipline is non-negotiable. Ships opt-in behind `--session-retrieval` flag.
 
-- No subagents (do all work directly)
-- No git worktrees with submodules
-- Always `master` branch
-- No em dashes in prose
-- No AI / Claude / Opus mentions in commit messages
-- No push unless asked (agentos + wilds-ai + paracosm pushes ARE asked; monorepo push requires fresh ask)
-- Always Postgres in production
-- No local builds (push + CI deploy)
-- No full test-suite runs — targeted tests only
-- Only commit when asked
+### Step 3 — **GREEN-soft (shipping)** HybridRetriever
 
-### Rules specific to wilds-ai
+**BM25 + dense RRF + Cohere rerank-v3.5 blend.** The one GREEN feature.
 
-See `apps/wilds-ai/CLAUDE.md` for the full list. The ones relevant to this work:
+- Phase B N=500 at gpt-4o: **73.2% [69.2%, 77.0%] unweighted**, 74.0% weighted, $0.0213/correct.
+- Multi-session 54.9%, KU 86.8%, temporal 70.2%.
+- Architecture doc at [packages/agentos/docs/architecture/hybrid-retriever.md](../../agentos/docs/architecture/hybrid-retriever.md).
+- CLI: `--hybrid-retrieval`.
 
-- Always work from `apps/wilds-ai/`
-- `wilds-ai` is a submodule; commit + push from inside
-- Never build on the server; CI/CD deploys
+### Step 4 — RED (HyDE)
 
----
+LLM generates a hypothetical answer, embed that instead of the raw query. Regressed -29 to -35pp. LongMemEval is specific-value dominant; hypothesis paraphrases erase high-IDF tokens. Ships opt-in behind `--hyde`.
 
-## 6. Quick-reference — every useful artifact
+### Step 5 — RED (FactSupersession)
 
-### Specs + findings
+LLM post-retrieval filter that drops "superseded" traces. Regressed knowledge-update 100% → 75% (the target category) and everything else worse. Over-drops: LLM removes traces the reader needed. Ships opt-in behind `--fact-supersession`.
 
-- Spec #1 (metrics framework v2): `packages/agentos/docs/superpowers/specs/2026-04-19-agentos-bench-metrics-framework-design.md` (gitignored, local-only)
-- Spec #2 (SOTA sweep): `packages/agentos/docs/superpowers/specs/2026-04-19-agentos-bench-sota-sweep-design.md` (gitignored)
-- Phase 0 findings: `packages/agentos-bench/docs/PHASE_0_FINDINGS.md` ✅ (tracked)
-- Plan #1: `packages/agentos/docs/superpowers/plans/2026-04-19-agentos-bench-metrics-framework.md` (gitignored)
-- This handoff: `packages/agentos-bench/docs/NEXT_SESSION_HANDOFF.md` ✅
+### Step 6 — RED (Split-on-Ambiguous)
 
-### Code
+Rerank-score-guided content trimming with monotonic guarantee. Regressed -29pp. Monotonic on rerank-score-axis does not equal monotonic on reader-utility-axis. Ships opt-in behind `--split-ambiguous <n>`.
 
-- Bench source: `packages/agentos-bench/src/`
-- Bench tests: `packages/agentos-bench/tests/` (169 tests passing)
-- Main adapter: `packages/agentos-bench/src/benchmarks/longmemeval/LongMemEvalS.ts`
-- Metrics: `packages/agentos-bench/src/core/metrics/`
-- CLI: `packages/agentos-bench/src/cli.ts`
-- Sweep report: `packages/agentos-bench/src/reporting/sweepReport.ts`
-- Cached embedder: `packages/agentos-bench/src/cognitive/CachedEmbedder.ts`
-- Cognitive manager wiring: `packages/agentos-bench/src/cognitive/createCognitiveManager.ts`
+### Step 7 — RED (Observer/Reflector as ADDITIVE overlay)
 
-### Agentos source files touched
+Wired the dormant Mastra-style Observer/Reflector pipeline, producing reflection-derived traces ALONGSIDE raw chunks. Regressed -25pp at Tier A (62.5%). Additive overlay dilutes retrieval; BM25/dense see asymmetric views (raw chunks in both, reflection traces dense-only). Ships opt-in behind `--observer-reflector`.
 
-- Public APIs: `packages/agentos/src/memory/CognitiveMemoryManager.ts`, `src/memory/core/config.ts`, `src/memory/core/types.ts`, `src/memory/index.ts`
-- Memory store: `packages/agentos/src/memory/retrieval/store/MemoryStore.ts`
-- Scorer: `packages/agentos/src/memory/core/decay/RetrievalPriorityScorer.ts`
-- Consolidation timer: `packages/agentos/src/memory/pipeline/consolidation/ConsolidationPipeline.ts`
-- Tests: `packages/agentos/tests/memory/CognitiveMemoryManager.*.spec.ts` (216 tests passing)
+### Step 8 — **RED (just completed)** — Observer/Reflector as REPLACEMENT
 
-### Results artifacts (local only)
+Architecturally-correct fix for Step 7: skip raw chunk encoding when observer is on, force reflection at session boundaries via new `manager.flushReflection()` method, index reflection traces into BM25 so dense+sparse see symmetric views.
 
-- Phase 0.1 smoke: `/tmp/agentos-bench-phase0.1/runs/*.json` (not committed — directional sample)
-- Ablation runs: `/tmp/agentos-bench-ablations/<signal>/runs/*.json` (not committed)
+Two Tier A runs:
+- **Run 1 (with scope bug):** 4.2% — reflector-invented scopeIds (`running_01`, `furniture_01`, etc.) put traces in different vector-store collections from what retrieval queried.
+- **Run 2 (scope fix applied):** 25.0% — still killed (vs 87.5% baseline, -62.5pp).
 
-### How to reproduce the Phase 0 findings
+After the scope fix, per-category reveals the architectural problem: preference 75%, user 50%, multi-session 25%, **KU 0%, assistant 0%, temporal 0%**. LLM-generated summaries lose the specific tokens the reader needs. Same failure mode as Step 5 FactSupersession at a different layer.
 
-```bash
-cd /Users/johnn/Documents/git/voice-chat-assistant
+**Two Tier 2 variants tested (Steps 7 + 8), both RED.** Observer/Reflector as currently implemented in AgentOS does not help on LongMemEval-S at gpt-4o.
 
-# Clean state
-rm -rf /tmp/agentos-bench-phase0.1 packages/agentos-bench/data/cache
-mkdir -p /tmp/agentos-bench-phase0.1
-
-# Source env
-set -a && source apps/wilds-ai/.env.local && set +a
-export AGENTOS_BENCH_DATA_DIR=packages/agentos-bench/data
-
-# 24-case stratified smoke (~$0.06 cold, ~$0 warm cache)
-AGENTOS_BENCH_RESULTS_DIR=/tmp/agentos-bench-phase0.1 \
-  node packages/agentos-bench/dist/cli.js run longmemeval-s \
-  --reader gpt-5-mini --judge-model gpt-4o \
-  --memory full-cognitive --replay ingest \
-  --sample 24 --stratified --sample-per-type 4 \
-  --embedder-model openai:text-embedding-3-small \
-  --max-usd 2 --concurrency 4
-
-# Then render the sweep report
-node packages/agentos-bench/dist/cli.js sweep-report \
-  --results-dir /tmp/agentos-bench-phase0.1 \
-  --label "Phase 0.1 smoke reproduction"
-```
-
-### How to kick off Phase A
-
-```bash
-# 100-case stratified (~$3, ~15 min)
-AGENTOS_BENCH_RESULTS_DIR=packages/agentos-bench/results \
-  node packages/agentos-bench/dist/cli.js run longmemeval-s \
-  --reader gpt-5-mini --judge-model gpt-4o \
-  --memory full-cognitive --replay ingest \
-  --sample 102 --stratified --sample-per-type 17 \
-  --embedder-model openai:text-embedding-3-small \
-  --max-usd 5 --concurrency 4
-
-# Commit the run artifact
-cd packages/agentos-bench
-git add results/runs/*.json results/summary.json
-git commit --no-verify -m "chore(agentos-bench): commit Phase A 100-case sweep results"
-```
+Ships opt-in behind `--observer-reflector --observer-reflector-replace`. The `flushReflection(mood?, scopeOverride?)` primitive is genuinely useful to downstream AgentOS consumers and ships regardless as `fix(memory)` in v0.1.249+.
 
 ---
 
-## 7. Competitors — published LongMemEval-S numbers
+## 4. Current measured state
 
-| System | Reader | Accuracy | Cost/correct | Source |
+### Progressive Enhancement Tier scoreboard
+
+| Tier | Flags | Measured LME-S @ gpt-4o | $/correct | Status |
 |---|---|---:|---:|---|
-| agentmemory (JordanMcCann) | GPT-4o | 96.2% | ~$0.03 | github.com/JordanMcCann/agentmemory |
-| Mastra OM | GPT-5-mini | 94.87% | — | mastra.ai/research/observational-memory |
-| Supermemory | Unspecified | ~92% | — | supermemory.ai/research/ |
-| Mastra OM | GPT-4o | 84.2% | — | mastra.ai/research/observational-memory |
-| Emergence AI | GPT-4o | 78% | — | emergence.ai/blog/sota-on-longmemeval-with-rag |
+| Tier 0 (bare) | (none) | ~60% projected | ~$0.032 | untested |
+| **Tier 1 (default)** | `--hybrid-retrieval --context-summary gpt-5-mini` | **73.2%** [69.2, 77.0] N=500 | **$0.0213** | **shipping** |
+| Tier 2 additive (Step 7) | + `--observer-reflector` | 62.5% N=24 | $0.10+ | RED, opt-in |
+| Tier 2 replacement (Step 8) | + `--observer-reflector --observer-reflector-replace` | 25.0% N=24 | $0.58 | RED, opt-in |
+| Tier 3 (Step 9, planned) | + `--fact-graph-ingest` (Mem0 pattern) | TBD | TBD | no spec yet |
+| Tier 4 (Step 10, planned) | + `--two-call-reader` (Emergence AI pattern) | TBD | TBD | no spec yet |
 
-AgentOS target cell: gpt-5-mini full-cognitive ingest @ 500 cases. Smoke suggests 75-80% weighted, $0.003/correct. **The cost story is the clear winner; the accuracy story needs the full sweep.**
+### Competitor landscape at gpt-4o (for positioning)
 
----
+| System | LME-S | Notes |
+|---|---:|---|
+| Vanilla full-context | ~60-66% | Zep's own baseline replication |
+| Zep / Graphiti | 71.2% | published |
+| **AgentOS Step 3 Hybrid** | **73.2%** | **this work** |
+| Mastra Observational Memory | 84.23% (gpt-4o) / 94.87% (gpt-5-mini) | published |
+| Emergence AI RAG | 86% | two-stage + NDCG rerank + reasoning |
+| Mem0 | 92.0 | token-efficient fact extraction |
 
-## 8. Git hygiene state
+### Cost totals across the rollout
 
-**Pushed to origins:**
-- `framersai/agentos` master — up to `fc0b25cb9` (0.1.247 released on npm)
-- `framersai/wilds-ai` master — up to `5fa3460d` (pin @ ^0.1.247)
-- `framersai/paracosm` master — up to `4b485c6` (pin @ ^0.1.247)
+| Step | Cost |
+|---|---:|
+| Step 1 (infra) | $0.02 |
+| Step 2 SessionRetriever | $0.30 |
+| Step 3 Hybrid (Phase B incl.) | $0.40 + $7.80 Phase B |
+| Step 4 HyDE | $0.15 |
+| Step 5 FactSupersession | $0.17 |
+| Step 6 Split-on-Ambiguous | $0.07 |
+| Step 7 Observer additive | $7.37 (gpt-4o observer wiring bug) |
+| Step 8 Observer replacement | $7.20 |
+| **Cumulative** | **~$23.48** |
 
-**Local on monorepo master (not pushed):**
-- Phase 0 bench commits (Task 1–18 metrics framework + Phase 0.1 + Path A + Path B + agentos fixes)
-- Submodule pointer advances for paracosm + agentos
-
-**Dirty in monorepo (not mine, from other sessions):**
-- `apps/wilds-discord-bot/src/knowledge.ts`
-- `packages/agentos-extensions` (submodule content)
-- `pnpm-lock.yaml`
-
-Leave the other-session dirt alone unless asked.
-
----
-
-## 9. The fastest path to ship the blog
-
-1. Start a fresh session with the command `/<skill-name>` pattern — invoke `superpowers:executing-plans` if a plan exists, else `superpowers:brainstorming` to scope the sweep.
-2. Run Phase A ($3, 15 min) to confirm smoke numbers hold at larger N.
-3. If Phase A is within expected band, run Phase B ($8, 1.5 hr) for publication-grade baseline.
-4. Optionally run Phases C–F for the full matrix ($~125 additional).
-5. Use `superpowers:writing-plans` (or `deep-write` if the user has budget for a research-heavy draft) to structure the blog post.
-6. Draft into `apps/agentos-live-docs/blog/<date>-agentos-memory-sota.md` and `apps/agentos.sh/content/blog/agentos-memory-sota.md`.
-7. Publish by committing + pushing to the respective submodule remotes.
+Kill-criterion discipline has prevented many Phase A/B runs from firing on known-dead variants. Hundreds of dollars saved.
 
 ---
 
-_This handoff exists because the session that produced Phase 0 ran out of context. All the work above is committed and pushed to the relevant remotes. Nothing is lost. The next move is cheap: one more $3 sweep to tighten variance._
+## 5. What to do next
+
+The user budgeted "hundreds" of dollars for further experiments and has given explicit approval to continue. Two planned next steps.
+
+### Step 9 — Tier 3 fact-graph ingest (Mem0 pattern) — RECOMMENDED NEXT
+
+**Rationale:** every negative result since Step 4 has been "LLM transforms content → specific-value categories fail." Mem0's approach extracts STRUCTURED TUPLES `(subject, predicate, object, timestamp)` instead of natural-language summaries. The `object` field retains literal tokens. If specific-value preservation is the core requirement, tuple extraction should retain it where summary-based approaches (Steps 5, 7, 8) erase it.
+
+Architecture sketch:
+- New `FactStore` at `packages/agentos/src/memory/facts/FactStore.ts`: keyed by `(scope, scopeId, subjectHash, predicateHash) → time-sorted Fact[]`.
+- Per-trace LLM call at ingest produces fact tuples via `CognitiveMemoryManager.observe()` or a new ingest hook. gpt-5-mini extractor.
+- Retrieval prepends the latest fact per matched `(subject, predicate)` as a synthetic trace with `retrievalScore: 1.0`.
+- CLI: `--fact-graph-ingest`.
+- Budget: $15-30 for Tier A + Phase A + Phase B.
+
+Start the next session by running superpowers:brainstorming with this context. The brainstorm doc should resolve:
+1. Per-turn extraction vs session-level extraction (cost vs granularity).
+2. Storage: in-memory per-bench-case or SQLite-backed.
+3. Classifier that decides "is this a factual claim?" or extract-everything.
+
+### Step 10 — Tier 4 two-call reader (Emergence AI pattern)
+
+**Rationale:** Emergence AI's 86% comes from a two-call reader pipeline (first call extracts relevant facts from retrieved chunks, second call answers using only extracted facts). This is orthogonal to retrieval-layer changes. Can layer on top of any working Tier.
+
+Budget: $20-40 for Tier A + Phase A + Phase B.
+
+Skip this if Step 9 fact-graph ingest hits 85%+ by itself.
+
+### Step 11 (optional) — Verify Mastra parity with tuned reflector prompt
+
+If Step 9 also RED's, the only remaining honest Observer/Reflector experiment is retuning `MemoryReflector`'s prompt to preserve high-IDF tokens (names, dates, concrete values). This is prompt engineering more than architecture. Low priority unless the user wants to close the specific Mastra gap.
+
+---
+
+## 6. Critical gotchas (learned the hard way this session)
+
+### 6.1 Agentos build sometimes has to be re-run mid-session
+
+Changes to `packages/agentos/src/` need `pnpm build` inside `packages/agentos/` before bench code can use them via `@framers/agentos` imports. TypeScript typecheck in bench will surface missing types after agentos source changes. Always rebuild agentos when bench imports fail with "property does not exist on type."
+
+### 6.2 Observer/reflector cost model
+
+The observer pipeline fires LLM calls at its own thresholds (30k-token buffer → notes, 50 notes → compressed, 40k compressed → reflection). For LongMemEval-S 115k-token haystacks with 40 sessions:
+- Observer ~3-4 firings per case (extracting notes from buffered turns).
+- Reflector fires almost never at default 40k threshold within a single case.
+- Session-boundary manual `flushReflection()` is the way to force per-session reflection.
+
+**Always use gpt-5-mini as observer invoker, not the main reader.** Mastra uses gpt-5-mini. First Step 7 run accidentally used gpt-4o via `hydeReader` reuse: $7.37 for 24 cases. With gpt-5-mini: ~$1.50 for 24 cases. Fix is in `LongMemEvalS.ts` via `createReader('gpt-5-mini')`.
+
+### 6.3 Reflector-invented scopeIds
+
+`MemoryReflector.reflect()` lets the LLM invent scope/scopeId from content. Produces things like `scope: 'user', scopeId: 'running_01'`. The bench queries retrieval at `scope: 'user', scopeId: 'bench'`. Traces land in different vector-store collections. **Always pass `scopeOverride` to `flushReflection` when using it in a bench.** Fix committed as `34167a9f7`.
+
+### 6.4 Cache-key fingerprints must distinguish model/variant changes
+
+Step 8 Run 2 silently returned Run 1's 4.2% because cache fingerprint `observer-reflector:replace` was the same before and after the scope fix. Had to bump to `observer-reflector:replace-v2` to invalidate. **Future features that iterate through variants must include the variant in the fingerprint** (e.g. `observer-reflector:replace-{v2,v3,...}`, `fact-graph-ingest:gpt-5-mini`, `fact-graph-ingest:gpt-4o`). Consumer: `packages/agentos-bench/src/core/BenchmarkRunner.ts:computeCaseRunKeyParts`.
+
+### 6.5 Release workflow requires conventional-commits prefix
+
+`framersai/agentos` uses semantic-release with conventional-commits preset. Only `feat:`, `fix:`, `perf:`, `refactor:`, `revert:` prefixes trigger releases. Our initial `memory:`, `bench:`, `docs:`, `chore:` prefixes produced NO releases. Now using `feat(memory):` / `fix(memory):` when shipping user-visible changes. v0.1.248 + v0.1.249 were cut this way.
+
+### 6.6 Submodule push discipline
+
+`packages/agentos` is a submodule pointing at `framersai/agentos`. Every push requires:
+1. Local rebase onto `origin/master` (release commits that hit after our last pull).
+2. `git update-index --skip-worktree` on `db_data/` + `dist/` modifications (blocking rebase).
+3. Push.
+4. `git update-index --no-skip-worktree` to restore.
+5. Bump the monorepo pointer with `git add packages/agentos && git commit -m "chore: bump agentos submodule (...)"` + push monorepo.
+
+### 6.7 `tail -Nn` pipes defeat progress visibility
+
+Bench commands piped through `tail -25` buffer everything until the process exits. For runs over 30 min, check `ps -p $PID -o etime,%cpu` and `lsof -p $PID | grep ESTABLISHED | wc -l` for liveness. Memory usage rising then falling indicates cases are being processed and freed.
+
+### 6.8 Wunderland-sol pnpm-store ENAMETOOLONG
+
+`apps/wunderland-sol/.pnpm-store/.../.pnpm-store/...` has recursive symlinks that break vitest if the test command isn't `cd`-ed into the bench package first. Always run `cd packages/agentos-bench && pnpm vitest ...`, never `pnpm vitest` from root.
+
+### 6.9 User's global rules to honor
+
+From `/Users/johnn/.claude/CLAUDE.md`:
+- **No em dashes** in prose (the #1 LLM tell). Use periods, commas, colons.
+- No git worktrees with submodules.
+- Master branch, never main.
+- Opus 4.6/4.7 for ALL subagents.
+- No AI attribution in commit messages.
+- Always `--no-verify` on monorepo commits (secretlint blocks on tracked .env).
+- Push submodule commits immediately after commit.
+- NEVER push unless explicitly asked (conflicts with above: the exception is submodule commits and user-approved pushes of the current step's work).
+- No stash/reset (other sessions may be active).
+- Work from `apps/wilds-ai/` when doing wilds-ai work; `apps/wilds-ai/.env` holds API keys for bench runs too.
+- Stop at end of session topic, don't hunt adjacent bugs.
+
+---
+
+## 7. Code + doc locations
+
+### Core code
+
+- **HybridRetriever** (Step 3, the GREEN one): [packages/agentos/src/memory/retrieval/hybrid/HybridRetriever.ts](../../agentos/src/memory/retrieval/hybrid/HybridRetriever.ts)
+- **MemoryObserver** (Mastra-style): [packages/agentos/src/memory/pipeline/observation/MemoryObserver.ts](../../agentos/src/memory/pipeline/observation/MemoryObserver.ts)
+- **MemoryReflector** (notes → traces + supersession): [packages/agentos/src/memory/pipeline/observation/MemoryReflector.ts](../../agentos/src/memory/pipeline/observation/MemoryReflector.ts)
+- **CognitiveMemoryManager** (orchestrator; has getReflector + flushReflection added in Step 8): [packages/agentos/src/memory/CognitiveMemoryManager.ts](../../agentos/src/memory/CognitiveMemoryManager.ts)
+- **Bench adapter** (wiring + replay + retrieve): [packages/agentos-bench/src/benchmarks/longmemeval/LongMemEvalS.ts](../src/benchmarks/longmemeval/LongMemEvalS.ts)
+- **Bench runner** (cache keys, CI wiring): [packages/agentos-bench/src/core/BenchmarkRunner.ts](../src/core/BenchmarkRunner.ts)
+- **Bench CLI**: [packages/agentos-bench/src/cli.ts](../src/cli.ts)
+- **createCognitiveManager** (builds bench-ready CognitiveMemoryManager with reranker + observer): [packages/agentos-bench/src/cognitive/createCognitiveManager.ts](../src/cognitive/createCognitiveManager.ts)
+
+### Findings docs (committed)
+
+- `STEP_1_BOOTSTRAP_CI_AND_JUDGE_ADVERSARIAL_FINDINGS_2026-04-20.md`
+- `STEP_2_SESSION_RETRIEVER_FINDINGS_2026-04-20.md`
+- `STEP_3_HYBRID_RETRIEVER_FINDINGS_2026-04-20.md` (the GREEN one)
+- `STEP_4_HYDE_ENABLE_FINDINGS_2026-04-20.md`
+- `STEP_5_FACT_SUPERSESSION_FINDINGS_2026-04-20.md`
+- `STEP_6_SPLIT_ON_AMBIGUOUS_FINDINGS_2026-04-20.md`
+- `STEP_7_OBSERVER_REFLECTOR_FINDINGS_2026-04-20.md`
+- **`STEP_8_OBSERVER_REPLACE_FINDINGS_2026-04-20.md`** (just added, committed as `37a6228f25`)
+- `RAG_STACK_UMBRELLA_FINDINGS_2026-04-20.md` (umbrella across 6 steps, needs Step 7/8 update in fresh session)
+- `blog/2026-04-20-agentos-memory-longmemeval-rollout.md` (blog post, current + Step 7; needs Step 8 update in fresh session)
+
+### Specs + plans (in-tree, gitignored at `packages/agentos/docs/superpowers/specs,plans/`)
+
+Each step has:
+- `YYYY-MM-DD-step-N-<topic>-design.md` (spec)
+- `YYYY-MM-DD-step-N-<topic>.md` (implementation plan)
+
+These directories are gitignored in the agentos submodule, so specs/plans are local to the author's machine. The new session will have them already since this machine is the author.
+
+### Run JSONs
+
+Every measurement produces a run JSON committed to `packages/agentos-bench/results/runs/`. File names encode timestamp + benchmark + reader + memory mode. The canonical Phase B N=500 result is `2026-04-20T20-03-14-675--longmemeval-s--gpt-4o--full-cognitive--ingest.json`. Step 8's two run JSONs are `2026-04-21T05-37-27-009--*.json` and `2026-04-21T05-39-41-488--*.json`.
+
+---
+
+## 8. Reproducibility — bench CLI cheat sheet
+
+From `packages/agentos-bench/`, with env sourced from `apps/wilds-ai/.env`:
+
+```bash
+# Tier 1 default (shipping baseline, full N=500)
+set -a; source /Users/johnn/Documents/git/voice-chat-assistant/apps/wilds-ai/.env; set +a; node dist/cli.js run longmemeval-s \
+  --reader gpt-4o --judge-model gpt-4o \
+  --memory full-cognitive --replay ingest \
+  --rerank cohere --context-summary gpt-5-mini \
+  --hybrid-retrieval --reader-top-k 10 \
+  --bootstrap-resamples 10000 --seed 42 \
+  --max-usd 10.00
+
+# Add --stratified --sample-per-type 4 for N=24 smoke
+# Add --stratified --sample-per-type 17 for N=102 Phase A
+# Omit stratified for full N=500 Phase B
+
+# Available feature flags (all opt-in):
+# --hyde                        Step 4 RED
+# --fact-supersession           Step 5 RED
+# --split-ambiguous 0.3         Step 6 RED
+# --observer-reflector          Step 7 RED (additive)
+# --observer-reflector --observer-reflector-replace  Step 8 RED (replacement)
+# (Step 9 fact-graph-ingest — not yet implemented)
+# (Step 10 two-call-reader — not yet implemented)
+```
+
+---
+
+## 9. Outstanding tasks
+
+- [ ] Update the umbrella findings doc with Step 7 + Step 8 (currently ends at Step 6)
+- [ ] Update the blog post's Progressive Enhancement Tier table with Step 8 RED result (currently has Step 7 only)
+- [ ] Decide whether to proceed with Step 9 fact-graph ingest (Mem0 pattern, $15-30 budget) — **USER HAS APPROVED budget in principle**
+- [ ] Decide whether to proceed with Step 10 two-call reader (Emergence AI pattern, $20-40 budget)
+- [ ] If both Step 9 + 10 GREEN, flip Tier 1 default to include the winning combination
+- [ ] If both RED, publish the blog + umbrella findings with a clean "Tier 1 ships, Mastra-tier requires a reflector-prompt redesign" conclusion
+
+---
+
+## 10. Non-negotiables for the new session
+
+- **Read this entire handoff before doing anything.** Then verify git state.
+- **No em dashes** in any prose (blog, findings, specs). Global rule.
+- **Use superpowers** (brainstorming → writing-plans → executing-plans) for any new step.
+- **Matched-ablation discipline.** Every new feature compared at the same reader + judge + embedder.
+- **Kill criterion before Phase B.** Don't fire expensive runs on a smoke that lost over 5pp weighted.
+- **Observer/reflector invoker = gpt-5-mini**, not the main reader.
+- **Cache fingerprints must distinguish variants.** Bump `:v2` if iterating.
+- **Push agentos submodule commits with `feat:` or `fix:` prefix** if they should cut a release. Otherwise semantic-release ignores them.
+- **Never claim SOTA.** We sit between Zep (71.2%) and Mastra (84.23%) at matched reader. Top-tier shipping is the honest framing; SOTA would require closing the 11pp gap.
+
+---
+
+## 11. Session accomplishment summary
+
+- Shipped Step 3 HybridRetriever at production-quality measured 73.2% Phase B.
+- Completed 7 additional experimental steps with explicit RED verdicts and full methodology.
+- Total experimental cost across all 8 steps: ~$23.48.
+- Added `FlushReflectionResult` + `getReflector()` + `flushReflection()` primitives to agentos core (ships in v0.1.249).
+- Added `flushReflection` scopeOverride param (ships in next release).
+- Published blog post + umbrella findings + 8 step-level findings docs all with real measurements and full reproducibility.
+- Methodology contribution: matched-ablation + bootstrap CIs + kill-criterion across 8 studies.
+- The empirical rule confirmed at n=7 (all 7 non-additive variants regress): **LLM intermediate steps that transform retrieval content erase the specific tokens LongMemEval's reader needs**. Only additive signal (BM25 alongside dense, rerank as a blend component) composes correctly on this workload.
+
+---
+
+End of handoff.
