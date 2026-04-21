@@ -38,7 +38,8 @@ export type ReaderModel =
   | 'claude-opus-4-7'
   | 'claude-sonnet-4-6'
   | 'gpt-4o'
-  | 'gpt-4o-mini';
+  | 'gpt-4o-mini'
+  | 'gpt-5-mini';
 
 /**
  * Memory mode under evaluation.
