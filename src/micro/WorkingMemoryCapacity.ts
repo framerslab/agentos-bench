@@ -158,7 +158,7 @@ export class WorkingMemoryCapacity implements IBenchmark {
         .sort();
       evictionCorrect =
         retainedTraceIds.length === expectedRetained.length &&
-        retainedTraceIds.every((id, i) => id === expectedRetained[i]);
+        retainedTraceIds.every((id: string, i: number) => id === expectedRetained[i]);
     }
 
     const passed = capacityCorrect && slotCountCorrect && evictionCorrect;
