@@ -2,8 +2,6 @@
 
 Last updated: 2026-04-20T20:03:14.675Z
 
-Step 11 tuned reflector prompt null result (62.5% = Step 7); Step 9 fact-graph RED at 58.3%; Tier 1 Hybrid (73.2%) remains shipping default
-
 Our rows are produced by `@framers/agentos-bench` against the linked source datasets.
 Competitor rows are lifted verbatim from their published sources (see per-row citations).
 Methodologies may differ; every row footnotes its reader LLM so comparisons stay honest.

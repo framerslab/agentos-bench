@@ -10,18 +10,20 @@
 **What's shipping on master right now:**
 
 - **Tier 1 HybridRetriever** (BM25 + dense RRF + Cohere rerank-v3.5 blend + session-level contextual summaries) at **73.2% unweighted [69.2%, 77.0%]** on LongMemEval-S Phase B N=500, gpt-4o reader + gpt-4o judge, **$0.0213 per correct answer**. Canonical run: [packages/agentos-bench/results/runs/2026-04-20T20-03-14-675--longmemeval-s--gpt-4o--full-cognitive--ingest.json](../results/runs/2026-04-20T20-03-14-675--longmemeval-s--gpt-4o--full-cognitive--ingest.json).
-- Agentos submodule at **v0.1.254**, monorepo `master` pointer bumped.
-- Summary.json canonical row **protected by N-regression guard** — smaller-N smokes no longer clobber larger-N canonicals. Guard fired in production twice this session.
+- Agentos submodule at **v0.1.255** (pinecone vector-store refinements landed post-handoff from another session), monorepo `master` pointer bumped. Step 12 is bench-only so no agentos changes required.
+- Summary.json canonical row **protected by N-regression guard** — smaller-N smokes no longer clobber larger-N canonicals. Guard fired in production three times this session (Step 8, Step 9, and three times across Step 12's v1/v2/v4 attempts).
 
-**What's been tested and RED (don't re-run without a new architectural reason):** Steps 2 (SessionRetriever w/o rerank), 4 (HyDE), 5 (FactSupersession), 6 (Split-on-Ambiguous), 7 (Observer/Reflector additive), 8 (Observer/Reflector replacement), 9 (Fact-Graph Mem0 tuple), 11 (tuned reflector prompt null).
+**What's been tested and RED / null (don't re-run without a new architectural reason):** Steps 2 (SessionRetriever w/o rerank), 4 (HyDE), 5 (FactSupersession), 6 (Split-on-Ambiguous), 7 (Observer/Reflector additive), 8 (Observer/Reflector replacement), 9 (Fact-Graph Mem0 tuple), 11 (tuned reflector prompt null), **12 (BM25 parity sweep for reflection traces null)**.
 
-**What's the n=7 pattern:** every retrieval modification that routes content through an LLM at ingest or query time regresses on specific-value LongMemEval-S. Summaries erase tokens (Steps 5/7/8). Tuple extraction displaces raw chunks (Step 9). Prompt tuning alone doesn't close the gap (Step 11). The `evidenceOrigin` instrumentation proved on Step 9 AND Step 11 that synthetic / reflection traces are never load-bearing for the reader — they're decorative.
+**What's the n=8 pattern:** every retrieval modification that routes content through an LLM at ingest or query time regresses on specific-value LongMemEval-S. Summaries erase tokens (Steps 5/7/8). Tuple extraction displaces raw chunks (Step 9). Prompt tuning alone doesn't close the gap (Step 11). **BM25 visibility alone doesn't either (Step 12).** The `evidenceOrigin` instrumentation proved on Step 9, Step 11, AND Step 12 that synthetic / reflection traces are never load-bearing for the reader — they're decorative. Step 12's stage metrics match Step 11 exactly (dense 0.347, sparse 0.882, merged 0.774, final 0.740), confirming reflection traces cannot outscore raw chunks on tf-idf for specific-value queries even when present in the sparse index.
 
-**What's the shipping-honest competitor position:** 73.2% sits above Zep's 71.2% at gpt-4o, below the current 81.6-86.0% gpt-4o frontier band (Supermemory, Mastra OM, Emergence AI). Mem0's public pages disagree internally (92.0 vs 93.4), flagged in the blog as a source-verification caveat. The **methodology** (matched ablation + bootstrap CIs + kill criterion + evidence-provenance + content-addressed caching) is the publication-grade differentiator — most competitors don't publish ablation disciplines this tight.
+**What's the shipping-honest competitor position:** 73.2% sits above Zep's 71.2% at gpt-4o, below the current 81.6-86.0% gpt-4o frontier band (Supermemory, Mastra OM, Emergence AI). Mem0's public pages disagree internally (92.0 vs 93.4), flagged in the blog as a source-verification caveat. The **methodology** (matched ablation + bootstrap CIs + kill criterion + evidence-provenance + content-addressed caching) is the publication-grade differentiator — most competitors don't publish ablation disciplines this tight. Three independent mechanism-level tests (Steps 9, 11, 12) now converge on the same conclusion about reflection-trace load-bearing, which is itself a publishable finding.
 
-**What's most likely to move numbers next:** Step 12 BM25-parity for observer-reflector traces. The `sparse.recall 0.882` vs `dense.recall 0.347` split in the Step 11 run JSON shows BM25 is doing the retrieval work on specific-value queries; reflection traces currently bypass BM25 because they go through `manager.encode()` inside `manager.observe()`, and the bench's BM25 hook only fires on raw chunk encoding. Wire reflection content into `hybridBm25` after observer cycles and re-run Step 7 ADDITIVE config. $3-5 Tier A.
+**What's most likely to move numbers next:** Step 13 graph activation wire-up. Audit finding from this session: `graphActivation` is weighted 10% in `RetrievalPriorityScorer.ts` but hardcoded to 0 at `MemoryStore.ts:376` and `HybridRetriever.ts:560`. The `SqliteKnowledgeGraph` is instantiated but `entityIds: []` is passed to every `recordMemory` call, so the graph has zero edges. Wiring heuristic entity extraction at ingest (regex over caps / dates / numeric amounts, no LLM) + spreading activation at retrieve time is pure additive signal, no synthetic traces, no LLM routing. Dodges the n=8 pattern entirely. $2-4 Tier A.
 
-**Budget status:** ~$26.53 spent across 9 steps + $1.45 on Step 11 = **$27.98 total**. User said "hundreds" was fine. Plenty of runway for Step 12 + Step 10 + whatever.
+Alternative: Step 10 two-call reader (Emergence AI pattern, $20-40) — reader-side experiment, orthogonal to retrieval, different narrative.
+
+**Budget status:** ~$26.53 spent across Steps 1-9 + $1.45 on Step 11 + $1.84 on Step 12 (includes $0.37 from env-bug cache-corruption episode) = **~$29.82 total**. User said "hundreds" was fine. Plenty of runway for Step 13 + Step 10 + whatever.
 
 ---
 
@@ -72,7 +74,9 @@ Then wrote + ran Step 9 fact-graph (Mem0 tuple pattern) as a bundled spec: Phase
 
 Then ran Step 11 tuned reflector prompt as a side sprint after user said "1" to go with that option. Hit a silent cache-hit bug — the first Tier A run returned Step 7's cached answers at $0.00 cost. User pushed back: "shouldnt u just fix the cache?" Correct call. Reverted the manual `:on-v2` fingerprint bump, implemented content-addressed cache key via `REFLECTOR_PROMPT_HASH` exported from agentos. Re-ran: **62.5% = 0pp change from Step 7**. Null result. Infrastructure shipped regardless.
 
-**Total commits this session: ~45 across monorepo + agentos submodule.**
+Then ran Step 12 BM25 parity as a follow-up per the handoff's own Option A recommendation. Wrote spec and plan at `packages/agentos-bench/docs/specs/2026-04-21-step-12-bm25-parity-design.md` and `plans/2026-04-21-step-12-bm25-parity-plan.md` (bench-level, not gitignored). Also completed a broader agentos memory-architecture audit during exploration, which surfaced an important finding: `graphActivation` is weighted 10% in the scoring formula but hardcoded to 0 at [MemoryStore.ts:376](../../agentos/src/memory/retrieval/store/MemoryStore.ts#L376) and [HybridRetriever.ts:560](../../agentos/src/memory/retrieval/hybrid/HybridRetriever.ts#L560); `SqliteKnowledgeGraph` gets `entityIds: []` on every `recordMemory` call, so the graph has no edges. That's queued as Step 13. Step 12 itself went through four attempts: v1 stalled (per-session `flushReflection` added ~1200 gpt-5-mini calls), v2 errored on a subprocess env-propagation bug that cached all 24 cases as OPENAI_API_KEY failures, v3 hit the cached v2 errors and "ran" in 6 seconds at $0 cost, v4 (cleared cache + renamed fingerprint `step-12-bm25-parity:v1` → `step-12-bm25-parity-sweep`) delivered the real verdict: **62.5% unweighted at N=24 — identical to Step 7 and Step 11**. Stage metrics match Step 11 exactly (sparse.recall 0.882). `evidenceOrigin: { user_statement: 20, none: 4 }` — third consecutive zero-reflection-attribution result after Steps 9 and 11. Infrastructure ships (helper, sweep, 8 unit tests, fingerprint) regardless of the null verdict.
+
+**Total commits this session: ~45 across monorepo + agentos submodule (Steps 9, 11) + Step 12 bench-only commits pending sign-off at end of session.**
 
 ---
 
@@ -119,21 +123,23 @@ Shipped in agentos, available to downstream consumers even though none currently
 
 ## 4. Pattern confirmations — what NOT to re-test without new ideas
 
-The n=7 RED pattern is load-bearing for any experiment prioritization. Before running anything that touches retrieval:
+The n=8 RED/null pattern is load-bearing for any experiment prioritization. Before running anything that touches retrieval:
 
 | Pattern | Evidence | Don't retry unless |
 |---|---|---|
-| **LLM content transformation regresses** | Steps 4, 5, 7, 8, 9 RED; Step 11 null | You have a specific mechanism that doesn't transform (e.g., parameter-free reranking, graph expansion) |
-| **Synthetic/reflection traces aren't load-bearing** | Step 9 `fact_graph: 0/24` + Step 11 `reflection: 0/24` attribution in `evidenceOrigin` | You fix the underlying BM25-parity or change the trace content format so the reader actually quotes it |
+| **LLM content transformation regresses** | Steps 4, 5, 7, 8, 9 RED; Steps 11, 12 null | You have a specific mechanism that doesn't transform (e.g., parameter-free reranking, graph expansion) |
+| **Synthetic/reflection traces aren't load-bearing** | Step 9 `fact_graph: 0/24` + Step 11 `reflection: 0/24` + Step 12 `reflection: 0/24` | You change the trace content format so the reader actually quotes it (span-index pointers, structural preservation) |
+| **BM25 visibility alone doesn't fix reflection uptake** | Step 12 sweep ran, sparse.recall unchanged at 0.882, reader still quoted raw chunks 20/24 times | You combine visibility + content-shape change simultaneously |
 | **`retrievalScore: 1.0` pinning is too aggressive** | Step 9 final.recall -6.2pp vs merged.recall from displacement | You use a confidence-weighted score (e.g., 0.5 ± fact-extraction-confidence) |
-| **Summary compression erases tokens** | Steps 5/7/8, confirmed by Step 11's null — prompt-tuning alone can't close the gap | The mechanism preserves literal spans structurally (e.g., span-index pointers, not free-form strings) |
+| **Summary compression erases tokens** | Steps 5/7/8, confirmed by Step 11's null — prompt-tuning alone can't close the gap | The mechanism preserves literal spans structurally (not free-form strings) |
 | **Multi-session is hard via retrieval alone** | 54.9% at N=500 vs Mastra's 87.2% | You use a fundamentally different architecture (graph expansion over entity edges, cross-session embedding) |
 
-The HONEST remaining retrieval experiments that are architecturally different:
+The HONEST remaining retrieval experiments that are architecturally different and NOT yet invalidated:
 
-1. **BM25 parity for observer-reflector traces** (Step 12 candidate — see §7 below). Wires reflection content into the bench's existing BM25 hook. Genuinely different because it gives reflection traces a sparse-side boost instead of hoping dense picks them up. $3-5.
-2. **Graph-expansion retrieval** — pull traces connected by shared-entity edges to the top-K. AgentOS has `SqliteKnowledgeGraph` + spreading activation; the bench doesn't use it for query expansion yet. Additive signal, not destructive. $1-2 Tier A.
-3. **Two-call reader** (Emergence AI's 86% comes from this pattern). Orthogonal to retrieval — first reader call extracts relevant facts from top-K, second answers from the extracted facts only. Changes the reader pipeline not the memory architecture. $20-40.
+1. **Graph activation wire-up (Step 13 candidate).** The silent-sixth-signal audit finding from this session. `graphActivation` is assigned 10% weight in the composite score but hardcoded to 0 at both `MemoryStore.ts:376` and `HybridRetriever.ts:560`. The `SqliteKnowledgeGraph` is populated with memory nodes but `entityIds: []` is passed to every `recordMemory` call, leaving the graph edge-less. Wiring heuristic entity extraction at ingest (regex over capitalized words, date patterns, numeric amounts — zero LLM) + spreading activation at retrieve time is pure additive signal. Dodges the n=8 pattern because it does not route content through an LLM at ingest or query time. $2-4 Tier A.
+2. **Two-call reader** (Emergence AI's 86% comes from this pattern). Orthogonal to retrieval — first reader call extracts relevant facts from top-K, second answers from the extracted facts only. Changes the reader pipeline not the memory architecture. $20-40 including Phase A + B.
+
+Step 12 (BM25 parity for reflection traces) is now closed: NULL result confirmed reflection-trace visibility is not the bottleneck.
 
 ---
 
@@ -254,27 +260,35 @@ NOT the Step 1 dense-only baseline. Step 3 Hybrid is what ships, so it's what yo
 
 ## 7. Next-step candidates (ranked by expected value per dollar)
 
-### Option A (recommended): Step 12 — BM25 parity for observer-reflector traces
+### Option A (recommended): Step 13 — graph activation wire-up (silent-sixth-signal fix)
 
-**Hypothesis.** Step 11's null proved prompt tuning doesn't close the Mastra gap. The Step 7 findings identified four root causes; only #4 (prompt quality) has been tested in isolation. Root cause #2 is BM25 index mismatch: reflection traces go through `manager.encode()` → skip the bench's `hybridBm25.addDocument(...)` hook → dense-only visibility → pushed down at rerank by exact-term-matching raw chunks.
+**Hypothesis.** Memory architecture audit surfaced this session: `graphActivation` is weighted 10% in the 6-signal composite score at [RetrievalPriorityScorer.ts:44](../../agentos/src/memory/core/decay/RetrievalPriorityScorer.ts#L44) but the input is hardcoded to 0 at [MemoryStore.ts:376](../../agentos/src/memory/retrieval/store/MemoryStore.ts#L376) and [HybridRetriever.ts:560](../../agentos/src/memory/retrieval/hybrid/HybridRetriever.ts#L560). The `SqliteKnowledgeGraph` is populated via `recordMemory` but with `entityIds: []`, leaving the graph edge-less. The spec describes a 6-signal composite; the implementation ships 5 signals with a silent sixth.
 
-**Evidence.** Step 11 stage metrics: `sparse.recall 0.882` vs `dense.recall 0.347`. BM25 is carrying the retrieval work. If reflection content gets a sparse-side boost it can compete.
+**Mechanism.** Heuristic entity extraction at ingest (regex over capitalized words, explicit date patterns, currency and numeric amounts — zero LLM), create memory-to-memory edges weighted by shared-entity count, run Anderson spreading activation from query-matched seeds at retrieve time, wire into the composite score as the sixth signal. All primitives exist in agentos; just need wiring + a bench-side CLI flag.
 
-**Implementation.** After each `manager.observe()` + optional `manager.flushReflection()` in `LongMemEvalS.ts::replayForCognitive`, enumerate newly-encoded reflection-trace IDs and `hybridBm25.addDocument(id, content, { tag: sessionTag })`. Reuse the same pattern Step 8 REPLACEMENT uses at line ~1387 of LongMemEvalS.ts (it already indexes `flushReflection.encodedTraceIds` into BM25 in replacement mode; extend to additive mode).
+**Why this dodges the n=8 pattern.** No LLM content transformation (regex extraction is deterministic). No synthetic traces injected into top-K (activation adjusts scoring, doesn't add candidates). Pure additive signal. Targets multi-session (54.9% — our weakest category) because cross-session entity bridges are exactly what graph activation promotes.
 
-**Budget.** $3-5 Tier A.
+**Budget.** $2-4 Tier A (no additional LLM cost beyond Tier 1 baseline; graph math is sub-ms CPU).
 
-**Gate.** unweighted >= 82.5% → proceed to Phase A. Otherwise RED, close out Observer/Reflector line.
+**Gate.** unweighted >= 77% at Tier A N=24 (modest lift over 73.2% canonical, reflecting the additive nature). If GREEN, proceed to Phase A N=102.
 
-**Side benefit.** Whatever the verdict, the BM25-parity fix is architecturally correct and should ship to make future observer-reflector experiments cleaner. If this is the bottleneck, Step 12 becomes the first GREEN Observer/Reflector variant. If it's not, the fix is still right.
+**Side benefit.** Whatever the verdict, the wire-up fixes a legitimate architectural bug (scoring formula with a silent input). The fix ships.
 
-### Option B: Graph-expansion retrieval
+### Option B: Step 10 — two-call reader (Emergence AI pattern)
 
-**Hypothesis.** AgentOS has a `SqliteKnowledgeGraph` with entity-relation edges + Anderson spreading activation. The bench doesn't use it at query time — retrieval is currently hybrid-only. A query-time pass that pulls traces connected to top-K retrievees via shared-entity edges is pure additive signal (doesn't replace anything, doesn't route through an LLM). Might lift multi-session (where entities bridge sessions) and temporal (where entity timelines matter).
+**Hypothesis.** Emergence's 86% at gpt-4o comes from splitting the reader: first call extracts relevant facts from top-K retrieved traces into a structured scratchpad, second call answers from the scratchpad only (no raw traces in final context). This eliminates the dilution problem where irrelevant retrieved chunks confuse the reader.
 
-**Budget.** $1-2 Tier A.
+**Budget.** $20-40 Tier A + Phase A + Phase B.
 
-**Why Option B instead of A?** If you think Observer/Reflector is a dead end and don't want to spend more cycles on it, graph-expansion is the cheapest additive-signal experiment untested.
+**Why lower-priority.** This is a READER-side change, not a MEMORY-side change. Agentos-memory-architecture claims aren't affected whether this works or not. But the raw 86% comparison vs our 73.2% is the biggest single gap that competitors publish; closing it is worth the cost if the user wants the strongest public claim.
+
+### Option C: Defense-of-numbers run (gpt-4o-internal validation)
+
+**Hypothesis.** Every Step 1-12 used gpt-5-mini for internal pipeline (session summarizer + observer-reflector LLM invoker + fact extractor). Reader + judge are gpt-4o. Mastra's public doc says their observer uses gpt-5-mini too, so we're internal-matched there. Mem0, Supermemory, Zep, Emergence don't specify internal-pipeline model. A single-cell all-gpt-4o run (summarizer + observer at gpt-4o) would test whether internal-pipeline model quality affects accuracy independent of retrieval architecture.
+
+**Budget.** $15-30 Tier A. Would not change the 73.2% canonical or invalidate any prior finding; would add a "our gpt-5-mini-internal choice is architecturally responsible" data point.
+
+**Why low-priority.** Only matters if reviewers / readers raise "you cheated with cheap internal calls." Don't run unless the publication narrative needs the extra defense.
 
 ### Option C: Two-call reader (Emergence AI pattern)
 
