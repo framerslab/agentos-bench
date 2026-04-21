@@ -113,6 +113,17 @@ export interface CreateCognitiveManagerOptions {
    * `hydeRetriever` set) for the HyDE path to actually execute.
    */
   hydeLlmInvoker?: (systemPrompt: string, userPrompt: string) => Promise<string>;
+
+  /**
+   * Step-7 (Tier 2): LLM invoker for Observer/Reflector pipeline. When
+   * set, `manager.initialize` receives `observer: { llmInvoker }` and
+   * `reflector: { llmInvoker }` so the three-tier pipeline activates.
+   * Typically wraps a cheap reader (gpt-5-mini) with cost tracking.
+   *
+   * Leave undefined to keep the Observer/Reflector pipeline dormant
+   * (bench default pre-Step-7).
+   */
+  observerReflectorLlmInvoker?: (systemPrompt: string, userPrompt: string) => Promise<string>;
 }
 
 /**
@@ -205,6 +216,12 @@ export async function createCognitiveManager(
     cognitiveMechanisms,
     rerankerService,
     featureDetectionLlmInvoker: opts.hydeLlmInvoker,
+    observer: opts.observerReflectorLlmInvoker
+      ? { llmInvoker: opts.observerReflectorLlmInvoker }
+      : undefined,
+    reflector: opts.observerReflectorLlmInvoker
+      ? { llmInvoker: opts.observerReflectorLlmInvoker }
+      : undefined,
     // Consolidation loop would spawn timers we don't want in a
     // short-lived per-case run. Disable it for benchmark cases.
     consolidation: { enabled: false } as unknown as import('@framers/agentos').CognitiveMemoryConfig['consolidation'],
