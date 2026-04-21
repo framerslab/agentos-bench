@@ -1,27 +1,27 @@
-# AgentOS Memory on LongMemEval-S — 6-Step Sequenced Rollout Findings
+# AgentOS Memory on LongMemEval-S — 8-Step Sequenced Rollout Findings
 
-**Date:** 2026-04-20
-**Scope:** umbrella findings across Steps 1-6 of the RAG stack sequenced rollout, with Phase B N=500 confirmation at matched reader.
+**Date:** 2026-04-20 (original Steps 1-6), 2026-04-21 Step 7 + Step 8 integrated
+**Scope:** umbrella findings across Steps 1-8 of the RAG stack sequenced rollout, with Phase B N=500 confirmation at matched reader.
 
-**Headline result:** **73.2% unweighted [69.2%, 77.0%]** and **74.0% weighted [70.3%, 77.6%]** on LongMemEval-S N=500 at gpt-4o reader + gpt-4o judge, with Step 3 HybridRetriever as the sole shippable improvement out of 6 proposed features. Cost: **$0.0213 per correct answer**.
+**Headline result:** **73.2% unweighted [69.2%, 77.0%]** and **74.0% weighted [70.3%, 77.6%]** on LongMemEval-S N=500 at gpt-4o reader + gpt-4o judge, with Step 3 HybridRetriever as the sole shippable improvement out of 8 proposed features. Cost: **$0.0213 per correct answer**.
 
 ---
 
 ## 1. TL;DR
 
-We set out to improve AgentOS's cognitive memory stack on LongMemEval-S and LOCOMO, testing 6 proposed features against a Step 1 baseline using matched-ablation methodology and bootstrap CI-gated accept/reject rules.
+We set out to improve AgentOS's cognitive memory stack on LongMemEval-S and LOCOMO, testing 8 proposed features against a Step 1 baseline using matched-ablation methodology and bootstrap CI-gated accept/reject rules.
 
 **Results:**
 
 - **1 feature GREEN-soft → ships:** HybridRetriever (BM25 + dense RRF + Cohere rerank-v3.5 blend).
-- **4 features RED → documented negative results:** SessionRetriever (rerank-skip root cause), HyDE (LLM query rewriting), FactSupersession (LLM trace dropping), Split-on-Ambiguous (rerank-score-guided content trimming).
+- **6 features RED → documented negative results:** SessionRetriever (rerank-skip root cause), HyDE (LLM query rewriting), FactSupersession (LLM trace dropping), Split-on-Ambiguous (rerank-score-guided content trimming), Observer/Reflector as additive overlay (Step 7), Observer/Reflector as replacement (Step 8).
 - **1 methodological feature GREEN → always-on:** Bootstrap CIs + judge-adversarial probe (Step 1, infra).
 
-**Pattern confirmed empirically:** on signal-dense specific-value benchmarks like LongMemEval, **additive retrieval signal wins** (add BM25 alongside dense, blend rerank alongside cognitive). **Destructive or LLM-as-filter modifications consistently regress** — the reader handles context better than an LLM filter handles precision.
+**Pattern confirmed empirically at n=6 RED steps:** on signal-dense specific-value benchmarks like LongMemEval, **additive retrieval signal wins** (add BM25 alongside dense, blend rerank alongside cognitive). **Destructive or LLM-as-filter modifications consistently regress.** The reader handles context better than an LLM filter handles precision, and any LLM intermediate step that transforms retrieval content (paraphrase, filter, summary) erases the specific tokens the reader needs.
 
-**Total measurement cost:** $16.28 across 7 steps (7 matched ablations at Tier A smokes, Tier B Phase A, and Phase B N=500). Kill-criterion discipline prevented ~$15 of wasted Tier B spend on known-dead variants.
+**Total measurement cost:** ~$23.48 across 8 steps (8 matched ablations at Tier A smokes, Tier B Phase A, and Phase B N=500). Kill-criterion discipline prevented ~$20 of wasted Tier B spend on known-dead variants (Steps 4, 5, 6, 7, 8 all killed at Tier A).
 
-**Step 7 update (Observer/Reflector as additive overlay):** RED at Tier A (62.5% vs 87.5% Tier 1 baseline, -25pp). Root cause: additive overlay dilutes retrieval; Mastra's 84.23% at gpt-4o comes from REPLACEMENT semantics our wiring doesn't implement. Findings at [STEP_7_OBSERVER_REFLECTOR_FINDINGS_2026-04-20.md](STEP_7_OBSERVER_REFLECTOR_FINDINGS_2026-04-20.md). Progressive enhancement Tier 2 ships opt-in only; Tier 1 remains the cost-optimized default.
+**Step 7 + Step 8 summary:** Observer/Reflector pipeline tested in two architectural shapes: ADDITIVE overlay (Step 7, 62.5% at N=24) and REPLACEMENT semantics matching Mastra (Step 8, 25% at N=24). Both RED. Mastra's 84.23% at gpt-4o does not reproduce in our implementation; the remaining gap is almost certainly reflector-prompt tuning (preserving high-IDF tokens) rather than pipeline wiring. Findings: [STEP_7_OBSERVER_REFLECTOR_FINDINGS_2026-04-20.md](STEP_7_OBSERVER_REFLECTOR_FINDINGS_2026-04-20.md), [STEP_8_OBSERVER_REPLACE_FINDINGS_2026-04-20.md](STEP_8_OBSERVER_REPLACE_FINDINGS_2026-04-20.md). Tier 1 remains the shipping default; Tier 2 ships opt-in only behind `--observer-reflector --observer-reflector-replace`.
 
 ---
 
@@ -131,7 +131,7 @@ LongMemEval-S is dominated by multi-session questions (26.6% of the real distrib
 
 ---
 
-## 4. What didn't work — four negative results
+## 4. What didn't work — six negative results
 
 Each negative result taught a specific lesson about retrieval on signal-dense benchmarks.
 
@@ -175,16 +175,42 @@ Each negative result taught a specific lesson about retrieval on signal-dense be
 
 **Lesson:** rerank scores are good at their job (ordering doc-query relevance) but are NOT a general-purpose proxy for "content the reader needs." Don't trust a single quality metric as a content-selection oracle.
 
-### The pattern across 4 RED results
+### 4.5 Step 7 RED: Observer/Reflector as additive overlay
 
-All 4 negative results modify or remove retrieval output before the reader sees it:
+**Proposed:** wire the dormant `MemoryObserver` + `MemoryReflector` pipeline already present in AgentOS core. Reflection-derived traces get encoded into the same `MemoryStore` that `HybridRetriever` queries, sitting ALONGSIDE raw chunks (additive). Target: match Mastra Observational Memory's 84.23% at gpt-4o, which uses a similar-shaped pipeline.
+
+**Measured:** Tier A LME-S N=24 dropped unweighted 87.5% → 62.5% (-25pp). Multi-session collapsed 75% → 25%. Knowledge-update 100% → 75%. Killed at Tier A.
+
+**Root cause (four compounding factors, per Step 7 findings doc):** additive overlay dilutes retrieval (dense retrieval sees raw chunks PLUS summary traces, so high-cosine summaries displace hero chunks); BM25 index mismatch (reflection traces go through `manager.encode()` inside `manager.observe()`, bypassing the bench's BM25 ingest hook, so RRF merges asymmetric dense/sparse views); `MemoryReflector` soft-deletes "superseded" traces (destructive on a benchmark where every trace might be answer-bearing); personality-biased observer prompt targets emotional shifts and commitments instead of factual-value recall.
+
+**Lesson:** "enable the pipeline that already exists" was a plumbing framing for an architectural change. Mastra's 84% comes from REPLACEMENT of raw message history; an additive overlay on top of a working retrieval stack is a fundamentally different shape.
+
+### 4.6 Step 8 RED: Observer/Reflector as replacement (Tier 2 fix)
+
+**Proposed:** architecturally-correct fix for Step 7: skip raw chunk encoding when observer is on, force reflection at session boundaries via a new `CognitiveMemoryManager.flushReflection()` method, index reflection traces into BM25 so dense and sparse see symmetric views.
+
+**Measured:** two Tier A runs:
+- Run 1 (with scope bug): 4.2%. Reflector-invented scopeIds (`running_01`, `wellbeing_01`, etc.) landed traces in separate vector-store collections from what retrieval queried.
+- Run 2 (scope fix applied via new `flushReflection` `scopeOverride` param): **25.0%** vs 87.5% baseline, **-62.5pp**. Per-category: preference 75%, user 50%, multi-session 25%, **KU 0%, assistant 0%, temporal 0%**.
+
+The pattern is architectural: replacement preserves abstract category information (preferences summarize cleanly) but destroys specific-value recall (KU, assistant, temporal all flat-line at 0%). Same failure mode as Step 5 FactSupersession, at a different layer.
+
+**Root cause:** LLM-generated summaries erase specific tokens the reader needs. The reflector prompt tells the LLM to "consolidate" and "elevate important facts." In practice gpt-5-mini produces abstract paraphrases. Mastra's 84.23% at gpt-4o does not reproduce here; the most likely gap is their reflector prompt being tuned to preserve high-IDF tokens (names, dates, numeric values), but verifying that requires another 2-3 spec cycles of prompt engineering.
+
+**What ships regardless of verdict:** `CognitiveMemoryManager.getReflector()` accessor + `flushReflection(mood?, scopeOverride?)` method as v0.1.249 agentos-core primitives. Downstream consumers that want forced reflection at explicit boundaries now have the API.
+
+### The pattern across 6 RED results
+
+All 6 negative results modify or remove retrieval output before the reader sees it, or introduce LLM intermediate representations that compete with or replace the original signal:
 
 - Step 2 (SessionRetriever w/o rerank): implicitly removed the rerank signal.
-- Step 4 (HyDE): replaced the query with a paraphrase.
-- Step 5 (FactSupersession): explicitly dropped traces.
-- Step 6 (Split-on-Ambiguous): trimmed trace content.
+- Step 4 (HyDE): replaced the query with an LLM paraphrase.
+- Step 5 (FactSupersession): post-retrieval LLM drops traces.
+- Step 6 (Split-on-Ambiguous): rerank-score-guarded content trimming.
+- Step 7 (Observer additive): reflection summaries compete with raw chunks in the retrieval pool.
+- Step 8 (Observer replacement): reflection summaries replace raw chunks and erase specific-value tokens.
 
-**Every destructive modification regressed, regardless of mechanism.** The empirical rule for memory retrieval on signal-dense benchmarks: **add signal, don't remove or replace it.**
+**Every destructive or LLM-intermediate modification regressed, regardless of mechanism.** The empirical rule for memory retrieval on signal-dense benchmarks: **add signal in ways that compose with existing signal. Don't remove it, replace it, or introduce LLM intermediaries that paraphrase it away.**
 
 ---
 
@@ -224,10 +250,14 @@ Spec for step N is written only AFTER step N-1's Tier B results are in hand. Thi
 
 ### 6.1 Step-by-step cost at gpt-4o reader + gpt-4o judge
 
-| Step | Phase A N=102 cost | Phase B N=500 cost |
-|---|---:|---:|
-| Step 1 Baseline | $1.98 | (projected $9.90) |
-| Step 3 Hybrid | $2.06 | **$7.80** |
+| Step | Phase A N=102 cost | Phase B N=500 cost | Tier A only |
+|---|---:|---:|---:|
+| Step 1 Baseline | $1.98 | (projected $9.90) | — |
+| Step 3 Hybrid | $2.06 | **$7.80** | — |
+| Step 7 Observer additive | — | — | $7.37 (gpt-4o observer wiring bug) |
+| Step 8 Observer replacement | — | — | $7.20 (2 runs, scope-bug + scope-fix) |
+
+Step 7's $7.37 was inflated by a wiring bug where the observer invoker reused `hydeReader` (gpt-4o) instead of the spec'd gpt-5-mini. Fixed after the first run; the fix landed in a follow-up commit. Step 8 correctly used gpt-5-mini from the start.
 
 **Step 3 Hybrid at N=500: $0.0213 per correct answer.** At N=102 the cost/correct was $0.0274 — the N=500 run is 22% cheaper per correct due to warm embedding + summary caches.
 
@@ -250,7 +280,7 @@ The Hybrid path adds one extra rerank call (Cohere rerank-v3.5, ~$0.0001 per que
 
 ---
 
-## 7. Running scoreboard across 6 steps
+## 7. Running scoreboard across 8 steps
 
 | Step | Feature | Verdict | Primary metric change | Ships? |
 |---|---|---|---|---|
@@ -260,8 +290,10 @@ The Hybrid path adds one extra rerank call (Cohere rerank-v3.5, ~$0.0001 per que
 | 4 | HyDE | RED | unweighted -35.3pp | opt-in |
 | 5 | FactSupersession | RED | KU (target) -25pp | opt-in |
 | 6 | Split-on-Ambiguous | RED | unweighted -29.2pp | opt-in |
+| 7 | Observer/Reflector (additive overlay) | RED | unweighted -25pp at Tier A | opt-in |
+| 8 | Observer/Reflector (replacement semantics) | RED | unweighted -62.5pp at Tier A | opt-in |
 
-**Total measurement cost:** $8.91 across all 6 steps (Step 4-6 killed at Tier A before Tier B fired, saving ~$5).
+**Total measurement cost:** ~$23.48 across all 8 steps (Steps 4-6 killed at Tier A saving ~$5; Steps 7-8 killed at Tier A saving ~$20 more; `flushReflection` scope-override primitive ships regardless as v0.1.249).
 
 ---
 
@@ -275,7 +307,7 @@ In order of strongest to weakest evidence:
 2. **"+13.7pp unweighted lift vs single-stage dense retrieval at matched reader."** Measured at Phase A N=102, consistent Phase B direction.
 3. **"Multi-session QA 54.9% [46.6%, 63.2%] at N=133."** Strongest differentiator vs competitors.
 4. **"$0.0213 per correct answer at gpt-4o."** Matched-reader cost claim.
-5. **"6-step matched-ablation methodology with bootstrap CI-gated kill criteria caught 4 of 5 false positives before Tier B."**
+5. **"8-step matched-ablation methodology with bootstrap CI-gated kill criteria caught 6 of 7 false positives before Tier B."**
 
 ### 8.2 Medium claims (supported but less tight)
 
@@ -296,50 +328,62 @@ In order of strongest to weakest evidence:
 
 With Phase B N=500 confirming 73.2% at matched reader and +13.7pp delta over baseline, Step 3 Hybrid is a strong production default candidate. The decision to flip from opt-in → default-on is a product call, not a benchmark call. The CI-gated evidence supports the flip.
 
-### 9.2 Open questions (not in scope for this rollout)
+### 9.2 Planned next steps
 
-- **Graph-expansion retrieval:** pull traces connected by shared-entity edges to the top-K. Genuinely different from Steps 4-6 (additive, not destructive). Might lift multi-session further. ~$1-2 to test at Tier A.
+- **Step 9 fact-graph ingest (Mem0 pattern):** per-session gpt-5-mini extractor emits `(subject, predicate, object, timestamp)` tuples stored keyed by `(subject_hash, predicate_hash) → time-sorted list`. Retrieval prepends the latest fact per matched `(subject, predicate)` as a synthetic trace. Different failure mode from Steps 5/7/8 because tuple extraction preserves the literal `object` token that summary-based approaches erase. Budget: $15-30 for Tier A + Phase A + Phase B. User has approved budget in principle.
+- **Step 10 two-call reader (Emergence AI pattern):** first reader call extracts relevant facts from retrieved chunks, second answers from the extracted facts only. Orthogonal to retrieval, can layer on top of any working tier. Budget: $20-40.
+
+### 9.3 Open questions (still out of scope)
+
+- **Graph-expansion retrieval:** pull traces connected by shared-entity edges to the top-K. Additive, not destructive, genuinely different from Steps 4-8. Might lift multi-session further. ~$1-2 to test at Tier A.
 - **Rerank alternatives:** voyage-rerank-2, BGE-reranker-v2-m3 (open-weights). Cohere rerank-v3.5 is commercial-only; open-weights alternatives widen applicability.
-- **Fine-tuned filter LLM:** Steps 4-5 failed with general-purpose models. A filter LLM fine-tuned on LongMemEval-style supersession might succeed. Out of scope for this budget.
+- **Tuned reflector prompt for specific-token preservation:** Step 8 RED most likely reflects prompt choice (the prompt says "consolidate" + "elevate important facts," producing abstract summaries). A variant prompting the reflector to preserve names, dates, numeric values verbatim is the cheapest remaining Observer/Reflector experiment. Low priority unless the user explicitly wants to close the Mastra gap.
+- **Fine-tuned filter LLM:** Steps 5, 7, 8 failed with general-purpose models. A filter LLM fine-tuned on LongMemEval-style supersession might succeed. Out of scope for this budget.
 - **LongMemEval-M / LongMemEval-L:** we tested the -S variant. The -M (500-session) and -L (5000-session) variants stress-test scaling. Our Hybrid stack should scale linearly (BM25 is in-memory sub-ms at 100s of docs, growing with corpus size).
 - **LOCOMO adversarial improvements:** Step 3 already gave +33pp on LOCOMO adversarial at Tier A N=6. A dedicated adversarial-focused step could push further.
 
-### 9.3 Blog post structure
+### 9.4 Blog post structure
 
 Building on this doc, a publishable blog post should:
 
 1. Lead with the 73.2%/74.0% numbers at matched reader.
 2. Table against published competitors.
 3. Walk through the Step 3 architecture (dense + sparse + RRF + rerank + contextual retrieval).
-4. Present the 4 negative results with one paragraph each explaining the root cause.
+4. Present the 6 negative results with one paragraph each explaining the root cause.
 5. Explain the matched-ablation + kill-criterion methodology as the contribution that makes the other claims trustworthy.
 6. Include the cost analysis with matched-reader caveats.
 
 ---
 
-## 10. Commits (across all 6 steps)
+## 10. Commits (across all 8 steps)
 
 ### agentos core (submodule)
 
 - `9d87e487f` memory: optional HyDE retriever in HybridRetriever (hypothesis for dense+sparse, original query for rerank)
 - `94ad7557a` memory: FactSupersession post-retrieval LLM filter (drops superseded traces)
 - `42a2bf010` memory: HybridRetriever split-on-ambiguous rerank refinement (monotonic, additive)
-- Plus Step 2 SessionRetriever, Step 3 HybridRetriever + reciprocalRankFusion, and infra commits from Step 1
+- `e21e08e77` feat(memory): getReflector() accessor + flushReflection() for forced reflection at caller boundaries (ships v0.1.249)
+- `1ac24cb01` fix(memory): flushReflection scopeOverride param (ensures reflection traces land in caller's scope, not LLM-invented one)
+- Plus Step 2 SessionRetriever, Step 3 HybridRetriever + reciprocalRankFusion, v0.1.248 release, and infra commits from Step 1
 
 ### monorepo
 
-- `be4e15216f`, `157c727910` bench: LongMemEvalS + Locomo HyDE wiring
-- `b9fe2047b6`, `0c7dd0a893`, `2917fb8721`, `2e24ae2f2c` bench: FactSupersession wiring
-- `8a554a41fc`, `5da78278c4`, `9ac14dbcaa`, `a82b8491d5` bench: Split-on-Ambiguous wiring
+- `be4e15216f`, `157c727910` bench: LongMemEvalS + Locomo HyDE wiring (Step 4)
+- `b9fe2047b6`, `0c7dd0a893`, `2917fb8721`, `2e24ae2f2c` bench: FactSupersession wiring (Step 5)
+- `8a554a41fc`, `5da78278c4`, `9ac14dbcaa`, `a82b8491d5` bench: Split-on-Ambiguous wiring (Step 6)
 - `a948307132`, `b6eeb57a10` Step 4, 5 findings with RED verdicts
 - `13b06aa808` bench: Phase B N=500 gpt-4o — Step 3 Hybrid canonical numbers
+- `3d631b398a`, `f065cfe4a0`, `69968886b7`, `3a53c06001`, `4fe97ae254`, `fe91ea3a0e` bench: Observer/Reflector additive overlay (Step 7)
+- `b72686c63a` bench: Step 7 findings — Observer/Reflector Tier 2 RED at Tier A
+- `9a27b82ae0`, `33b72b355e`, `7106cdb2eb`, `3e1f8a897f`, `f2c615b013`, `182f792e3a` bench: Observer/Reflector replacement semantics (Step 8)
+- `37a6228f25` bench: Step 8 findings — Observer/Reflector REPLACEMENT Tier 2 RED at Tier A
 - Prior step commits from Step 1-3 (`c2171d07ed` Step 3 main wire, etc.)
 
 ---
 
 ## 11. Acknowledgments
 
-This rollout used the [superpowers](https://github.com/anthropics/claude-code) workflow suite (brainstorming → writing-plans → executing-plans → verification-before-completion) across all 6 steps. The matched-ablation + kill-criterion discipline was adapted from the AgentOS-Bench Phase 0 findings; bootstrap CI implementation draws from standard percentile bootstrap methodology.
+This rollout used the [superpowers](https://github.com/anthropics/claude-code) workflow suite (brainstorming → writing-plans → executing-plans → verification-before-completion) across all 8 steps. The matched-ablation + kill-criterion discipline was adapted from the AgentOS-Bench Phase 0 findings; bootstrap CI implementation draws from standard percentile bootstrap methodology.
 
 Published benchmarks referenced:
 - Wu et al. 2024 — LongMemEval

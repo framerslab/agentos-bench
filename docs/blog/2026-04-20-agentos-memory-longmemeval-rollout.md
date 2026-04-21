@@ -1,8 +1,8 @@
-# AgentOS Memory: 73.2% on LongMemEval-S at Matched Reader, and What We Learned From Five Negative Results
+# AgentOS Memory: 73.2% on LongMemEval-S at Matched Reader, and What We Learned From Six Negative Results
 
-**TL;DR.** AgentOS hit 73.2% unweighted accuracy [69.2%, 77.0%] on LongMemEval-S Phase B N=500 at gpt-4o reader + gpt-4o judge, with 54.9% on multi-session (n=133), 86.8% on knowledge-update, and $0.0213 per correct answer. The result comes from one GREEN feature (BM25 + dense RRF + Cohere rerank blend) out of seven tested. The other five retrieval ideas (a hierarchical session retriever, HyDE query rewriting, an LLM fact-supersession filter, rerank-guided content splitting, and an additive Observer/Reflector overlay) all regressed. Total measurement cost across seven matched-ablation studies: $16.28. A kill-criterion discipline caught four of five losing variants at Tier A smokes, saving roughly $15 in wasted Tier B spend.
+**TL;DR.** AgentOS hit 73.2% unweighted accuracy [69.2%, 77.0%] on LongMemEval-S Phase B N=500 at gpt-4o reader + gpt-4o judge, with 54.9% on multi-session (n=133), 86.8% on knowledge-update, and $0.0213 per correct answer. The result comes from one GREEN feature (BM25 + dense RRF + Cohere rerank blend) out of eight tested. The other six retrieval ideas (a hierarchical session retriever, HyDE query rewriting, an LLM fact-supersession filter, rerank-guided content splitting, an additive Observer/Reflector overlay, and a replacement-semantics Observer/Reflector) all regressed. Total measurement cost across eight matched-ablation studies: ~$23.48. A kill-criterion discipline caught six of seven losing variants at Tier A smokes, saving roughly $20 in wasted Tier B spend.
 
-The headline isn't SOTA. Mem0 claims [92.0](https://mem0.ai/research), Emergence AI [86%](https://www.emergence.ai/blog/sota-on-longmemeval-with-rag), Mastra's Observational Memory [84.23% at gpt-4o and 94.87% at gpt-5-mini](https://mastra.ai/research/observational-memory). Our 73.2% sits above [Zep/Graphiti's 71.2% at gpt-4o](https://blog.getzep.com/state-of-the-art-agent-memory/) and below the frontier systems. What we have that most of those don't: seven controlled ablations, bootstrap-gated confidence intervals on every claim, and a methodology that treats matched-reader cost comparison as a hard requirement. The 73.2% is also a PROGRESSIVE-ENHANCEMENT baseline: every AgentOS consumer can opt into additional tiers (observer pipelines, fact graphs, two-call readers) to trade more ingest cost for higher accuracy as their workload warrants.
+The headline isn't SOTA. Mem0 claims [92.0](https://mem0.ai/research), Emergence AI [86%](https://www.emergence.ai/blog/sota-on-longmemeval-with-rag), Mastra's Observational Memory [84.23% at gpt-4o and 94.87% at gpt-5-mini](https://mastra.ai/research/observational-memory). Our 73.2% sits above [Zep/Graphiti's 71.2% at gpt-4o](https://blog.getzep.com/state-of-the-art-agent-memory/) and below the frontier systems. What we have that most of those don't: eight controlled ablations, bootstrap-gated confidence intervals on every claim, and a methodology that treats matched-reader cost comparison as a hard requirement. The 73.2% is also a PROGRESSIVE-ENHANCEMENT baseline: every AgentOS consumer can opt into additional tiers (observer pipelines, fact graphs, two-call readers) to trade more ingest cost for higher accuracy as their workload warrants.
 
 ---
 
@@ -145,7 +145,7 @@ Most published memory-system numbers don't ship with matched-ablation deltas or 
 
 **Matched ablation.** Step 2 of our rollout failed for exactly this reason. We built a hierarchical session retriever without threading the neural reranker into it (an Engineer's Discretion shortcut). Against a baseline that did have rerank, the unmatched session retriever dropped multi-session from 64.7% to 41.2%. Step 3 threaded rerank from day one, and the comparison finally measured what we thought it was measuring.
 
-**Tier A smokes with kill criteria before Tier B fires.** Every step runs smoke runs at N=24 (LongMemEval-S) and N=30 (LOCOMO) before the CI-gated N=102 or N=500 measurements. If the smoke drops more than 5pp weighted vs reference, Tier B doesn't fire. This discipline saved three Tier B runs ($5 of spend) on Steps 4, 5, and 6 when the smokes made the verdict clear.
+**Tier A smokes with kill criteria before Tier B fires.** Every step runs smoke runs at N=24 (LongMemEval-S) and N=30 (LOCOMO) before the CI-gated N=102 or N=500 measurements. If the smoke drops more than 5pp weighted vs reference, Tier B doesn't fire. This discipline saved five Tier B runs (~$20 of spend) on Steps 4, 5, 6, 7, and 8 when the smokes made the verdict clear.
 
 **Serial just-in-time spec authoring.** Step N's spec waits for Step N-1's measured results. This prevents locking in the wrong success criteria. Step 4's spec threaded rerank from day one specifically because Step 3's result made rerank's dominance visible.
 
@@ -153,7 +153,7 @@ Nothing here is novel. The bootstrap CI, the matched-reader discipline, the kill
 
 ---
 
-## Four things we tried that didn't work, and what they teach you
+## Six things we tried that didn't work, and what they teach you
 
 ### Step 2: SessionRetriever without rerank threading
 
@@ -206,19 +206,32 @@ Root cause (four compounding factors):
 3. **Supersession is destructive.** `MemoryReflector` detects conflicting claims between observation notes and stored traces and soft-deletes superseded traces via `store.softDelete(id)`. On LongMemEval where every stored trace might be the answer-bearing one, this is pure loss. Knowledge-update dropped 100% → 75%.
 4. **Personality-biased observer prompt misses benchmark-relevant detail.** The observer is instructed to prioritize emotional shifts, commitments, preferences, creative tangents (HEXACO-weighted). LongMemEval rewards factual-value recall; the observer extracts the wrong axis.
 
-Lesson: "enable the pipeline that already exists" treated the change as plumbing. It's architecture. Mastra's 84% comes from REPLACEMENT of raw message history; we bolted an ADDITIVE overlay on top of a working retrieval stack. Two fundamentally different shapes. The Step 7 findings doc ([STEP_7_OBSERVER_REFLECTOR_FINDINGS_2026-04-20.md](https://github.com/framersai/agentos/blob/master/packages/agentos-bench/docs/STEP_7_OBSERVER_REFLECTOR_FINDINGS_2026-04-20.md)) lists six sub-tier variants worth testing before giving up on the pattern.
+Lesson: "enable the pipeline that already exists" treated the change as plumbing. It's architecture. Mastra's 84% comes from REPLACEMENT of raw message history; we bolted an ADDITIVE overlay on top of a working retrieval stack. Two fundamentally different shapes.
 
-### The pattern across five negative results
+### Step 8: Observer/Reflector as replacement (the architecturally-correct fix)
 
-Every failed step modified or removed retrieval output before the reader saw it, OR added output that competed with the existing signal.
+The idea: address Step 7's additive-overlay root cause head-on. Skip raw chunk encoding when the observer is on, force reflection at session boundaries via a new `CognitiveMemoryManager.flushReflection()` method, index reflection traces into BM25 so dense and sparse see symmetric views. This is the Mastra-parity architecture our Step 7 wiring was not.
+
+What happened: two Tier A runs. Run 1 (with an unexpected scope bug) scored 4.2%. The `MemoryReflector.reflect()` call lets the LLM invent `scopeId` from content topics, so reflection traces like `scope: 'user', scopeId: 'running_01'` landed in separate vector-store collections from where retrieval queried (`scope: 'user', scopeId: 'bench'`). Fix: a new `scopeOverride` parameter on `flushReflection`. Run 2 with the fix: **25.0% at N=24, down 62.5pp from the 87.5% Tier 1 smoke baseline**.
+
+Per-category in Run 2: preference 75%, user 50%, multi-session 25%, **knowledge-update 0%, assistant 0%, temporal 0%**. The pattern is architectural, not plumbing. Replacement preserves abstract category information (preferences summarize cleanly) but destroys specific-value recall. The reader needs the literal "I moved to Berlin on March 15" token, and the reflector's compressed "user changed residence" paraphrase doesn't carry it.
+
+Root cause: LLM-generated summaries erase the specific tokens the reader needs. Same failure mode as Step 5 FactSupersession at a different layer of the pipeline. Step 5 RED'd on post-retrieval LLM filter; Step 8 RED'd on ingest-via-reflection. The LLM layer is the common cause. Mastra's 84.23% at gpt-4o does not reproduce in our implementation; the most likely gap is their reflector prompt being tuned to preserve high-IDF tokens (names, dates, numeric values) where ours says "consolidate and elevate important facts" and in practice produces abstract paraphrases.
+
+What ships regardless: `getReflector()` accessor + `flushReflection(mood?, scopeOverride?)` as agentos-core primitives (v0.1.249). Downstream consumers that want forced reflection at explicit boundaries now have the API. A tuned-prompt Step 11 variant is the cheapest remaining Observer/Reflector experiment to close the Mastra gap; not scheduled yet.
+
+### The pattern across six negative results
+
+Every failed step modified or removed retrieval output before the reader saw it, OR added output that competed with the existing signal, OR introduced an LLM intermediate step that paraphrased away specific tokens.
 
 - Step 2 (SessionRetriever w/o rerank): removed the rerank signal.
 - Step 4 (HyDE): replaced the query with a paraphrase.
 - Step 5 (FactSupersession): dropped traces.
 - Step 6 (Split-on-Ambiguous): trimmed trace content.
 - Step 7 (Observer additive overlay): added reflection traces that competed with raw chunks.
+- Step 8 (Observer replacement semantics): replaced raw chunks with LLM summaries that erased specific-value tokens.
 
-Every destructive or competition-inducing modification regressed, regardless of mechanism. The rule that holds on this workload: add signal IN WAYS THAT COMPOSE WITH existing signal, don't replace it, remove it, or have it compete. BM25 alongside dense is additive AND composes through RRF. Rerank as a blend component is additive AND composes through the 0.7/0.3 weights. Every intervention that skipped that composition discipline regressed.
+Every destructive or competition-inducing modification regressed, regardless of mechanism. The rule that holds on this workload: add signal IN WAYS THAT COMPOSE WITH existing signal, don't replace it, remove it, have it compete, or route it through an LLM that paraphrases. BM25 alongside dense is additive AND composes through RRF. Rerank as a blend component is additive AND composes through the 0.7/0.3 weights. Every intervention that skipped that composition discipline regressed.
 
 ---
 
@@ -231,7 +244,7 @@ What we can defensibly say:
 - 73.2% unweighted [69.2%, 77.0%] at gpt-4o reader + gpt-4o judge, LongMemEval-S N=500.
 - 54.9% multi-session [46.6%, 63.2%] (n=133), competitive with the upper half of published memory-system multi-session numbers.
 - $0.0213 per correct answer at gpt-4o. 15.7% below the Step 1 baseline at matched reader.
-- Six-step matched-ablation methodology with CI gates, producing one shippable feature and four well-characterized negative results.
+- Eight-step matched-ablation methodology with CI gates, producing one shippable feature and six well-characterized negative results.
 
 What we can't defensibly say:
 
@@ -271,13 +284,14 @@ Step 3 Hybrid is the default, but AgentOS ships the plumbing for higher-accuracy
 |---|---|---|---:|---:|---|
 | **Tier 0** (bare) | (none) | dense retrieval + cognitive scoring only | ~60% (projected) | ~$0.032 (projected) | untested baseline |
 | **Tier 1** (default) | `--hybrid-retrieval --context-summary gpt-5-mini` | + BM25 sparse + RRF merge + Cohere rerank blend + Anthropic-style session summaries | **73.2% [69.2%, 77.0%]** | **$0.0213** | **shipping, Phase B N=500 measured** |
-| **Tier 2** (opt-in) | Tier 1 + `--observer-reflector` | + MemoryObserver / MemoryReflector three-tier pipeline (additive overlay) | 62.5% at N=24 smoke | ~$0.10+ (gpt-5-mini observer) | RED at Tier A, opt-in only |
-| Tier 3 (planned) | Tier 2 + `--fact-graph-ingest` | + per-trace LLM fact extraction (Mem0 pattern) | not measured | not measured | spec pending |
-| Tier 4 (planned) | Tier 3 + `--two-call-reader` | + extract-then-answer reader pipeline (Emergence AI pattern) | not measured | not measured | spec pending |
+| Tier 2 ADDITIVE (opt-in) | Tier 1 + `--observer-reflector` | + MemoryObserver / MemoryReflector pipeline alongside raw chunks | 62.5% at N=24 smoke | ~$0.10+ (gpt-5-mini observer) | RED at Tier A, opt-in only |
+| Tier 2 REPLACEMENT (opt-in) | Tier 1 + `--observer-reflector --observer-reflector-replace` | + REPLACEMENT semantics (skip raw chunk encode, force reflection at session boundaries, BM25 on reflection traces) | 25.0% at N=24 smoke | $0.58 (gpt-5-mini observer) | RED at Tier A, opt-in only |
+| Tier 3 (planned) | Tier 1 + `--fact-graph-ingest` | + per-session LLM (subject, predicate, object, timestamp) tuple extraction (Mem0 pattern) | not measured | not measured | spec pending, budget approved |
+| Tier 4 (planned) | any tier + `--two-call-reader` | + extract-then-answer reader pipeline (Emergence AI pattern) | not measured | not measured | spec pending |
 
-Tier 2 regressed out-of-the-box because the current wiring is an additive overlay rather than a replacement for raw chunk storage (Mastra's architecture). The [Step 7 findings doc](https://github.com/framersai/agentos/blob/master/packages/agentos-bench/docs/STEP_7_OBSERVER_REFLECTOR_FINDINGS_2026-04-20.md) lists six sub-tier variants (REPLACEMENT semantics, BM25-on-reflections, disabled supersession, tuned thresholds, factual-biased observer prompt, query-time observer) that could be tested before abandoning the pattern.
+Tier 2 ADDITIVE regressed because adding reflection traces alongside raw chunks dilutes retrieval. Abstract summaries rank high enough on cosine similarity to displace the specific-value chunks the reader needs. Tier 2 REPLACEMENT (the architecturally-correct fix matching Mastra's semantics) regressed further because LLM-generated reflection summaries erase the high-IDF tokens LongMemEval's specific-value categories require. Per-category in Tier 2 REPLACEMENT: preference 75%, user 50%, multi-session 25%, knowledge-update 0%, assistant 0%, temporal 0%. The pattern is clear: summary-based approaches preserve category information but destroy fact information on this workload. A tuned reflector prompt designed to preserve names, dates, and numeric values verbatim is the cheapest remaining experiment to close the gap to Mastra's 84.23% at gpt-4o, but that's prompt engineering more than architecture.
 
-Tiers 3 and 4 match published frontier architectures (Mem0's fact graph, Emergence AI's two-call reader). If tested they'd add cost at ingest and query respectively. The current Tier 1 result is the cost-optimized default; anyone who wants frontier accuracy can opt into the higher tiers once their architectures land.
+Tiers 3 and 4 match published frontier architectures (Mem0's fact graph, Emergence AI's two-call reader). Tier 3 is architecturally different from Steps 5/7/8 because tuple extraction preserves the literal `object` token where summary-based approaches paraphrase it away. If tested and GREEN, Tier 3 is the plausible path to closing the gap to Mem0's claimed 92.0. The current Tier 1 result is the cost-optimized default; anyone who wants frontier accuracy can opt into the higher tiers once their architectures land.
 
 Orthogonality matters: each tier's flag is independent, so consumers with unusual workloads can mix and match (e.g., fact-graph ingest without observer/reflector, or two-call reader without fact-graph). Canonical presets are bundled for the common "more accuracy, more cost" progression.
 
@@ -287,11 +301,11 @@ Orthogonality matters: each tier's flag is independent, so consumers with unusua
 
 **Production default flip.** Step 3 Hybrid has CI-gated evidence at Phase B. The decision to flip from opt-in to default-on is a product call, not a benchmark call. The evidence supports the flip.
 
-**Tier 2 REPLACEMENT variant.** Step 7 tested Observer/Reflector as an ADDITIVE overlay and it regressed. The architecturally-cleaner variant skips raw chunk encoding entirely when the observer is on, matching Mastra's semantics faithfully. Budget: ~$5-10 for Tier A + Phase A smoke. Risk: if reflections miss content, that content is lost.
+**Tier 3 fact-graph ingest (Mem0 pattern).** Per-session LLM extraction of (subject, predicate, object, timestamp) tuples at ingest, stored keyed by `(subject_hash, predicate_hash) → time-sorted list`. Retrieval prepends the latest fact per matched `(subject, predicate)` as a synthetic trace with `retrievalScore: 1.0`. Architecturally different from Steps 5, 7, and 8 because tuple extraction preserves the literal `object` token that summary-based approaches paraphrase away. Budget: ~$15-30 for Tier A + Phase A + Phase B. Highest expected ceiling (Mem0 claims 92.0 on LongMemEval-S). User has approved budget in principle.
 
-**Tier 3 fact-graph ingest (Mem0 pattern).** Per-trace LLM extraction of (subject, predicate, object, timestamp) tuples at ingest, stored keyed by `(subject_hash, predicate_hash) → time-sorted list`. Retrieval prepends the latest fact as a synthetic trace. Budget: ~$15-30 for a full Phase A + Phase B run. Highest expected ceiling (Mem0 claims 92%).
+**Tier 4 two-call reader (Emergence AI pattern).** First reader call extracts relevant facts from top-K, second answers from the extracted facts only. Budget: ~$20-40 per full run. Modest expected lift, orthogonal to the retrieval layer, and can layer on top of any working tier.
 
-**Tier 4 two-call reader (Emergence AI pattern).** First reader call extracts relevant facts from top-K, second answers the question. Budget: ~$20-40 per full run. Modest expected lift, orthogonal to the retrieval layer.
+**Tuned reflector prompt.** Step 8 RED most likely reflects prompt choice, not architecture. The reflector is told to "consolidate" and "elevate important facts," which gpt-5-mini interprets as permission to produce abstract paraphrases. A variant prompt instructing the reflector to preserve names, dates, and numeric values verbatim is the cheapest remaining experiment to close the gap to Mastra's 84.23% at gpt-4o. Low priority unless the user explicitly wants the Mastra parity number; higher priority if Step 9 fact-graph also RED's.
 
 **Graph-expansion retrieval.** The entity graph is already built; we don't currently expand retrieval to include traces connected to the top-K via shared-entity edges. A proper additive-signal experiment would add this and measure against Tier 1. Budget: ~$1-2 for Tier A.
 
@@ -320,9 +334,9 @@ pnpm exec agentos-bench run longmemeval-s \
 
 Seven step findings docs (GREEN-soft for Step 3, RED for Steps 2, 4, 5, 6, 7, infra for Step 1) live in [packages/agentos-bench/docs/STEP_*_FINDINGS_2026-04-20.md](https://github.com/framersai/agentos/tree/master/packages/agentos-bench/docs). The umbrella doc is at [RAG_STACK_UMBRELLA_FINDINGS_2026-04-20.md](https://github.com/framersai/agentos/blob/master/packages/agentos-bench/docs/RAG_STACK_UMBRELLA_FINDINGS_2026-04-20.md). The matched-ablation and bootstrap CI methodology is implemented at [packages/agentos-bench/src/core/metrics/](https://github.com/framersai/agentos/tree/master/packages/agentos-bench/src/core/metrics).
 
-Commits for each of the seven steps are listed in the umbrella findings doc plus the Step 7 findings doc. The architecture doc for HybridRetriever lives at [packages/agentos/docs/architecture/hybrid-retriever.md](https://github.com/framersai/agentos/blob/master/packages/agentos/docs/architecture/hybrid-retriever.md).
+Commits for each of the eight steps are listed in the umbrella findings doc plus the Step 7 and Step 8 findings docs. The architecture doc for HybridRetriever lives at [packages/agentos/docs/architecture/hybrid-retriever.md](https://github.com/framersai/agentos/blob/master/packages/agentos/docs/architecture/hybrid-retriever.md).
 
-Total measurement cost for the seven-step rollout plus Phase B N=500 confirmation: $16.28. Reader: OpenAI gpt-4o-2024-08-06 and gpt-5-mini. Reranker: Cohere rerank-v3.5. Embedder: OpenAI text-embedding-3-small. Judge: OpenAI gpt-4o-2024-08-06. Observer/reflector invoker (when enabled): gpt-5-mini.
+Total measurement cost for the eight-step rollout plus Phase B N=500 confirmation: ~$23.48. Reader: OpenAI gpt-4o-2024-08-06 and gpt-5-mini. Reranker: Cohere rerank-v3.5. Embedder: OpenAI text-embedding-3-small. Judge: OpenAI gpt-4o-2024-08-06. Observer/reflector invoker (when enabled): gpt-5-mini.
 
 ---
 
