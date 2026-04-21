@@ -12,10 +12,21 @@
 The 24-case stratified LongMemEval-S smoke (gpt-5-mini, full-cognitive, ingest, prompt v4) lands:
 
 - **79.2% unweighted accuracy** (19/24), **69.5% stratified-weighted**
-- **$0.0029 per correct answer** — an order of magnitude below the closest published competitor
+- **$0.0029 per correct answer at gpt-5-mini** (all-in: reader + judge + embedding + rerank)
 - **Retrieval quality near-SOTA**: Recall@10 = **0.948**, NDCG@10 = **0.890**, MRR = **0.921**
 
-The published SOTA on LongMemEval-S is agentmemory at 96.2% (GPT-4o) and Mastra OM at 94.87% (GPT-5-mini). On a 24-case stratified sample, we are 15–20 points under the headline accuracy but **10× cheaper per correct answer**. At N=24 the variance on each case type is ±8pp per case.
+The published SOTA on LongMemEval-S is agentmemory at 96.2% (GPT-4o) and Mastra OM at 94.87% (GPT-5-mini). On a 24-case stratified sample, we are 15–20 points under the headline accuracy.
+
+**Same-architecture cost projection at other readers** (identical chunking, prompt, rerank; only the reader model swaps):
+
+| Reader | Reader-only $/correct | All-in $/correct |
+|---|---:|---:|
+| gpt-5-mini (our actual) | $0.00216 | $0.003 |
+| claude-haiku-4-5 | $0.00661 | $0.008 |
+| gpt-4o | $0.02033 | $0.022 |
+| claude-sonnet-4-6 | $0.02478 | $0.026 |
+
+The reader swap is a price-tier change; the architecture is identical. Phase C (running our stack at gpt-4o rather than projecting) is the gate for any apples-to-apples cost comparison vs gpt-4o-based competitors (agentmemory, Supermemory, Mastra OM gpt-4o cell). Architectural comparison at matched reader (Mastra OM @ gpt-5-mini), from their verified [docs](https://mastra.ai/docs/memory/observational-memory) + [workshop repo](https://github.com/mastra-ai/mastra-observational-memory-workshop): Mastra's Observer fires at 30k-token threshold, Reflector at 40k-token threshold. For a 115k-token LME-S case that's ~5-6 ingest LLM calls per case. AgentOS does 1 call per unique session, cached content-addressed across cases → ~4 calls per case amortized. **Call-count ratio ~1.5×, not an order of magnitude.** The real architectural separation on multi-session is their compressed-observation-log approach (all sessions in context) vs our retrieval approach (top-K chunks may miss gold sessions).
 
 Publication-grade numbers require a 500-case sweep at an estimated ~$8 cost — not run in Phase 0 per budget approval gate.
 
@@ -98,7 +109,7 @@ The bench's node process **hangs after writing the run JSON**. The JSON lands, `
 ## 9. What the blog post can claim (today, with N=24 samples)
 
 - "AgentOS retrieval hits Recall@10 = 0.95 on LongMemEval-S — on par with published competitors."
-- "Cost per correct answer is $0.003 — an order of magnitude below published comparables at equal or better retrieval quality."
+- "All-in cost per correct = $0.003 at gpt-5-mini, $0.008 projected at claude-haiku-4-5, $0.022 projected at gpt-4o, $0.026 projected at claude-sonnet-4-6 — same architecture, different reader prices. Architectural differences (one summary per session vs multi-call Observer pipelines) manifest at matched reader."
 - "Session-level retrieval metrics confirm the cognitive stack retrieves the correct evidence session ~95% of the time; the remaining accuracy gap is reader reasoning on temporal cases and retrieval diversity on multi-session cases."
 - "Three of six retrieval signals are load-bearing on LongMemEval-S ingest: similarity (dominant), Ebbinghaus strength (meaningful), recency (modest). Other signals may shine on different benchmarks or in live-conversation mode."
 
