@@ -570,6 +570,16 @@ export interface CaseResult extends CaseRun {
     sourceType: string;
     overlapScore: number;
   } | null;
+
+  /**
+   * Per-retrieval-stage quality metrics (dense → sparse → merged →
+   * reranked → final) computed against this case's gold session IDs.
+   * `null` when the case ran retrieval but had no gold to score
+   * against (excluded from aggregate means). `undefined` when the
+   * benchmark didn't surface the stage-level view (legacy runs or
+   * non-hybrid retrieval paths).
+   */
+  retrievalStageMetrics?: import('./metrics/index.js').RetrievalStageMetrics | null;
 }
 
 /**
@@ -684,6 +694,14 @@ export interface BenchResult {
    * don't surface provenance).
    */
   evidenceOrigin?: Record<string, number>;
+
+  /**
+   * Mean per-stage retrieval quality across cases that carried a
+   * {@link CaseResult.retrievalStageMetrics}. Splits what used to be a
+   * single end-to-end metric into dense / sparse / merged / reranked /
+   * final. Absent when no case surfaced stage-level metrics.
+   */
+  retrievalStageMetrics?: import('./metrics/index.js').RetrievalStageMetrics;
 
   /** Per-case results. */
   cases: CaseResult[];
