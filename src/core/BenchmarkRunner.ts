@@ -107,6 +107,8 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     factSupersession: cfg.factSupersession,
     // Step-6: split-on-ambiguous rerank refinement.
     splitAmbiguous: cfg.splitAmbiguous,
+    // Step-7: Observer/Reflector pipeline flag (Tier 2).
+    observerReflector: cfg.observerReflector,
   };
 }
 
@@ -286,6 +288,13 @@ export function computeCaseRunKeyParts(
     const tag = `split-ambiguous:${config.splitAmbiguous}`;
     runKeyParts.push(tag);
     resultKeyParts.push(tag);
+  }
+
+  // Observer/Reflector fingerprint (Step 7, Tier 2): conditional
+  // append so runs without the flag keep cache hashes intact.
+  if (config.observerReflector) {
+    runKeyParts.push('observer-reflector:on');
+    resultKeyParts.push('observer-reflector:on');
   }
 
   return { runKeyParts, resultKeyParts };
