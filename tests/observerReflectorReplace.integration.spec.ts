@@ -33,7 +33,7 @@ describe('observer-reflector replace cache key fingerprint', () => {
     const obsTag = runKeyParts.find(
       (p) => typeof p === 'string' && p.startsWith('observer-reflector:'),
     );
-    expect(obsTag).toBe('observer-reflector:replace');
+    expect(obsTag).toBe('observer-reflector:replace-v2');
     expect(cfg.observerReflectorReplace).toBe(true);
   });
 });

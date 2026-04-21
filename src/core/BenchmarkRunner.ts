@@ -293,11 +293,13 @@ export function computeCaseRunKeyParts(
   }
 
   // Observer/Reflector fingerprint (Step 7 / Step 8): conditional append
-  // distinguishes additive overlay (`on`) from replacement (`replace`)
-  // so the two modes cache independently.
+  // distinguishes additive overlay (`on`) from replacement. The `-v2`
+  // bump on replace invalidates prior Step 8 first-wave cache entries
+  // that pre-date the `flushReflection` scopeOverride fix (reflections
+  // landed in wrong collections before the fix, producing empty retrieval).
   if (config.observerReflector) {
     const tag = config.observerReflectorReplace
-      ? 'observer-reflector:replace'
+      ? 'observer-reflector:replace-v2'
       : 'observer-reflector:on';
     runKeyParts.push(tag);
     resultKeyParts.push(tag);
