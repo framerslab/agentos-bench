@@ -112,6 +112,13 @@ interface BenchEntry {
      * `hybridRetrievalEnabled: true`.
      */
     splitAmbiguousThreshold?: number;
+    /**
+     * Step-7 (Tier 2): when true, the adapter constructs a cost-tracked
+     * gpt-5-mini invoker and wires Observer/Reflector through
+     * `createCognitiveManager`, then routes each conversation turn
+     * through `manager.observe()` in addition to `manager.encode()`.
+     */
+    observerReflectorEnabled?: boolean;
   }) => IBenchmark;
 }
 
@@ -162,29 +169,29 @@ const BENCHMARKS: BenchEntry[] = [
     id: 'longmemeval-s',
     family: 'external',
     description: 'LongMemEval-S (500 cases, ~115k-token haystacks)',
-    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold }) =>
-      new LongMemEvalS({ reader, variant: 's', embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled }) =>
+      new LongMemEvalS({ reader, variant: 's', embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled }),
   },
   {
     id: 'longmemeval-m',
     family: 'external',
     description: 'LongMemEval-M (~500 sessions per haystack) — medium-difficulty variant',
-    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold }) =>
-      new LongMemEvalM({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled }) =>
+      new LongMemEvalM({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled }),
   },
   {
     id: 'longmemeval-oracle',
     family: 'external',
     description: 'LongMemEval-Oracle (evidence-only) — isolates reader quality from retrieval',
-    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold }) =>
-      new LongMemEvalOracle({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled }) =>
+      new LongMemEvalOracle({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled }),
   },
   {
     id: 'locomo',
     family: 'external',
     description: 'LOCOMO (Maharana et al. 2024, 10 convos × ~300 turns, QA task only in v1)',
-    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold }) =>
-      new Locomo({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled }) =>
+      new Locomo({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled }),
   },
   {
     id: 'beam-500k',
@@ -482,6 +489,10 @@ export function buildCli(): Command {
       parseFloatArg,
     )
     .option(
+      '--observer-reflector',
+      'Enable Step-7 Observer/Reflector pipeline (Tier 2 progressive enhancement). Adds personality-biased observation-note extraction at 30k-token intervals, compression at 50-note intervals, and reflector-driven trace consolidation + supersession. Matches Mastra "Observational Memory" pattern. Uses gpt-5-mini as the observer/reflector invoker by default.',
+    )
+    .option(
       '--seed <n>',
       'Deterministic seed for bootstrap resampling (and any future RNG-dependent pipeline). Use for reproducible findings-doc CIs.',
       parseInteger,
@@ -585,6 +596,7 @@ export function buildCli(): Command {
         hyde: Boolean(opts.hyde),
         factSupersession: Boolean(opts.factSupersession),
         splitAmbiguous: opts.splitAmbiguous as number | undefined,
+        observerReflector: Boolean(opts.observerReflector),
       };
 
       // Cost preflight — coarse but enough to catch "oh no I just
@@ -769,6 +781,7 @@ export function buildCli(): Command {
         hydeEnabled: runConfig.hyde,
         factSupersessionEnabled: runConfig.factSupersession,
         splitAmbiguousThreshold: runConfig.splitAmbiguous,
+        observerReflectorEnabled: runConfig.observerReflector,
       });
       const result = await runner.run(benchmark, runConfig);
 
