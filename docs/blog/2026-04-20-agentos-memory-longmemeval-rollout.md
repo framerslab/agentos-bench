@@ -1,8 +1,8 @@
-# AgentOS Memory: 73.2% on LongMemEval-S at Matched Reader, and What We Learned From Six Negative Results
+# AgentOS Memory: 73.2% on LongMemEval-S at Matched Reader, and What We Learned From Seven Negative Results
 
-**TL;DR.** AgentOS hit 73.2% unweighted accuracy [69.2%, 77.0%] on LongMemEval-S Phase B N=500 at gpt-4o reader + gpt-4o judge, with 54.9% on multi-session (n=133), 86.8% on knowledge-update, and $0.0213 per correct answer. The result comes from one GREEN feature (BM25 + dense RRF + Cohere rerank blend) out of eight tested. The other six retrieval ideas (a hierarchical session retriever, HyDE query rewriting, an LLM fact-supersession filter, rerank-guided content splitting, an additive Observer/Reflector overlay, and a replacement-semantics Observer/Reflector) all regressed. Total measurement cost across eight matched-ablation studies: ~$23.48. A kill-criterion discipline caught six of seven losing variants at Tier A smokes, saving roughly $20 in wasted Tier B spend.
+**TL;DR.** AgentOS hit 73.2% unweighted accuracy [69.2%, 77.0%] on LongMemEval-S Phase B N=500 at gpt-4o reader + gpt-4o judge, with 54.9% on multi-session (n=133), 86.8% on knowledge-update, and $0.0213 per correct answer. The result comes from one GREEN feature (BM25 + dense RRF + Cohere rerank blend) out of nine tested. The other seven retrieval ideas (a hierarchical session retriever, HyDE query rewriting, an LLM fact-supersession filter, rerank-guided content splitting, an additive Observer/Reflector overlay, a replacement-semantics Observer/Reflector, and a Mem0-style fact-graph tuple extractor) all regressed. Total measurement cost across nine matched-ablation studies: ~$26.53. A kill-criterion discipline caught seven of eight losing variants at Tier A smokes, saving roughly $30 in wasted Tier B spend.
 
-The headline isn't SOTA. Mem0 claims [92.0](https://mem0.ai/research), Emergence AI [86%](https://www.emergence.ai/blog/sota-on-longmemeval-with-rag), Mastra's Observational Memory [84.23% at gpt-4o and 94.87% at gpt-5-mini](https://mastra.ai/research/observational-memory). Our 73.2% sits above [Zep/Graphiti's 71.2% at gpt-4o](https://blog.getzep.com/state-of-the-art-agent-memory/) and below the frontier systems. What we have that most of those don't: eight controlled ablations, bootstrap-gated confidence intervals on every claim, and a methodology that treats matched-reader cost comparison as a hard requirement. The 73.2% is also a PROGRESSIVE-ENHANCEMENT baseline: every AgentOS consumer can opt into additional tiers (observer pipelines, fact graphs, two-call readers) to trade more ingest cost for higher accuracy as their workload warrants.
+The headline isn't SOTA. Mem0 currently advertises [92.0](https://mem0.ai/research-2) to [93.4](https://docs.mem0.ai/core-concepts/memory-evaluation) depending on page, Emergence AI reports [86%](https://www.emergence.ai/blog/sota-on-longmemeval-with-rag), and Mastra's Observational Memory reports [84.23% at gpt-4o and 94.87% at gpt-5-mini](https://mastra.ai/research/observational-memory). Our 73.2% sits above [Zep/Graphiti's 71.2% at gpt-4o](https://blog.getzep.com/state-of-the-art-agent-memory/) and below the frontier systems. What we have that most of those don't: eight controlled ablations, bootstrap-gated confidence intervals on every claim, and a methodology that treats matched-reader cost comparison as a hard requirement. The 73.2% is also a PROGRESSIVE-ENHANCEMENT baseline: every AgentOS consumer can opt into additional tiers (observer pipelines, fact graphs, two-call readers) to trade more ingest cost for higher accuracy as their workload warrants.
 
 ---
 
@@ -23,8 +23,10 @@ The published leaderboard at gpt-4o reader, roughly sorted, looks like this:
 | **AgentOS Step 3 Hybrid** | **73.2%** | this work, Phase B N=500 |
 | [Mastra Observational Memory (gpt-4o)](https://mastra.ai/research/observational-memory) | 84.23% | observer + reflector compression |
 | [Emergence AI RAG](https://www.emergence.ai/blog/sota-on-longmemeval-with-rag) | 86% | two-stage session retrieval + NDCG |
-| [Mem0](https://mem0.ai/research) | 92.0 | token-efficient memory algorithm |
+| [Mem0](https://mem0.ai/research-2) | 92.0-93.4* | public benchmark page and docs currently disagree |
 | [Mastra Observational Memory (gpt-5-mini)](https://mastra.ai/research/observational-memory) | 94.87% | different reader, not matched |
+
+* Mem0's public benchmark page advertises 92.0 on LongMemEval, while Mem0's docs page reports 93.4. We treat that as a source-verification caveat until the public numbers converge.
 
 Our number at matched reader puts us between Zep and the frontier, not at the frontier. We'll explain what we added on top of the baseline, what we tried that didn't work, and why the methodology matters for anyone trying to trust these numbers.
 
@@ -153,7 +155,7 @@ Nothing here is novel. The bootstrap CI, the matched-reader discipline, the kill
 
 ---
 
-## Six things we tried that didn't work, and what they teach you
+## Seven things we tried that didn't work, and what they teach you
 
 ### Step 2: SessionRetriever without rerank threading
 
@@ -220,7 +222,29 @@ Root cause: LLM-generated summaries erase the specific tokens the reader needs. 
 
 What ships regardless: `getReflector()` accessor + `flushReflection(mood?, scopeOverride?)` as agentos-core primitives (v0.1.249). Downstream consumers that want forced reflection at explicit boundaries now have the API. A tuned-prompt Step 11 variant is the cheapest remaining Observer/Reflector experiment to close the Mastra gap; not scheduled yet.
 
-### The pattern across six negative results
+### Step 9: Fact-Graph Ingest (Mem0 tuple pattern)
+
+The idea: per-session gpt-5-mini extractor emits `(subject, predicate, object, timestamp)` tuples using a closed 25-predicate schema. Synthetic `ScoredMemoryTrace` objects with `retrievalScore: 1.0` and `sourceType: 'fact_graph'` prepend to the `HybridRetriever` merged pool BEFORE rerank. Architectural bet: tuple extraction preserves the literal `object` token where Steps 5/7/8 paraphrased it away.
+
+What happened: Tier A N=24 unweighted **58.3%**, 29.2pp below the 87.5% Tier 1 smoke baseline. Cost $3.05 total, $0.218 per correct (10× Tier 1). Killed at Tier A; no Phase A or Phase B ran.
+
+The decisive diagnosis came from an evaluation-layer upgrade we shipped alongside Step 9: a `BenchResult.evidenceOrigin` aggregator that buckets each case's reader answer by the `sourceType` of the retrieved trace with maximum shingle overlap. The Step 9 Tier A run emitted:
+
+```
+evidenceOrigin: { user_statement: 19, fact_graph: 0, none: 5 }
+```
+
+Zero of 24 cases attributed the reader's answer to a fact-graph synthetic trace. The reader quoted from raw chunks (`user_statement`) on every correct answer. The synthetic traces were decorative, not load-bearing.
+
+Root cause has three compounding layers:
+
+1. **`retrievalScore: 1.0` on synthetic traces was too aggressive.** The blend is `0.7 * cognitive + 0.3 * neural`. Synthetic at cognitive=1.0 gets ≥0.7 post-blend; real chunks at cognitive=~0.3 cap at ~0.48. Synthetic always wins the final sort, displacing raw chunks from top-K.
+2. **Stage-level metrics measured the displacement directly.** `merged.recall = 0.774` but `final.recall = 0.712` — the 6.2pp drop is rerank handing away recall to synthetic traces.
+3. **Fact-graph trace format loses to raw chunks even when both are in top-K.** Synthetic content reads like `"user livesIn Berlin (as of 2026-03-15)"`; raw chunks carry conversational context (`"I moved to Berlin last Tuesday"`) that the reader uses to anchor answers. The extractor likely paraphrases `object` despite the "literal span" instruction, and the synthetic format adds nothing the raw chunk doesn't already contain.
+
+The empirical rule from Steps 4-9 now stands at n=7: every variant that routes retrieval content through an LLM at ingest or query time regresses. Tuple extraction doesn't escape the pattern — it just fails in a measurably different way.
+
+### The pattern across seven negative results
 
 Every failed step modified or removed retrieval output before the reader saw it, OR added output that competed with the existing signal, OR introduced an LLM intermediate step that paraphrased away specific tokens.
 
@@ -244,11 +268,11 @@ What we can defensibly say:
 - 73.2% unweighted [69.2%, 77.0%] at gpt-4o reader + gpt-4o judge, LongMemEval-S N=500.
 - 54.9% multi-session [46.6%, 63.2%] (n=133), competitive with the upper half of published memory-system multi-session numbers.
 - $0.0213 per correct answer at gpt-4o. 15.7% below the Step 1 baseline at matched reader.
-- Eight-step matched-ablation methodology with CI gates, producing one shippable feature and six well-characterized negative results.
+- Nine-step matched-ablation methodology with CI gates, producing one shippable feature and seven well-characterized negative results.
 
 What we can't defensibly say:
 
-- "SOTA." Mem0 (92.0), Emergence AI (86%), and Mastra (84.23% at gpt-4o) all publish higher numbers at the same reader. We haven't matched them.
+- "SOTA." Mem0 currently advertises 92.0-93.4 across two public pages, Emergence AI publishes 86%, and Mastra publishes 84.23% at gpt-4o. We haven't matched them.
 - "Cheaper than X." Mem0 publishes token counts, not cost-per-correct. Emergence AI doesn't publish cost. Without matched-reader + matched-cost data from each competitor running on identical infrastructure, a comparative cost claim is unsupported.
 - "Strong on all categories." Multi-session 54.9% is competitive but not frontier. Mastra's observational memory reports 87.2% at gpt-5-mini, which is dramatically higher. The frontier is reachable; we haven't reached it.
 
@@ -286,12 +310,12 @@ Step 3 Hybrid is the default, but AgentOS ships the plumbing for higher-accuracy
 | **Tier 1** (default) | `--hybrid-retrieval --context-summary gpt-5-mini` | + BM25 sparse + RRF merge + Cohere rerank blend + Anthropic-style session summaries | **73.2% [69.2%, 77.0%]** | **$0.0213** | **shipping, Phase B N=500 measured** |
 | Tier 2 ADDITIVE (opt-in) | Tier 1 + `--observer-reflector` | + MemoryObserver / MemoryReflector pipeline alongside raw chunks | 62.5% at N=24 smoke | ~$0.10+ (gpt-5-mini observer) | RED at Tier A, opt-in only |
 | Tier 2 REPLACEMENT (opt-in) | Tier 1 + `--observer-reflector --observer-reflector-replace` | + REPLACEMENT semantics (skip raw chunk encode, force reflection at session boundaries, BM25 on reflection traces) | 25.0% at N=24 smoke | $0.58 (gpt-5-mini observer) | RED at Tier A, opt-in only |
-| Tier 3 (planned) | Tier 1 + `--fact-graph-ingest` | + per-session LLM (subject, predicate, object, timestamp) tuple extraction (Mem0 pattern) | not measured | not measured | spec pending, budget approved |
+| Tier 3 (Step 9 RED) | Tier 1 + `--fact-graph-ingest` | + per-session LLM (subject, predicate, object, timestamp) tuple extraction with closed 25-predicate schema; synthetic traces prepended before rerank | 58.3% at N=24 smoke | $0.218 | RED at Tier A, opt-in only |
 | Tier 4 (planned) | any tier + `--two-call-reader` | + extract-then-answer reader pipeline (Emergence AI pattern) | not measured | not measured | spec pending |
 
 Tier 2 ADDITIVE regressed because adding reflection traces alongside raw chunks dilutes retrieval. Abstract summaries rank high enough on cosine similarity to displace the specific-value chunks the reader needs. Tier 2 REPLACEMENT (the architecturally-correct fix matching Mastra's semantics) regressed further because LLM-generated reflection summaries erase the high-IDF tokens LongMemEval's specific-value categories require. Per-category in Tier 2 REPLACEMENT: preference 75%, user 50%, multi-session 25%, knowledge-update 0%, assistant 0%, temporal 0%. The pattern is clear: summary-based approaches preserve category information but destroy fact information on this workload. A tuned reflector prompt designed to preserve names, dates, and numeric values verbatim is the cheapest remaining experiment to close the gap to Mastra's 84.23% at gpt-4o, but that's prompt engineering more than architecture.
 
-Tiers 3 and 4 match published frontier architectures (Mem0's fact graph, Emergence AI's two-call reader). Tier 3 is architecturally different from Steps 5/7/8 because tuple extraction preserves the literal `object` token where summary-based approaches paraphrase it away. If tested and GREEN, Tier 3 is the plausible path to closing the gap to Mem0's claimed 92.0. The current Tier 1 result is the cost-optimized default; anyone who wants frontier accuracy can opt into the higher tiers once their architectures land.
+Tiers 3 and 4 match published frontier architectures (Mem0's fact graph, Emergence AI's two-call reader). Tier 3 is architecturally different from Steps 5/7/8 because tuple extraction preserves the literal `object` token where summary-based approaches paraphrase it away. If tested and GREEN, Tier 3 is the plausible path to closing the gap to the current frontier tier. The current Tier 1 result is the cost-optimized default; anyone who wants frontier accuracy can opt into the higher tiers once their architectures land.
 
 Orthogonality matters: each tier's flag is independent, so consumers with unusual workloads can mix and match (e.g., fact-graph ingest without observer/reflector, or two-call reader without fact-graph). Canonical presets are bundled for the common "more accuracy, more cost" progression.
 
@@ -301,11 +325,11 @@ Orthogonality matters: each tier's flag is independent, so consumers with unusua
 
 **Production default flip.** Step 3 Hybrid has CI-gated evidence at Phase B. The decision to flip from opt-in to default-on is a product call, not a benchmark call. The evidence supports the flip.
 
-**Tier 3 fact-graph ingest (Mem0 pattern).** Per-session LLM extraction of (subject, predicate, object, timestamp) tuples at ingest, stored keyed by `(subject_hash, predicate_hash) → time-sorted list`. Retrieval prepends the latest fact per matched `(subject, predicate)` as a synthetic trace with `retrievalScore: 1.0`. Architecturally different from Steps 5, 7, and 8 because tuple extraction preserves the literal `object` token that summary-based approaches paraphrase away. Budget: ~$15-30 for Tier A + Phase A + Phase B. Highest expected ceiling (Mem0 claims 92.0 on LongMemEval-S). User has approved budget in principle.
+**Tier 3 fact-graph ingest (Mem0 pattern) — ran, RED.** Per-session gpt-5-mini extractor emits `(subject, predicate, object, timestamp)` tuples using a closed 25-predicate schema. Synthetic traces with `retrievalScore: 1.0` prepend to the merged pool before rerank. **Result: 58.3% at N=24, 29.2pp below Tier 1 smoke; killed at Tier A.** The decisive data point: `evidenceOrigin: { fact_graph: 0, user_statement: 19, none: 5 }` — zero of 24 reader answers quoted a synthetic fact-graph trace; the reader pulled from raw chunks every time. Synthetic traces with ceiling-pinned scores displaced real chunks during rerank (measured: `merged.recall = 0.774` → `final.recall = 0.712`, a 6.2pp loss to displacement). Ships opt-in behind `--fact-graph-ingest`. Next experiment worth trying in this direction would be setting synthetic-trace `retrievalScore` to the fact's extraction confidence (~0.5) rather than 1.0, so they compete with raw chunks instead of dominating them.
 
 **Tier 4 two-call reader (Emergence AI pattern).** First reader call extracts relevant facts from top-K, second answers from the extracted facts only. Budget: ~$20-40 per full run. Modest expected lift, orthogonal to the retrieval layer, and can layer on top of any working tier.
 
-**Tuned reflector prompt.** Step 8 RED most likely reflects prompt choice, not architecture. The reflector is told to "consolidate" and "elevate important facts," which gpt-5-mini interprets as permission to produce abstract paraphrases. A variant prompt instructing the reflector to preserve names, dates, and numeric values verbatim is the cheapest remaining experiment to close the gap to Mastra's 84.23% at gpt-4o. Low priority unless the user explicitly wants the Mastra parity number; higher priority if Step 9 fact-graph also RED's.
+**Tuned reflector prompt.** Step 8 RED most likely reflects prompt choice, not architecture. The reflector is told to "consolidate" and "elevate important facts," which gpt-5-mini interprets as permission to produce abstract paraphrases. A variant prompt instructing the reflector to preserve names, dates, and numeric values verbatim is the cheapest remaining experiment to close the gap to Mastra's 84.23% at gpt-4o. Step 9's RED raised this priority: with fact-graph tuples also regressing (different mechanism, same pattern), a reflector-prompt variant is now the highest-value remaining experiment in the reflector family.
 
 **Graph-expansion retrieval.** The entity graph is already built; we don't currently expand retrieval to include traces connected to the top-K via shared-entity edges. A proper additive-signal experiment would add this and measure against Tier 1. Budget: ~$1-2 for Tier A.
 
@@ -315,7 +339,7 @@ Orthogonality matters: each tier's flag is independent, so consumers with unusua
 
 **Multimodal benchmarks.** AgentOS's multimodal RAG isn't tested here because LongMemEval is text-only. A separate sequenced rollout on [MM-Vet](https://arxiv.org/abs/2308.02490), [Video-MME](https://arxiv.org/abs/2405.21075), or a chat benchmark with image attachments would measure the modality-specific retrieval quality. Different architecture choices (late-fusion reranking, modality-specific indexing, pixel-level vs convert-to-text embedding) need their own ablations. Not in scope for this rollout; worth its own investigation.
 
-**Verifying frontier claims.** Mem0's 92.0 at unspecified reader, Mastra's 94.87% at gpt-5-mini, OMEGA's 95.4% at GPT-4.1, Emergence AI's 86% at gpt-4o. Each of these uses a different stack at a different reader. A fair comparison would run each on identical infrastructure. We haven't done this. Until someone does, the leaderboard numbers are self-reported on self-selected configurations.
+**Verifying frontier claims.** Mem0's public pages currently disagree between 92.0 and 93.4, Mastra reports 94.87% at gpt-5-mini, OMEGA reports 95.4% at GPT-4.1, and Emergence AI reports 86% at gpt-4o. Each of these uses a different stack at a different reader. A fair comparison would run each on identical infrastructure. We haven't done this. Until someone does, the leaderboard numbers are self-reported on self-selected configurations.
 
 ---
 
@@ -334,9 +358,9 @@ pnpm exec agentos-bench run longmemeval-s \
 
 Seven step findings docs (GREEN-soft for Step 3, RED for Steps 2, 4, 5, 6, 7, infra for Step 1) live in [packages/agentos-bench/docs/STEP_*_FINDINGS_2026-04-20.md](https://github.com/framersai/agentos/tree/master/packages/agentos-bench/docs). The umbrella doc is at [RAG_STACK_UMBRELLA_FINDINGS_2026-04-20.md](https://github.com/framersai/agentos/blob/master/packages/agentos-bench/docs/RAG_STACK_UMBRELLA_FINDINGS_2026-04-20.md). The matched-ablation and bootstrap CI methodology is implemented at [packages/agentos-bench/src/core/metrics/](https://github.com/framersai/agentos/tree/master/packages/agentos-bench/src/core/metrics).
 
-Commits for each of the eight steps are listed in the umbrella findings doc plus the Step 7 and Step 8 findings docs. The architecture doc for HybridRetriever lives at [packages/agentos/docs/architecture/hybrid-retriever.md](https://github.com/framersai/agentos/blob/master/packages/agentos/docs/architecture/hybrid-retriever.md).
+Commits for each of the nine steps are listed in the umbrella findings doc plus the Step 7, Step 8, and Step 9 findings docs. The architecture doc for HybridRetriever lives at [packages/agentos/docs/architecture/hybrid-retriever.md](https://github.com/framersai/agentos/blob/master/packages/agentos/docs/architecture/hybrid-retriever.md).
 
-Total measurement cost for the eight-step rollout plus Phase B N=500 confirmation: ~$23.48. Reader: OpenAI gpt-4o-2024-08-06 and gpt-5-mini. Reranker: Cohere rerank-v3.5. Embedder: OpenAI text-embedding-3-small. Judge: OpenAI gpt-4o-2024-08-06. Observer/reflector invoker (when enabled): gpt-5-mini.
+Total measurement cost for the nine-step rollout plus Phase B N=500 confirmation: ~$26.53. Reader: OpenAI gpt-4o-2024-08-06 and gpt-5-mini. Reranker: Cohere rerank-v3.5. Embedder: OpenAI text-embedding-3-small. Judge: OpenAI gpt-4o-2024-08-06. Observer/reflector invoker (when enabled): gpt-5-mini. Fact-graph extractor (when enabled): gpt-5-mini.
 
 ---
 
