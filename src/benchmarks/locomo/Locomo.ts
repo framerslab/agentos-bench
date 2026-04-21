@@ -198,6 +198,7 @@ export class Locomo implements IBenchmark {
         this.opts.splitAmbiguousThreshold,
         this.opts.observerReflectorEnabled,
         this.opts.observerReflectorReplaceEnabled,
+        this.opts.factGraphIngestEnabled,
       );
       system = out.prompt;
       runMeta.replayStats = out.replayStats;
