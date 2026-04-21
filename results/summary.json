@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-04-19T09:11:11.676Z",
+  "updatedAt": "2026-04-21T00:37:02.471Z",
   "latest": {
     "decay-fidelity|claude-sonnet-4-6|none|ingest": {
       "runFile": "micro/2026-04-19T06-11-20-814--decay-fidelity--claude-sonnet-4-6--none--ingest.json",
@@ -107,19 +107,70 @@
       "startedAt": "2026-04-19T06:11:20.827Z"
     },
     "longmemeval-s|gpt-4o|full-cognitive|ingest": {
-      "runFile": "runs/2026-04-19T08-16-33-204--longmemeval-s--gpt-4o--full-cognitive--ingest.json",
+      "runFile": "runs/2026-04-20T20-03-14-675--longmemeval-s--gpt-4o--full-cognitive--ingest.json",
       "benchmarkId": "longmemeval-s",
       "benchmarkVersion": "1.0.0",
       "reader": "gpt-4o",
       "memoryMode": "full-cognitive",
       "replayMode": "ingest",
-      "totalCases": 20,
-      "accuracy": 0.9,
-      "avgScore": 0.9,
-      "avgLatencyMs": 62043.25,
-      "totalUsd": 0.30441750000000006,
-      "costPerCorrect": 0.016912083333333338,
-      "startedAt": "2026-04-19T08:16:33.204Z"
+      "totalCases": 500,
+      "accuracy": 0.732,
+      "avgScore": 0.732,
+      "avgLatencyMs": 98071.514,
+      "totalUsd": 7.804919999999996,
+      "costPerCorrect": 0.021324918032786872,
+      "startedAt": "2026-04-20T20:03:14.675Z",
+      "retrievalMetrics": {
+        "meanRecallAtK": 0.8584175084175084,
+        "meanPrecisionAtK": 0.49939393939393895,
+        "meanNdcgAtK": 0.8021643888514175,
+        "meanMrr": 0.8804850088183421,
+        "k": 10,
+        "sampleSize": 495
+      },
+      "stratifiedAccuracy": {
+        "weightedOverall": 0.740224873501377,
+        "unweightedOverall": 0.732
+      },
+      "latencyBreakdown": {
+        "encode": {
+          "p50": 0.9919354838709677,
+          "p95": 1.2634558093346573,
+          "p99": 1.702816050057712,
+          "n": 495
+        },
+        "retrieve": {
+          "p50": 518,
+          "p95": 768.1999999999998,
+          "p99": 1227.9400000000005,
+          "n": 495
+        },
+        "vectorSearch": {
+          "p50": 1,
+          "p95": 2.3000000000000114,
+          "p99": 5,
+          "n": 355
+        },
+        "scoring": {
+          "p50": 1,
+          "p95": 2,
+          "p99": 4.899999999999977,
+          "n": 206
+        },
+        "replay": {
+          "p50": 110726,
+          "p95": 168503.49999999994,
+          "p99": 194397.10000000003,
+          "n": 495
+        }
+      },
+      "memoryFootprint": {
+        "meanBrainBytes": 1951359.2242424241,
+        "p95BrainBytes": 2670592,
+        "meanTraceCount": 250.77575757575758,
+        "maxPeakWorkingMemorySlots": 7,
+        "totalEncodeCalls": 124134
+      }
     },
     "longmemeval-oracle|gpt-4o|none|ingest": {
       "runFile": "runs/2026-04-19T08-16-00-164--longmemeval-oracle--gpt-4o--none--ingest.json",
@@ -137,19 +188,70 @@
       "startedAt": "2026-04-19T08:16:00.164Z"
     },
     "longmemeval-s|gpt-5-mini|full-cognitive|ingest": {
-      "runFile": "runs/2026-04-19T08-40-39-784--longmemeval-s--gpt-5-mini--full-cognitive--ingest.json",
+      "runFile": "runs/2026-04-20T18-41-09-505--longmemeval-s--gpt-5-mini--full-cognitive--ingest.json",
       "benchmarkId": "longmemeval-s",
       "benchmarkVersion": "1.0.0",
       "reader": "gpt-5-mini",
       "memoryMode": "full-cognitive",
       "replayMode": "ingest",
-      "totalCases": 20,
-      "accuracy": 0.9,
-      "avgScore": 0.9,
-      "avgLatencyMs": 56915.8,
-      "totalUsd": 0.07754674999999998,
-      "costPerCorrect": 0.004308152777777777,
-      "startedAt": "2026-04-19T08:40:39.784Z"
+      "totalCases": 24,
+      "accuracy": 0.5833333333333334,
+      "avgScore": 0.5833333333333334,
+      "avgLatencyMs": 4914.625,
+      "totalUsd": 0.07302724999999997,
+      "costPerCorrect": 0.005216232142857141,
+      "startedAt": "2026-04-20T18:41:09.505Z",
+      "retrievalMetrics": {
+        "meanRecallAtK": 0.7395833333333334,
+        "meanPrecisionAtK": 0.4333333333333334,
+        "meanNdcgAtK": 0.7167556847445827,
+        "meanMrr": 0.8020833333333334,
+        "k": 10,
+        "sampleSize": 24
+      },
+      "stratifiedAccuracy": {
+        "weightedOverall": 0.504,
+        "unweightedOverall": 0.5833333333333334
+      },
+      "latencyBreakdown": {
+        "encode": {
+          "p50": 0.27956973403079644,
+          "p95": 0.32006085989136834,
+          "p99": 0.33281273588142457,
+          "n": 24
+        },
+        "retrieve": {
+          "p50": 712.5,
+          "p95": 852.4999999999999,
+          "p99": 861.54,
+          "n": 24
+        },
+        "vectorSearch": {
+          "p50": 1,
+          "p95": 1,
+          "p99": 1,
+          "n": 8
+        },
+        "scoring": {
+          "p50": 1,
+          "p95": 1,
+          "p99": 1,
+          "n": 3
+        },
+        "replay": {
+          "p50": 112.5,
+          "p95": 251.5499999999999,
+          "p99": 261.08,
+          "n": 24
+        }
+      },
+      "memoryFootprint": {
+        "meanBrainBytes": 2064042.6666666667,
+        "p95BrainBytes": 2682880,
+        "meanTraceCount": 254.375,
+        "maxPeakWorkingMemorySlots": 7,
+        "totalEncodeCalls": 6105
+      }
     }
   }
 }
