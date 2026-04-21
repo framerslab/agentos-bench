@@ -148,6 +148,24 @@ export class ResultStore {
   private async updateSummary(r: BenchResult, runFile: string): Promise<void> {
     const summary = await this.readSummary();
     const key = `${r.benchmarkId}|${r.config.reader}|${r.config.memoryMode}|${r.config.replayMode}`;
+
+    // N-regression guard: never clobber a larger-N canonical entry with
+    // a smaller-N smoke. The summary key intentionally collapses across
+    // tier/sample size so that re-runs at the same N update the row;
+    // without this guard, a Tier A N=24 smoke could overwrite a Phase B
+    // N=500 canonical result and render the wrong number to every
+    // downstream consumer (leaderboard, blog, scripts).
+    const existing = summary.latest[key];
+    if (existing && existing.totalCases > r.totalCases) {
+      console.warn(
+        `[ResultStore] N-regression guard: skipping summary update ` +
+          `for "${key}" — new run has ${r.totalCases} cases, existing ` +
+          `row has ${existing.totalCases}. Summary row not overwritten. ` +
+          `Run file written to ${runFile}.`,
+      );
+      return;
+    }
+
     summary.latest[key] = {
       runFile,
       benchmarkId: r.benchmarkId,
