@@ -359,6 +359,23 @@ export interface RunConfig {
    * Default: undefined (no split). Requires `--hybrid-retrieval`.
    */
   splitAmbiguous?: number;
+
+  /**
+   * Enable Step-7 Observer/Reflector pipeline (Tier 2 progressive
+   * enhancement). When true, the bench adapter routes every
+   * conversation turn through `manager.observe()` in addition to
+   * `manager.encode()`. The observer extracts personality-biased
+   * notes at 30k-token buffer intervals, compresses them at 50-note
+   * intervals, and the reflector consolidates compressed observations
+   * into long-term traces with supersession semantics when reflection
+   * threshold (40k tokens) is reached. Reflection-derived traces are
+   * encoded into the same MemoryStore the HybridRetriever queries.
+   *
+   * Default: false. Opt-in behind `--observer-reflector` CLI flag.
+   * Observer/reflector LLM invoker defaults to gpt-5-mini (summarization
+   * doesn't need the reader's quality; Mastra uses gpt-5-mini too).
+   */
+  observerReflector?: boolean;
 }
 
 /**
@@ -397,6 +414,7 @@ export interface BenchContext {
       | 'hyde'
       | 'factSupersession'
       | 'splitAmbiguous'
+      | 'observerReflector'
     >
   > &
     Pick<
@@ -427,6 +445,7 @@ export interface BenchContext {
       | 'hyde'
       | 'factSupersession'
       | 'splitAmbiguous'
+      | 'observerReflector'
     >;
   /** LLM-as-judge for external benchmarks. Micro-benchmarks ignore. */
   judge: IJudge;
