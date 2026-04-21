@@ -56,6 +56,18 @@ export interface BenchmarkRunnerOptions {
  * Resolves sensible defaults for a {@link RunConfig}.
  */
 export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
+  // Step 9 mutex: fact-graph ingest and Observer/Reflector are two
+  // competing ingest-time LLM pipelines that mutate the same brain.
+  // Running them together is an architectural choice for a future step,
+  // not a valid MVP combination.
+  if (cfg.factGraphIngest && (cfg.observerReflector || cfg.observerReflectorReplace)) {
+    throw new Error(
+      '--fact-graph-ingest and --observer-reflector* flags are mutually exclusive. ' +
+        'Fact-graph ingest (Step 9) and Observer/Reflector pipeline (Step 7/8) ' +
+        'both fire LLM calls at session-ingest time; combining them in a ' +
+        'single run would produce entangled signal. Pick one per run.',
+    );
+  }
   return {
     reader: cfg.reader,
     memoryMode: cfg.memoryMode,
@@ -111,6 +123,8 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     observerReflector: cfg.observerReflector,
     // Step-8: REPLACEMENT semantics for Observer/Reflector.
     observerReflectorReplace: cfg.observerReflectorReplace,
+    // Step-9: Mem0-style fact-graph ingest (Tier 3).
+    factGraphIngest: cfg.factGraphIngest,
   };
 }
 
@@ -303,6 +317,16 @@ export function computeCaseRunKeyParts(
       : 'observer-reflector:on';
     runKeyParts.push(tag);
     resultKeyParts.push(tag);
+  }
+
+  // Fact-graph ingest fingerprint (Step 9): conditional append so runs
+  // without the flag keep their cache hashes intact. Includes the
+  // extractor-model + schema version so future prompt/schema iterations
+  // can bump the fingerprint (`:v1` → `:v2`) without invalidating
+  // unrelated runs.
+  if (config.factGraphIngest) {
+    runKeyParts.push('fact-graph-ingest:gpt-5-mini:v1');
+    resultKeyParts.push('fact-graph-ingest:gpt-5-mini:v1');
   }
 
   return { runKeyParts, resultKeyParts };
