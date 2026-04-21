@@ -377,6 +377,18 @@ export interface RunConfig {
    * doesn't need the reader's quality; Mastra uses gpt-5-mini too).
    */
   observerReflector?: boolean;
+
+  /**
+   * Step-8 (Tier 2 fix): REPLACEMENT semantics for Observer/Reflector.
+   * When true AND `observerReflector` is also true:
+   *   1. Raw chunks are NOT encoded via timedEncode during replay.
+   *   2. After each session's turns are observed, adapter calls
+   *      `manager.flushReflection(neutralMood)` to force reflection traces.
+   *   3. Encoded reflection-trace IDs are indexed into hybrid BM25.
+   *
+   * Requires `observerReflector: true`. Default: false.
+   */
+  observerReflectorReplace?: boolean;
 }
 
 /**
@@ -416,6 +428,7 @@ export interface BenchContext {
       | 'factSupersession'
       | 'splitAmbiguous'
       | 'observerReflector'
+      | 'observerReflectorReplace'
     >
   > &
     Pick<
@@ -447,6 +460,7 @@ export interface BenchContext {
       | 'factSupersession'
       | 'splitAmbiguous'
       | 'observerReflector'
+      | 'observerReflectorReplace'
     >;
   /** LLM-as-judge for external benchmarks. Micro-benchmarks ignore. */
   judge: IJudge;

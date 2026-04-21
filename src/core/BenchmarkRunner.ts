@@ -109,6 +109,8 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     splitAmbiguous: cfg.splitAmbiguous,
     // Step-7: Observer/Reflector pipeline flag (Tier 2).
     observerReflector: cfg.observerReflector,
+    // Step-8: REPLACEMENT semantics for Observer/Reflector.
+    observerReflectorReplace: cfg.observerReflectorReplace,
   };
 }
 
@@ -290,11 +292,15 @@ export function computeCaseRunKeyParts(
     resultKeyParts.push(tag);
   }
 
-  // Observer/Reflector fingerprint (Step 7, Tier 2): conditional
-  // append so runs without the flag keep cache hashes intact.
+  // Observer/Reflector fingerprint (Step 7 / Step 8): conditional append
+  // distinguishes additive overlay (`on`) from replacement (`replace`)
+  // so the two modes cache independently.
   if (config.observerReflector) {
-    runKeyParts.push('observer-reflector:on');
-    resultKeyParts.push('observer-reflector:on');
+    const tag = config.observerReflectorReplace
+      ? 'observer-reflector:replace'
+      : 'observer-reflector:on';
+    runKeyParts.push(tag);
+    resultKeyParts.push(tag);
   }
 
   return { runKeyParts, resultKeyParts };
