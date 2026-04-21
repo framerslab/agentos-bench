@@ -100,6 +100,11 @@ export interface LocomoAdapterOptions {
    * `LongMemEvalAdapterOptions.observerReflectorReplaceEnabled`.
    */
   observerReflectorReplaceEnabled?: boolean;
+  /**
+   * Step-9 (Tier 3): fact-graph ingest. Same semantics as
+   * `LongMemEvalAdapterOptions.factGraphIngestEnabled`.
+   */
+  factGraphIngestEnabled?: boolean;
 }
 
 /**

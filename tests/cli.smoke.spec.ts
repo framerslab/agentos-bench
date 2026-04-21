@@ -349,6 +349,34 @@ describe('CLI smoke', () => {
     // The summary table lives after the per-benchmark outputs.
     expect(out).toContain('Micro-benchmark summary');
   }, 60_000);
+
+  it('rejects --fact-graph-ingest combined with --observer-reflector (mutex)', async () => {
+    // Mutex lives in resolveRunConfig; surfaces as a thrown error the
+    // commander action propagates. We capture stderr via a spy on
+    // console.error because commander writes the stack there.
+    const originalExitCode = process.exitCode;
+    try {
+      await expect(
+        buildCli().parseAsync([
+          'node',
+          'agentos-bench',
+          'run',
+          'longmemeval-s',
+          '--dry-run',
+          '--fact-graph-ingest',
+          '--observer-reflector',
+          '--sample',
+          '1',
+          '--data-dir',
+          dataDir,
+          '--results-dir',
+          resultsDir,
+        ]),
+      ).rejects.toThrow(/mutually exclusive/i);
+    } finally {
+      process.exitCode = originalExitCode;
+    }
+  });
 });
 
 /**
