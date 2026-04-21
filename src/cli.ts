@@ -126,6 +126,16 @@ interface BenchEntry {
      * boundaries, and indexes reflection-trace IDs into BM25.
      */
     observerReflectorReplaceEnabled?: boolean;
+    /**
+     * Step-9 (Tier 3): when true, the adapter constructs a cost-tracked
+     * gpt-5-mini invoker and wires a Mem0-style fact-graph through
+     * `createCognitiveManager`. Per-session fact extraction runs at
+     * ingest; synthetic fact-graph traces (retrievalScore: 1.0,
+     * sourceType: 'fact_graph') are prepended to the HybridRetriever
+     * merged pool BEFORE rerank. Mutually exclusive with
+     * `observerReflectorEnabled` (enforced at RunConfig level).
+     */
+    factGraphIngestEnabled?: boolean;
   }) => IBenchmark;
 }
 
@@ -176,29 +186,29 @@ const BENCHMARKS: BenchEntry[] = [
     id: 'longmemeval-s',
     family: 'external',
     description: 'LongMemEval-S (500 cases, ~115k-token haystacks)',
-    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled }) =>
-      new LongMemEvalS({ reader, variant: 's', embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled }) =>
+      new LongMemEvalS({ reader, variant: 's', embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled }),
   },
   {
     id: 'longmemeval-m',
     family: 'external',
     description: 'LongMemEval-M (~500 sessions per haystack) — medium-difficulty variant',
-    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled }) =>
-      new LongMemEvalM({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled }) =>
+      new LongMemEvalM({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled }),
   },
   {
     id: 'longmemeval-oracle',
     family: 'external',
     description: 'LongMemEval-Oracle (evidence-only) — isolates reader quality from retrieval',
-    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled }) =>
-      new LongMemEvalOracle({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled }) =>
+      new LongMemEvalOracle({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled }),
   },
   {
     id: 'locomo',
     family: 'external',
     description: 'LOCOMO (Maharana et al. 2024, 10 convos × ~300 turns, QA task only in v1)',
-    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled }) =>
-      new Locomo({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled }) =>
+      new Locomo({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled }),
   },
   {
     id: 'beam-500k',
@@ -504,6 +514,10 @@ export function buildCli(): Command {
       'Enable Step-8 REPLACEMENT semantics for Observer/Reflector (Tier 2 fix). Skips raw chunk encoding during ingest, forces reflection at session boundaries via manager.flushReflection(), indexes reflection-derived trace IDs into hybrid BM25. Requires --observer-reflector. Addresses Step 7 RED (additive overlay dilutes retrieval).',
     )
     .option(
+      '--fact-graph-ingest',
+      'Enable Step-9 Mem0-style fact-graph ingest (Tier 3). Per-session gpt-5-mini extractor emits closed-schema (subject, predicate, object, timestamp) tuples; synthetic fact-graph traces with retrievalScore:1.0 are prepended to the HybridRetriever merged pool BEFORE rerank. Preserves literal object tokens where Steps 5/7/8 paraphrased them away. Mutually exclusive with --observer-reflector / --observer-reflector-replace.',
+    )
+    .option(
       '--seed <n>',
       'Deterministic seed for bootstrap resampling (and any future RNG-dependent pipeline). Use for reproducible findings-doc CIs.',
       parseInteger,
@@ -609,6 +623,7 @@ export function buildCli(): Command {
         splitAmbiguous: opts.splitAmbiguous as number | undefined,
         observerReflector: Boolean(opts.observerReflector),
         observerReflectorReplace: Boolean(opts.observerReflectorReplace),
+        factGraphIngest: Boolean(opts.factGraphIngest),
       };
 
       // Cost preflight — coarse but enough to catch "oh no I just
@@ -795,6 +810,7 @@ export function buildCli(): Command {
         splitAmbiguousThreshold: runConfig.splitAmbiguous,
         observerReflectorEnabled: runConfig.observerReflector,
         observerReflectorReplaceEnabled: runConfig.observerReflectorReplace,
+        factGraphIngestEnabled: runConfig.factGraphIngest,
       });
       const result = await runner.run(benchmark, runConfig);
 

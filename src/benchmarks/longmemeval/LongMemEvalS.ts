@@ -153,6 +153,15 @@ export interface LongMemEvalAdapterOptions {
    * IDs into BM25.
    */
   observerReflectorReplaceEnabled?: boolean;
+  /**
+   * Step-9 (Tier 3): when true, the adapter constructs a cost-tracked
+   * gpt-5-mini invoker and wires Mem0-style fact-graph ingest through
+   * `createCognitiveManager`. Per-session fact extraction runs at
+   * ingest boundaries; synthetic fact-graph traces are prepended to
+   * the `HybridRetriever` merged pool. Mutually exclusive with
+   * `observerReflectorEnabled` (enforced in resolveRunConfig).
+   */
+  factGraphIngestEnabled?: boolean;
 }
 
 /**
@@ -160,16 +169,10 @@ export interface LongMemEvalAdapterOptions {
  *
  * Memory-mode handling:
  *
- * - `none`        → haystack is concatenated into the reader's system prompt.
- * - `base-memory` → TODO(v2): needs `Memory.create` + retrieval wiring.
- *                   This commit focuses on the `none` path so the runner
- *                   and judge pipelines can be validated end-to-end.
- * - `full-cognitive` → TODO(v2): replay via `CognitiveMemoryManager.observe`
- *                   once the mock-free manager bootstrap is stabilised.
- *
- * When a mode is not yet implemented the adapter throws with a clear
- * message, which the runner surfaces as a per-case error without
- * aborting the whole run.
+ * - `none`           → haystack is concatenated into the reader's system prompt.
+ * - `base-memory`    → standalone `Memory` facade with per-case ingest + recall.
+ * - `full-cognitive` → scratch `CognitiveMemoryManager` replay + retrieval,
+ *                      with optional observer / reflector variants.
  */
 export class LongMemEvalS implements IBenchmark {
   readonly id: string;
