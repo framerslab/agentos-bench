@@ -51,6 +51,7 @@ import {
   type MemoryFootprint,
 } from '../../core/metrics/index.js';
 import type { IReader } from '../../readers/IReader.js';
+import { createReader } from '../../readers/createReader.js';
 import type { SessionSummarizer } from '@framers/agentos/memory';
 import { createCognitiveManager } from '../../cognitive/createCognitiveManager.js';
 import { loadLongMemEvalDataset, type LongMemEvalVariant } from './dataset.js';
@@ -746,16 +747,17 @@ export async function runFullCognitiveCase(
     };
   }
 
-  // Step-7 (Tier 2): Observer/Reflector invoker. Uses the bench reader
-  // abstraction — summarization doesn't need the main reader's quality,
-  // and Mastra's OM uses gpt-5-mini. Costs tracked per-case via the
-  // bench's CostTracker.
+  // Step-7 (Tier 2): Observer/Reflector invoker. Uses gpt-5-mini
+  // (not the main reader) — summarization doesn't need the reader's
+  // quality, and Mastra's OM uses gpt-5-mini too. Cost-tracked per
+  // case via the bench's CostTracker.
   let observerReflectorLlmInvoker:
     | ((systemPrompt: string, userPrompt: string) => Promise<string>)
     | undefined;
-  if (observerReflectorEnabled && hydeReader) {
+  if (observerReflectorEnabled) {
+    const observerReader = createReader('gpt-5-mini');
     observerReflectorLlmInvoker = async (systemPrompt: string, userPrompt: string) => {
-      const resp = await hydeReader.invoke({
+      const resp = await observerReader.invoke({
         system: systemPrompt,
         user: userPrompt,
         maxTokens: 2000,
