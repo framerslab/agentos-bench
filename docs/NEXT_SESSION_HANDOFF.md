@@ -135,35 +135,53 @@ Kill-criterion discipline has prevented many Phase A/B runs from firing on known
 
 ## 5. What to do next
 
-The user budgeted "hundreds" of dollars for further experiments and has given explicit approval to continue. Two planned next steps.
+Step 9 ran 2026-04-21 and RED'd at Tier A. See [STEP_9_FACT_GRAPH_FINDINGS_2026-04-21.md](STEP_9_FACT_GRAPH_FINDINGS_2026-04-21.md). The empirical rule from 7 RED steps is now: any LLM intermediate transformation on retrieval content regresses on specific-value LongMemEval-S.
 
-### Step 9 — Tier 3 fact-graph ingest (Mem0 pattern) — RECOMMENDED NEXT
+### Step 9 outcome — measured
 
-**Rationale:** every negative result since Step 4 has been "LLM transforms content → specific-value categories fail." Mem0's approach extracts STRUCTURED TUPLES `(subject, predicate, object, timestamp)` instead of natural-language summaries. The `object` field retains literal tokens. If specific-value preservation is the core requirement, tuple extraction should retain it where summary-based approaches (Steps 5, 7, 8) erase it.
+- **Tier A N=24: 58.3% unweighted [37.5%, 79.2%], 29.2pp below Tier 1 smoke 87.5%**.
+- **Cost: $3.05 total ($0.218/correct, 10× Tier 1)**.
+- **Diagnostic (load-bearing):** `evidenceOrigin: { user_statement: 19, fact_graph: 0, none: 5 }` — reader quoted raw chunks on every correct answer; zero of 24 cases attributed to fact-graph synthetic traces. Phase 1 `evidenceOrigin` instrumentation (shipped alongside Step 9) delivered the diagnosis in one Tier A run.
+- **Root cause layered:** (1) synthetic `retrievalScore: 1.0` displaced real chunks during rerank (merged.recall 0.774 → final.recall 0.712, -6.2pp). (2) Even when synthetic + raw were both in top-K, reader preferred raw chunks' conversational context. (3) Extractor probably paraphrases the `object` field despite instructions.
+- **Ships opt-in behind `--fact-graph-ingest`.** Tier 1 remains shipping default.
+- Kill criterion saved ~$12-27 on Phase A + B that would have been wasted.
 
-Architecture sketch:
-- New `FactStore` at `packages/agentos/src/memory/facts/FactStore.ts`: keyed by `(scope, scopeId, subjectHash, predicateHash) → time-sorted Fact[]`.
-- Per-trace LLM call at ingest produces fact tuples via `CognitiveMemoryManager.observe()` or a new ingest hook. gpt-5-mini extractor.
-- Retrieval prepends the latest fact per matched `(subject, predicate)` as a synthetic trace with `retrievalScore: 1.0`.
-- CLI: `--fact-graph-ingest`.
-- Budget: $15-30 for Tier A + Phase A + Phase B.
+### Step 9b candidate — lower synthetic retrievalScore
 
-Start the next session by running superpowers:brainstorming with this context. The brainstorm doc should resolve:
-1. Per-turn extraction vs session-level extraction (cost vs granularity).
-2. Storage: in-memory per-bench-case or SQLite-backed.
-3. Classifier that decides "is this a factual claim?" or extract-everything.
+**Rationale:** Step 9's `retrievalScore: 1.0` synthetic traces displaced raw chunks. A variant setting the synthetic score to the fact's extraction confidence (or a flat 0.5) would keep raw chunks in the final top-K while still giving fact-graph a chance to surface via rerank. Cheapest Step 9 follow-up.
+
+**Budget:** ~$3 for Tier A only (skip Phase A/B if Tier A doesn't pass the 82.5% gate).
+
+**Decision gate:** only worth running if the user wants to close out the fact-graph line of investigation before declaring it RED-across-all-variants. Otherwise, accept Step 9 RED and move on.
 
 ### Step 10 — Tier 4 two-call reader (Emergence AI pattern)
 
-**Rationale:** Emergence AI's 86% comes from a two-call reader pipeline (first call extracts relevant facts from retrieved chunks, second call answers using only extracted facts). This is orthogonal to retrieval-layer changes. Can layer on top of any working Tier.
+**Rationale:** Emergence AI's 86% comes from a two-call reader pipeline (first call extracts relevant facts from retrieved chunks, second call answers using only extracted facts). Orthogonal to retrieval-layer changes; changes the reader pipeline instead.
 
-Budget: $20-40 for Tier A + Phase A + Phase B.
+**Budget:** $20-40 for Tier A + Phase A + Phase B.
 
-Skip this if Step 9 fact-graph ingest hits 85%+ by itself.
+**Caveat:** this is a READER change, not a MEMORY change. If it works, the lift is from reader pipeline discipline, not AgentOS memory architecture.
 
-### Step 11 (optional) — Verify Mastra parity with tuned reflector prompt
+### Step 11 — tuned reflector prompt (highest expected value in reflector family)
 
-If Step 9 also RED's, the only remaining honest Observer/Reflector experiment is retuning `MemoryReflector`'s prompt to preserve high-IDF tokens (names, dates, concrete values). This is prompt engineering more than architecture. Low priority unless the user wants to close the specific Mastra gap.
+Step 9's RED leaves this as the most informative remaining experiment. The reflector prompt tells the LLM to "consolidate" and "elevate important facts," which gpt-5-mini interprets as permission to produce abstract paraphrases. A variant prompt instructing the reflector to preserve names, dates, numeric values verbatim is the cheapest way to test whether Mastra's 84.23% at gpt-4o is achievable with our pipeline.
+
+**Budget:** $3-5 for Tier A.
+
+### Step 12 (untested) — graph-expansion retrieval
+
+**Rationale:** pull traces connected by shared-entity edges to the top-K. Additive signal (not destructive), genuinely different from Steps 4-9. Might lift multi-session further. AgentOS already has `SqliteKnowledgeGraph` + spreading activation; the bench adapter doesn't use it for query expansion yet.
+
+**Budget:** ~$1-2 for Tier A.
+
+### Recommendation
+
+In order of expected ROI per dollar:
+1. **Accept Step 9 RED, publish.** The Phase 1 instrumentation (paired McNemar + evidence provenance + stage-level retrieval metrics) is the durable value from this sprint. The blog post + umbrella are updated with Step 9 findings.
+2. **Step 11 tuned reflector prompt** if you want one more shot at frontier parity. $3-5, high diagnostic value regardless of outcome.
+3. **Step 12 graph-expansion retrieval** as the last untested additive-signal candidate. $1-2 Tier A.
+4. **Step 10 two-call reader** only if you want the blog to demonstrate reader-side experiments. Orthogonal to the memory architecture story.
+5. Skip Step 9b unless you specifically want to close out the fact-graph line.
 
 ---
 
