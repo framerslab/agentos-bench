@@ -51,3 +51,9 @@ export type {
 
 export { computePairedMcNemar } from './computePairedMcNemar.js';
 export type { McNemarResult } from './computePairedMcNemar.js';
+
+export { computeEvidenceProvenance } from './computeEvidenceProvenance.js';
+export type {
+  EvidenceProvenance,
+  EvidenceTrace,
+} from './computeEvidenceProvenance.js';
