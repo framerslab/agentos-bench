@@ -46,9 +46,15 @@ const TurnSchema = z.object({
   blip_caption: z.string().optional(),
 });
 
+// Upstream LOCOMO has schema drift: some `answer` fields are numbers
+// (e.g. `answer: 19` for a "how many days" temporal question). Accept
+// number|string|string[] at parse time and coerce to string in the
+// loader so downstream BenchCase sees a uniform string expected.
 const QaSchema = z.object({
   question: z.string(),
-  answer: z.union([z.string(), z.array(z.string())]).optional(),
+  answer: z
+    .union([z.string(), z.array(z.string()), z.number()])
+    .optional(),
   category: z.union([z.number(), z.string()]).optional(),
   evidence: z.array(z.string()).optional(),
   adversarial_answer: z.string().optional(),
@@ -99,9 +105,11 @@ export async function loadLocomoDataset(dataDir: string): Promise<BenchCase[]> {
       const qa = sample.qa[qaIdx]!;
       const answer = typeof qa.answer === 'string'
         ? qa.answer
-        : Array.isArray(qa.answer)
-          ? qa.answer.join(' / ')
-          : (qa.adversarial_answer ?? '');
+        : typeof qa.answer === 'number'
+          ? String(qa.answer)
+          : Array.isArray(qa.answer)
+            ? qa.answer.join(' / ')
+            : (qa.adversarial_answer ?? '');
       const categoryNum = typeof qa.category === 'number' ? qa.category : Number(qa.category ?? 0);
       const categoryName = LOCOMO_CATEGORY_NAMES[categoryNum] ?? `category-${categoryNum || 'unknown'}`;
 
