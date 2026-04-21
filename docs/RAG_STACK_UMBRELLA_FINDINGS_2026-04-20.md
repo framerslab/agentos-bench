@@ -25,6 +25,8 @@ We set out to improve AgentOS's cognitive memory stack on LongMemEval-S and LOCO
 
 **Step 9 summary:** Mem0-style tuple extraction with a closed 25-predicate schema. RED at 58.3% N=24, 29.2pp below Tier 1 smoke 87.5%. Critically, Phase 1 `evidenceOrigin` instrumentation showed the reader quoted raw chunks on every correct answer and zero of 24 cases attributed to fact-graph synthetic traces — the synthetic `retrievalScore: 1.0` positioning displaced raw chunks in the rerank output without contributing any actual signal to the reader. Findings: [STEP_9_FACT_GRAPH_FINDINGS_2026-04-21.md](STEP_9_FACT_GRAPH_FINDINGS_2026-04-21.md). Fact-graph ships opt-in behind `--fact-graph-ingest`.
 
+**Step 11 summary (prompt-isolation null result):** variant of Step 7 ADDITIVE with the `MemoryReflector` prompt tuned to preserve literal tokens (names, dates, numeric amounts) verbatim. Same 62.5% aggregate as Step 7 at N=24 — **0pp change from prompt tuning alone**. `evidenceOrigin` confirmed the reader quoted reflection traces zero times (same zero-attribution pattern as Step 9's fact-graph). Eliminates "prompt quality" from the Mastra-gap explanation space; remaining plausible explanation is BM25 index parity for observation-content (reflection traces currently go through `manager.encode()` which bypasses the bench's BM25 hook). Ships: tuned prompt (strictly better for production non-benchmark workloads) + `REFLECTOR_PROMPT_HASH` export + content-addressed bench cache key (any future prompt edit auto-invalidates cached answers; no manual fingerprint bumps). Findings: [STEP_11_TUNED_REFLECTOR_PROMPT_FINDINGS_2026-04-21.md](STEP_11_TUNED_REFLECTOR_PROMPT_FINDINGS_2026-04-21.md). Cost: $1.45.
+
 ---
 
 ## 2. Final canonical result

@@ -162,11 +162,21 @@ Step 9 ran 2026-04-21 and RED'd at Tier A. See [STEP_9_FACT_GRAPH_FINDINGS_2026-
 
 **Caveat:** this is a READER change, not a MEMORY change. If it works, the lift is from reader pipeline discipline, not AgentOS memory architecture.
 
-### Step 11 — tuned reflector prompt (highest expected value in reflector family)
+### Step 11 — tuned reflector prompt (RAN 2026-04-21, null result)
 
-Step 9's RED leaves this as the most informative remaining experiment. The reflector prompt tells the LLM to "consolidate" and "elevate important facts," which gpt-5-mini interprets as permission to produce abstract paraphrases. A variant prompt instructing the reflector to preserve names, dates, numeric values verbatim is the cheapest way to test whether Mastra's 84.23% at gpt-4o is achievable with our pipeline.
+RAN. 62.5% at N=24, same as Step 7 ADDITIVE's 62.5%. Cost $1.45. `evidenceOrigin` showed 0/24 attributed to reflection traces — the reader never reads them regardless of prompt quality. Eliminates "prompt tuning" from the Mastra-gap explanation space. Findings: [STEP_11_TUNED_REFLECTOR_PROMPT_FINDINGS_2026-04-21.md](STEP_11_TUNED_REFLECTOR_PROMPT_FINDINGS_2026-04-21.md). The remaining plausible Mastra-gap explanation is BM25 index parity for observation content (Step 12 candidate below).
+
+Durable infrastructure shipped from this step: `REFLECTOR_PROMPT_HASH` export + content-addressed bench cache key. Any future prompt edit auto-invalidates cached answers.
+
+### Step 12 — BM25 parity for observer-reflector traces (new candidate, highest-value)
+
+**Rationale:** Step 7 findings identified BM25 index mismatch as a root cause: raw chunks are indexed via the bench's `hybridBm25.addDocument` hook at ingest, but reflection-derived traces go through `manager.encode()` inside `manager.observe()` which bypasses that hook. Dense retrieval sees both raw + reflections; sparse sees only raw. Step 11 confirmed sparse is doing the retrieval work (`sparse.recall 0.882` vs `dense.recall 0.347` in the Step 11 run JSON). If we wire reflection content into the bench's BM25 index, reflection traces get a sparse-side boost and can compete with raw chunks. Plausible lift on multi-session + KU.
+
+**Implementation sketch:** after each `manager.observe()` cycle in `replayForCognitive`, enumerate newly-encoded reflection traces via `getReflector().getRecentEncodedTraceIds()` (add if missing) and index each into `hybridBm25` with its content.
 
 **Budget:** $3-5 for Tier A.
+
+**Decision gate:** worth running if the user wants one more shot at moving the Observer/Reflector number. If Step 12 also RED's, the Observer/Reflector pattern is effectively closed out and Tier 1 Hybrid at 73.2% is the shipping answer.
 
 ### Step 12 (untested) — graph-expansion retrieval
 
