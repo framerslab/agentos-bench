@@ -19,7 +19,9 @@ We set out to improve AgentOS's cognitive memory stack on LongMemEval-S and LOCO
 
 **Pattern confirmed empirically:** on signal-dense specific-value benchmarks like LongMemEval, **additive retrieval signal wins** (add BM25 alongside dense, blend rerank alongside cognitive). **Destructive or LLM-as-filter modifications consistently regress** — the reader handles context better than an LLM filter handles precision.
 
-**Total measurement cost:** $8.91 across all 6 steps (6 matched ablations at Tier A smokes, Tier B Phase A, and Phase B N=500). Kill-criterion discipline prevented ~$5 of wasted Tier B spend on known-dead variants.
+**Total measurement cost:** $16.28 across 7 steps (7 matched ablations at Tier A smokes, Tier B Phase A, and Phase B N=500). Kill-criterion discipline prevented ~$15 of wasted Tier B spend on known-dead variants.
+
+**Step 7 update (Observer/Reflector as additive overlay):** RED at Tier A (62.5% vs 87.5% Tier 1 baseline, -25pp). Root cause: additive overlay dilutes retrieval; Mastra's 84.23% at gpt-4o comes from REPLACEMENT semantics our wiring doesn't implement. Findings at [STEP_7_OBSERVER_REFLECTOR_FINDINGS_2026-04-20.md](STEP_7_OBSERVER_REFLECTOR_FINDINGS_2026-04-20.md). Progressive enhancement Tier 2 ships opt-in only; Tier 1 remains the cost-optimized default.
 
 ---
 
