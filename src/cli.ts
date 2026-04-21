@@ -119,6 +119,13 @@ interface BenchEntry {
      * through `manager.observe()` in addition to `manager.encode()`.
      */
     observerReflectorEnabled?: boolean;
+    /**
+     * Step-8: REPLACEMENT semantics for Observer/Reflector (Tier 2 fix).
+     * Requires `observerReflectorEnabled: true`. When true, adapter skips
+     * raw chunk encoding, calls `manager.flushReflection()` at session
+     * boundaries, and indexes reflection-trace IDs into BM25.
+     */
+    observerReflectorReplaceEnabled?: boolean;
   }) => IBenchmark;
 }
 
@@ -169,29 +176,29 @@ const BENCHMARKS: BenchEntry[] = [
     id: 'longmemeval-s',
     family: 'external',
     description: 'LongMemEval-S (500 cases, ~115k-token haystacks)',
-    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled }) =>
-      new LongMemEvalS({ reader, variant: 's', embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled }) =>
+      new LongMemEvalS({ reader, variant: 's', embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled }),
   },
   {
     id: 'longmemeval-m',
     family: 'external',
     description: 'LongMemEval-M (~500 sessions per haystack) — medium-difficulty variant',
-    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled }) =>
-      new LongMemEvalM({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled }) =>
+      new LongMemEvalM({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled }),
   },
   {
     id: 'longmemeval-oracle',
     family: 'external',
     description: 'LongMemEval-Oracle (evidence-only) — isolates reader quality from retrieval',
-    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled }) =>
-      new LongMemEvalOracle({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled }) =>
+      new LongMemEvalOracle({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled }),
   },
   {
     id: 'locomo',
     family: 'external',
     description: 'LOCOMO (Maharana et al. 2024, 10 convos × ~300 turns, QA task only in v1)',
-    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled }) =>
-      new Locomo({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled }) =>
+      new Locomo({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled }),
   },
   {
     id: 'beam-500k',
@@ -493,6 +500,10 @@ export function buildCli(): Command {
       'Enable Step-7 Observer/Reflector pipeline (Tier 2 progressive enhancement). Adds personality-biased observation-note extraction at 30k-token intervals, compression at 50-note intervals, and reflector-driven trace consolidation + supersession. Matches Mastra "Observational Memory" pattern. Uses gpt-5-mini as the observer/reflector invoker by default.',
     )
     .option(
+      '--observer-reflector-replace',
+      'Enable Step-8 REPLACEMENT semantics for Observer/Reflector (Tier 2 fix). Skips raw chunk encoding during ingest, forces reflection at session boundaries via manager.flushReflection(), indexes reflection-derived trace IDs into hybrid BM25. Requires --observer-reflector. Addresses Step 7 RED (additive overlay dilutes retrieval).',
+    )
+    .option(
       '--seed <n>',
       'Deterministic seed for bootstrap resampling (and any future RNG-dependent pipeline). Use for reproducible findings-doc CIs.',
       parseInteger,
@@ -597,6 +608,7 @@ export function buildCli(): Command {
         factSupersession: Boolean(opts.factSupersession),
         splitAmbiguous: opts.splitAmbiguous as number | undefined,
         observerReflector: Boolean(opts.observerReflector),
+        observerReflectorReplace: Boolean(opts.observerReflectorReplace),
       };
 
       // Cost preflight — coarse but enough to catch "oh no I just
@@ -782,6 +794,7 @@ export function buildCli(): Command {
         factSupersessionEnabled: runConfig.factSupersession,
         splitAmbiguousThreshold: runConfig.splitAmbiguous,
         observerReflectorEnabled: runConfig.observerReflector,
+        observerReflectorReplaceEnabled: runConfig.observerReflectorReplace,
       });
       const result = await runner.run(benchmark, runConfig);
 
