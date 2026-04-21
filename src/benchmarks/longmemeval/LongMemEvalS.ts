@@ -44,6 +44,8 @@ import {
 import { mean, percentile, stdDev } from '../../core/statsUtil.js';
 import {
   computeRetrievalMetrics,
+  computeRetrievalStageMetrics,
+  type RetrievalStageMetrics,
   computeLatencyBreakdown,
   computeStratifiedAccuracy,
   computeTokenEfficiency,
@@ -279,6 +281,7 @@ export class LongMemEvalS implements IBenchmark {
       runMetadata.encodeMsSamples = out.encodeMsSamples;
       runMetadata.peakWorkingMemorySlots = out.peakWorkingMemorySlots;
       runMetadata.retrieveDiagnostics = out.retrieveDiagnostics;
+      runMetadata.traceIdToSessionId = out.traceIdToSessionId;
       runMetadata.traceCount = out.traceCount;
       runMetadata.brainBytes = out.brainBytes;
     }
@@ -416,9 +419,36 @@ export class LongMemEvalS implements IBenchmark {
           }
         : undefined;
 
+    // Step 9 Phase 1a: per-stage retrieval metrics. When the hybrid
+    // retriever ran, diagnostics.stageIds carries per-stage trace IDs.
+    // Translate via md.traceIdToSessionId into the session-ID space the
+    // gold set lives in, then compute Recall@K / NDCG@K / MRR per stage.
+    let retrievalStageMetrics: RetrievalStageMetrics | null = null;
+    const stageIdsDiag = diagnostics?.stageIds;
+    const traceToSession =
+      (md.traceIdToSessionId as Record<string, string> | undefined) ?? {};
+    if (stageIdsDiag && goldSessionIds.length > 0) {
+      const toSessionIds = (ids: readonly string[]): string[] =>
+        ids
+          .map((id) => traceToSession[id])
+          .filter((s): s is string => typeof s === 'string');
+      retrievalStageMetrics = computeRetrievalStageMetrics(
+        {
+          dense: toSessionIds(stageIdsDiag.dense),
+          sparse: toSessionIds(stageIdsDiag.sparse),
+          merged: toSessionIds(stageIdsDiag.merged),
+          reranked: toSessionIds(stageIdsDiag.reranked),
+          final: toSessionIds(stageIdsDiag.final),
+        },
+        new Set(goldSessionIds),
+        k,
+      );
+    }
+
     return {
       ...base,
       retrievalMetrics,
+      retrievalStageMetrics,
       latencyBreakdown,
       memoryFootprint,
       goldSessionIds,
@@ -465,6 +495,31 @@ export class LongMemEvalS implements IBenchmark {
             k: scoredWithGold[0]!.retrievalMetrics!.k,
             sampleSize: scoredWithGold.length,
           };
+
+    // Step 9 Phase 1a: mean per-stage retrieval metrics across cases
+    // that carried a retrievalStageMetrics (hybrid-retrieval path only).
+    const stageScored = results.filter(
+      (r): r is CaseResult & { retrievalStageMetrics: RetrievalStageMetrics } =>
+        r.retrievalStageMetrics != null,
+    );
+    const aggregateStageMetrics: RetrievalStageMetrics | undefined =
+      stageScored.length === 0
+        ? undefined
+        : (['dense', 'sparse', 'merged', 'reranked', 'final'] as const).reduce(
+            (acc, stage) => {
+              const samples = stageScored.map((r) => r.retrievalStageMetrics[stage]);
+              acc[stage] = {
+                recallAtK: mean(samples.map((s) => s.recallAtK)),
+                precisionAtK: mean(samples.map((s) => s.precisionAtK)),
+                ndcgAtK: mean(samples.map((s) => s.ndcgAtK)),
+                mrr: mean(samples.map((s) => s.mrr)),
+                k: samples[0]!.k,
+                goldCount: stageScored.length,
+              };
+              return acc;
+            },
+            {} as RetrievalStageMetrics,
+          );
 
     // Flatten per-case latency samples into per-op arrays. encodeMs is a
     // per-case MEAN (one entry per case, not per encode), so the aggregate
@@ -543,6 +598,7 @@ export class LongMemEvalS implements IBenchmark {
       startedAt: new Date().toISOString(),
       completedAt: new Date().toISOString(),
       retrievalMetrics: aggregateRetrievalMetrics,
+      retrievalStageMetrics: aggregateStageMetrics,
       latencyBreakdown: aggregateLatencyBreakdown,
       stratifiedAccuracy,
       memoryFootprint: aggregateMemoryFootprint,
@@ -650,6 +706,14 @@ interface FullCognitiveOutput {
    * per-case vectorSearchMs / scoringMs / totalTimeMs attribution.
    */
   retrieveDiagnostics: import('@framers/agentos').CognitiveRetrievalResult['diagnostics'];
+  /**
+   * Trace ID → session ID mapping built during replay. Used by
+   * `attachPerCaseMetrics` to translate `HybridRetriever.diagnostics.stageIds`
+   * (trace IDs) into the session-ID space `CaseResult.goldSessionIds` uses,
+   * so Step 9's stage-level retrieval metrics can score against gold.
+   * Serialized as a plain object for metadata round-tripping.
+   */
+  traceIdToSessionId: Record<string, string>;
   /**
    * Post-replay trace count in the manager's in-memory cache. Captured
    * before cleanup via the agentos public `getTraceCount()`.
@@ -1011,6 +1075,7 @@ export async function runFullCognitiveCase(
       encodeMsSamples: replayStats.encodeMsSamples,
       peakWorkingMemorySlots: replayStats.peakWorkingMemorySlots,
       retrieveDiagnostics: retrieval.diagnostics,
+      traceIdToSessionId: Object.fromEntries(replayStats.traceIdToSessionId),
       traceCount,
       brainPath,
       brainBytes,
@@ -1145,6 +1210,14 @@ async function replayForCognitive(
    * report can attribute ingest-side LLM cost to context summaries.
    */
   sessionsContextualized: number;
+  /**
+   * Map of every encoded trace ID to the session ID it came from.
+   * Populated inside `timedEncode` from the session-tag argument.
+   * Consumed downstream by per-stage retrieval-metric computation
+   * (Step 9) to translate trace IDs from `HybridRetriever.diagnostics.stageIds`
+   * into the session-ID space used by `CaseResult.goldSessionIds`.
+   */
+  traceIdToSessionId: Map<string, string>;
 }> {
   const start = Date.now();
   const neutralMood = { valence: 0, arousal: 0, dominance: 0 };
@@ -1152,6 +1225,7 @@ async function replayForCognitive(
   let encodeCalls = 0;
   let sessionsContextualized = 0;
   const encodeMsSamples: number[] = [];
+  const traceIdToSessionId = new Map<string, string>();
   let peakWorkingMemorySlots = 0;
 
   // Build the full text of a session once so the summarizer can hash
@@ -1186,6 +1260,16 @@ async function replayForCognitive(
     // within a window, so finer sampling adds no signal but doubles
     // the observation overhead.
     if (encodeCalls % 10 === 0) sampleSlots();
+    // Record the trace → session mapping so Step 9's per-stage metric
+    // pass can translate `diagnostics.stageIds` (trace IDs) into the
+    // session-ID space `CaseResult.goldSessionIds` uses.
+    const sessionTag = tags.find((t) => t.startsWith(BENCH_SESSION_TAG_PREFIX));
+    if (sessionTag) {
+      traceIdToSessionId.set(
+        trace.id,
+        sessionTag.slice(BENCH_SESSION_TAG_PREFIX.length),
+      );
+    }
     return trace.id;
   };
 
@@ -1396,6 +1480,7 @@ async function replayForCognitive(
     encodeMsSamples,
     peakWorkingMemorySlots,
     sessionsContextualized,
+    traceIdToSessionId,
   };
 }
 
