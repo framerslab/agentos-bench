@@ -23,6 +23,7 @@ import type {
   ReaderModel,
   RunConfig,
 } from './IBenchmark.js';
+import { REFLECTOR_PROMPT_HASH } from '@framers/agentos';
 import { Cache, hashKey } from './Cache.js';
 import { CostTracker } from './CostTracker.js';
 import { ResultStore } from './ResultStore.js';
@@ -317,6 +318,11 @@ export function computeCaseRunKeyParts(
       : 'observer-reflector:on';
     runKeyParts.push(tag);
     resultKeyParts.push(tag);
+    // Content-addressed: include the reflector prompt's hash so any
+    // prompt edit (Step 11 tuning, future iterations) automatically
+    // invalidates cached answers. No manual fingerprint bump needed.
+    runKeyParts.push(`reflector-prompt:${REFLECTOR_PROMPT_HASH.slice(0, 12)}`);
+    resultKeyParts.push(`reflector-prompt:${REFLECTOR_PROMPT_HASH.slice(0, 12)}`);
   }
 
   // Fact-graph ingest fingerprint (Step 9): conditional append so runs
