@@ -1,27 +1,29 @@
-# AgentOS Memory on LongMemEval-S — 8-Step Sequenced Rollout Findings
+# AgentOS Memory on LongMemEval-S — 9-Step Sequenced Rollout Findings
 
-**Date:** 2026-04-20 (original Steps 1-6), 2026-04-21 Step 7 + Step 8 integrated
-**Scope:** umbrella findings across Steps 1-8 of the RAG stack sequenced rollout, with Phase B N=500 confirmation at matched reader.
+**Date:** 2026-04-20 (original Steps 1-6), 2026-04-21 Steps 7, 8, 9 integrated
+**Scope:** umbrella findings across Steps 1-9 of the RAG stack sequenced rollout, with Phase B N=500 confirmation at matched reader.
 
-**Headline result:** **73.2% unweighted [69.2%, 77.0%]** and **74.0% weighted [70.3%, 77.6%]** on LongMemEval-S N=500 at gpt-4o reader + gpt-4o judge, with Step 3 HybridRetriever as the sole shippable improvement out of 8 proposed features. Cost: **$0.0213 per correct answer**.
+**Headline result:** **73.2% unweighted [69.2%, 77.0%]** and **74.0% weighted [70.3%, 77.6%]** on LongMemEval-S N=500 at gpt-4o reader + gpt-4o judge, with Step 3 HybridRetriever as the sole shippable improvement out of 9 proposed features. Cost: **$0.0213 per correct answer**.
 
 ---
 
 ## 1. TL;DR
 
-We set out to improve AgentOS's cognitive memory stack on LongMemEval-S and LOCOMO, testing 8 proposed features against a Step 1 baseline using matched-ablation methodology and bootstrap CI-gated accept/reject rules.
+We set out to improve AgentOS's cognitive memory stack on LongMemEval-S and LOCOMO, testing 9 proposed features against a Step 1 baseline using matched-ablation methodology and bootstrap CI-gated accept/reject rules.
 
 **Results:**
 
 - **1 feature GREEN-soft → ships:** HybridRetriever (BM25 + dense RRF + Cohere rerank-v3.5 blend).
-- **6 features RED → documented negative results:** SessionRetriever (rerank-skip root cause), HyDE (LLM query rewriting), FactSupersession (LLM trace dropping), Split-on-Ambiguous (rerank-score-guided content trimming), Observer/Reflector as additive overlay (Step 7), Observer/Reflector as replacement (Step 8).
-- **1 methodological feature GREEN → always-on:** Bootstrap CIs + judge-adversarial probe (Step 1, infra).
+- **7 features RED → documented negative results:** SessionRetriever (rerank-skip root cause), HyDE (LLM query rewriting), FactSupersession (LLM trace dropping), Split-on-Ambiguous (rerank-score-guided content trimming), Observer/Reflector as additive overlay (Step 7), Observer/Reflector as replacement (Step 8), Fact-Graph Ingest / Mem0 tuple pattern (Step 9).
+- **1 methodological feature GREEN → always-on:** Bootstrap CIs + judge-adversarial probe (Step 1, infra) + Phase 1 instrumentation upgrades (paired McNemar, trace-provenance, stage-level retrieval metrics) added alongside Step 9.
 
-**Pattern confirmed empirically at n=6 RED steps:** on signal-dense specific-value benchmarks like LongMemEval, **additive retrieval signal wins** (add BM25 alongside dense, blend rerank alongside cognitive). **Destructive or LLM-as-filter modifications consistently regress.** The reader handles context better than an LLM filter handles precision, and any LLM intermediate step that transforms retrieval content (paraphrase, filter, summary) erases the specific tokens the reader needs.
+**Pattern confirmed empirically at n=7 RED steps:** on signal-dense specific-value benchmarks like LongMemEval, **additive retrieval signal wins** (add BM25 alongside dense, blend rerank alongside cognitive). **Destructive or LLM-as-filter modifications consistently regress.** The reader handles context better than an LLM filter handles precision, and any LLM intermediate step that transforms retrieval content (paraphrase, filter, summary, tuple extraction) erases the specific tokens the reader needs. Step 9 confirmed the pattern extends to tuple extraction (not only summaries): `evidenceOrigin` instrumentation showed zero of 24 reader answers attributed to fact-graph synthetic traces.
 
-**Total measurement cost:** ~$23.48 across 8 steps (8 matched ablations at Tier A smokes, Tier B Phase A, and Phase B N=500). Kill-criterion discipline prevented ~$20 of wasted Tier B spend on known-dead variants (Steps 4, 5, 6, 7, 8 all killed at Tier A).
+**Total measurement cost:** ~$26.53 across 9 steps (9 matched ablations at Tier A smokes, Tier B Phase A, Phase B N=500). Kill-criterion discipline prevented ~$27 of wasted Tier B spend on known-dead variants (Steps 4, 5, 6, 7, 8, 9 all killed at Tier A).
 
 **Step 7 + Step 8 summary:** Observer/Reflector pipeline tested in two architectural shapes: ADDITIVE overlay (Step 7, 62.5% at N=24) and REPLACEMENT semantics matching Mastra (Step 8, 25% at N=24). Both RED. Mastra's 84.23% at gpt-4o does not reproduce in our implementation; the remaining gap is almost certainly reflector-prompt tuning (preserving high-IDF tokens) rather than pipeline wiring. Findings: [STEP_7_OBSERVER_REFLECTOR_FINDINGS_2026-04-20.md](STEP_7_OBSERVER_REFLECTOR_FINDINGS_2026-04-20.md), [STEP_8_OBSERVER_REPLACE_FINDINGS_2026-04-20.md](STEP_8_OBSERVER_REPLACE_FINDINGS_2026-04-20.md). Tier 1 remains the shipping default; Tier 2 ships opt-in only behind `--observer-reflector --observer-reflector-replace`.
+
+**Step 9 summary:** Mem0-style tuple extraction with a closed 25-predicate schema. RED at 58.3% N=24, 29.2pp below Tier 1 smoke 87.5%. Critically, Phase 1 `evidenceOrigin` instrumentation showed the reader quoted raw chunks on every correct answer and zero of 24 cases attributed to fact-graph synthetic traces — the synthetic `retrievalScore: 1.0` positioning displaced raw chunks in the rerank output without contributing any actual signal to the reader. Findings: [STEP_9_FACT_GRAPH_FINDINGS_2026-04-21.md](STEP_9_FACT_GRAPH_FINDINGS_2026-04-21.md). Fact-graph ships opt-in behind `--fact-graph-ingest`.
 
 ---
 
@@ -60,12 +62,16 @@ We set out to improve AgentOS's cognitive memory stack on LongMemEval-S and LOCO
 | System | Reader | Approx LME-S score | Source |
 |---|---|---:|---|
 | LongMemEval paper baseline (full context) | gpt-4o | 45-66% | Wu et al. 2024 |
-| MemGPT / Letta | gpt-4o | ~50-60% | published |
+| Zep / Graphiti | gpt-4o | 71.2% | zep research/blog |
 | **AgentOS (Step 3 Hybrid)** | **gpt-4o** | **73.2%** | this work, N=500 |
-| Mem0 | gpt-4o | ~68-74% | published (range) |
-| Zep | gpt-4o | 75%+ | commercial claim |
+| Supermemory | gpt-4o | 81.6% | supermemory.ai/research |
+| Mastra Observational Memory | gpt-4o | 84.23% | mastra.ai/research/observational-memory |
+| EmergenceMem Internal | gpt-4o | 86.0% | emergence.ai/blog/sota-on-longmemeval-with-rag |
+| Mem0 | unspecified | 92.0-93.4* | mem0 public pages currently disagree |
 
-**73.2% unweighted at N=500 places AgentOS in the upper tier of published memory systems**, above the open-source MemGPT/Letta range, at the high end of Mem0's claimed range, just below Zep's unverified commercial claim. The 54.9% multi-session number is specifically strong — most open-source systems land 30-50% here.
+* Mem0's `research-2` page advertises 92.0 on LongMemEval while Mem0's docs page reports 93.4, so we treat that row as a verification caveat rather than a clean rank-order fact.
+
+**73.2% unweighted at N=500 places AgentOS above Zep's published 71.2% gpt-4o result and below the current 81.6-86.0 gpt-4o frontier band published by Supermemory, Mastra, and Emergence AI.** The 54.9% multi-session number is specifically strong, but not yet frontier-grade.
 
 ---
 
@@ -131,7 +137,7 @@ LongMemEval-S is dominated by multi-session questions (26.6% of the real distrib
 
 ---
 
-## 4. What didn't work — six negative results
+## 4. What didn't work — seven negative results
 
 Each negative result taught a specific lesson about retrieval on signal-dense benchmarks.
 
@@ -199,7 +205,21 @@ The pattern is architectural: replacement preserves abstract category informatio
 
 **What ships regardless of verdict:** `CognitiveMemoryManager.getReflector()` accessor + `flushReflection(mood?, scopeOverride?)` method as v0.1.249 agentos-core primitives. Downstream consumers that want forced reflection at explicit boundaries now have the API.
 
-### The pattern across 6 RED results
+### 4.7 Step 9 RED: Fact-Graph Ingest (Mem0 tuple pattern)
+
+**Proposed:** per-session gpt-5-mini extractor emits closed-schema `(subject, predicate, object, timestamp)` tuples. An in-memory `FactStore` indexes facts by `(scope, scopeId, subjectHash, predicateHash)`. At retrieve time, a keyword-based query classifier extracts `(subject, predicate)` pairs and the latest matching fact is prepended as a synthetic `ScoredMemoryTrace` with `retrievalScore: 1.0` and `sourceType: 'fact_graph'` BEFORE the rerank merge. Architectural bet: tuple extraction preserves the literal `object` where summaries paraphrase it.
+
+**Measured:** Tier A LME-S N=24 unweighted **58.3%**, weighted 54.3%. Bootstrap CI [37.5%, 79.2%]. Multi-session 25%, KU 75%, preference 50%, temporal 50%, assistant 50%, user 100%. Cost $3.05 total, $0.218/correct (10x Tier 1). Killed at Tier A (threshold 82.5%).
+
+**Root cause — three layered failures, identified by Phase 1 instrumentation:**
+
+1. **Synthetic traces never load-bearing.** `evidenceOrigin: { user_statement: 19, fact_graph: 0, none: 5 }` — zero of 24 correct answers quoted from a fact-graph synthetic trace. The reader pulled from raw chunks every time.
+2. **Synthetic `retrievalScore: 1.0` displaced real chunks.** Stage-level metrics showed `merged.recall = 0.774` but `final.recall = 0.712` — the rerank output dropped 6.2pp of gold sessions because synthetic traces with the ceiling-pinned score bulldozed real chunks out of top-K.
+3. **Fact-graph trace format loses to raw chunks.** Even when synthetic and raw were both in the final top-K, the reader preferred the raw chunk's conversational context (`"I moved to Berlin last Tuesday"`) over the synthetic format (`"user livesIn Berlin (as of 2026-03-15)"`). The extractor likely paraphrases the `object` field despite instructions — span preservation would require span-index output rather than free-form strings.
+
+The Phase 1 instrumentation (Task 3/4/5/6/7 eval upgrades) shipped alongside Step 9 delivered its value in one Tier A run. Without `evidenceOrigin`, the RED verdict would have needed additional ablation runs to diagnose.
+
+### The pattern across 7 RED results
 
 All 6 negative results modify or remove retrieval output before the reader sees it, or introduce LLM intermediate representations that compete with or replace the original signal:
 
@@ -209,6 +229,7 @@ All 6 negative results modify or remove retrieval output before the reader sees 
 - Step 6 (Split-on-Ambiguous): rerank-score-guarded content trimming.
 - Step 7 (Observer additive): reflection summaries compete with raw chunks in the retrieval pool.
 - Step 8 (Observer replacement): reflection summaries replace raw chunks and erase specific-value tokens.
+- Step 9 (Fact-graph tuple extraction): synthetic fact traces with `retrievalScore: 1.0` displaced raw chunks during rerank; reader quoted raw chunks 100% of the time (fact_graph: 0/24 in `evidenceOrigin`).
 
 **Every destructive or LLM-intermediate modification regressed, regardless of mechanism.** The empirical rule for memory retrieval on signal-dense benchmarks: **add signal in ways that compose with existing signal. Don't remove it, replace it, or introduce LLM intermediaries that paraphrase it away.**
 
@@ -256,6 +277,7 @@ Spec for step N is written only AFTER step N-1's Tier B results are in hand. Thi
 | Step 3 Hybrid | $2.06 | **$7.80** | — |
 | Step 7 Observer additive | — | — | $7.37 (gpt-4o observer wiring bug) |
 | Step 8 Observer replacement | — | — | $7.20 (2 runs, scope-bug + scope-fix) |
+| Step 9 Fact-graph ingest | — | — | $3.05 (Tier A only; killed) |
 
 Step 7's $7.37 was inflated by a wiring bug where the observer invoker reused `hydeReader` (gpt-4o) instead of the spec'd gpt-5-mini. Fixed after the first run; the fix landed in a follow-up commit. Step 8 correctly used gpt-5-mini from the start.
 
@@ -280,7 +302,7 @@ The Hybrid path adds one extra rerank call (Cohere rerank-v3.5, ~$0.0001 per que
 
 ---
 
-## 7. Running scoreboard across 8 steps
+## 7. Running scoreboard across 9 steps
 
 | Step | Feature | Verdict | Primary metric change | Ships? |
 |---|---|---|---|---|
@@ -292,8 +314,9 @@ The Hybrid path adds one extra rerank call (Cohere rerank-v3.5, ~$0.0001 per que
 | 6 | Split-on-Ambiguous | RED | unweighted -29.2pp | opt-in |
 | 7 | Observer/Reflector (additive overlay) | RED | unweighted -25pp at Tier A | opt-in |
 | 8 | Observer/Reflector (replacement semantics) | RED | unweighted -62.5pp at Tier A | opt-in |
+| 9 | Fact-Graph Ingest (Mem0 tuple pattern) | RED | unweighted -29.2pp at Tier A, evidenceOrigin fact_graph=0/24 | opt-in |
 
-**Total measurement cost:** ~$23.48 across all 8 steps (Steps 4-6 killed at Tier A saving ~$5; Steps 7-8 killed at Tier A saving ~$20 more; `flushReflection` scope-override primitive ships regardless as v0.1.249).
+**Total measurement cost:** ~$26.53 across all 9 steps (Steps 4-6 killed at Tier A saving ~$5; Steps 7-8 killed at Tier A saving ~$20 more; Step 9 killed at Tier A saving ~$12-27 that would have been wasted on Phase A + B; `flushReflection` scope-override primitive ships regardless as v0.1.249; Phase 1 instrumentation upgrades — paired McNemar, `evidenceOrigin`, stage-level retrieval metrics — ship always-on alongside Step 9).
 
 ---
 
@@ -307,16 +330,17 @@ In order of strongest to weakest evidence:
 2. **"+13.7pp unweighted lift vs single-stage dense retrieval at matched reader."** Measured at Phase A N=102, consistent Phase B direction.
 3. **"Multi-session QA 54.9% [46.6%, 63.2%] at N=133."** Strongest differentiator vs competitors.
 4. **"$0.0213 per correct answer at gpt-4o."** Matched-reader cost claim.
-5. **"8-step matched-ablation methodology with bootstrap CI-gated kill criteria caught 6 of 7 false positives before Tier B."**
+5. **"9-step matched-ablation methodology with bootstrap CI-gated kill criteria caught 7 of 8 false positives before Tier B."**
+6. **"Phase 1 evidence-provenance instrumentation (`evidenceOrigin` aggregator) delivered the Step 9 diagnosis in one Tier A run — zero of 24 reader answers attributed to fact-graph synthetic traces, direct proof they were decorative not load-bearing."**
 
 ### 8.2 Medium claims (supported but less tight)
 
-6. "Competitive with Mem0 published claims (~68-74%) in the upper half of their range; above MemGPT/Letta open-source (~50-60%)."
+6. "Above Zep's published 71.2% at gpt-4o, below the current 81.6-86.0 gpt-4o frontier band from Supermemory, Mastra, and Emergence AI."
 7. "15.7% cheaper per correct vs Step 1 baseline at matched reader."
 
 ### 8.3 Claims we DO NOT make
 
-- "SOTA" — Zep's commercial 75%+ claim is higher; we haven't verified it.
+- "SOTA" — current verified public numbers from Supermemory, Mastra, and Emergence AI are higher; we haven't matched them.
 - "Cheapest memory system" — we haven't matched-reader compared against every competitor.
 - "Step 3 Hybrid is the only good retrieval enhancement" — it's the only one that worked on THIS workload; other workloads may favor different patterns.
 
@@ -330,8 +354,11 @@ With Phase B N=500 confirming 73.2% at matched reader and +13.7pp delta over bas
 
 ### 9.2 Planned next steps
 
-- **Step 9 fact-graph ingest (Mem0 pattern):** per-session gpt-5-mini extractor emits `(subject, predicate, object, timestamp)` tuples stored keyed by `(subject_hash, predicate_hash) → time-sorted list`. Retrieval prepends the latest fact per matched `(subject, predicate)` as a synthetic trace. Different failure mode from Steps 5/7/8 because tuple extraction preserves the literal `object` token that summary-based approaches erase. Budget: $15-30 for Tier A + Phase A + Phase B. User has approved budget in principle.
-- **Step 10 two-call reader (Emergence AI pattern):** first reader call extracts relevant facts from retrieved chunks, second answers from the extracted facts only. Orthogonal to retrieval, can layer on top of any working tier. Budget: $20-40.
+Step 9 ran 2026-04-21, RED at Tier A (58.3% at N=24, 29.2pp below the 87.5% Tier 1 smoke baseline). See [STEP_9_FACT_GRAPH_FINDINGS_2026-04-21.md](STEP_9_FACT_GRAPH_FINDINGS_2026-04-21.md). Key diagnosis: the `evidenceOrigin` instrumentation showed zero of 24 reader answers attributed to fact-graph synthetic traces, proving the traces were decorative. Remaining candidates:
+
+- **Step 10 two-call reader (Emergence AI pattern):** first reader call extracts relevant facts from retrieved chunks, second answers from the extracted facts only. Orthogonal to retrieval; changes the reader pipeline, not the retrieval layer. Budget: $20-40.
+- **Step 9b lower-retrievalScore fact-graph variant:** Step 9's `retrievalScore: 1.0` synthetic traces displaced real chunks during rerank. A variant setting the synthetic score to the fact's extraction confidence (or 0.5) would keep raw chunks in the final top-K while still giving fact-graph a chance. Cheapest Step 9 follow-up; budget ~$3 for Tier A.
+- **Step 11 tuned reflector prompt:** separate from Step 9; the cheapest remaining "closer to Mastra" experiment. A variant prompting the reflector to preserve names, dates, numeric values verbatim. Budget $3-5.
 
 ### 9.3 Open questions (still out of scope)
 
@@ -349,13 +376,13 @@ Building on this doc, a publishable blog post should:
 1. Lead with the 73.2%/74.0% numbers at matched reader.
 2. Table against published competitors.
 3. Walk through the Step 3 architecture (dense + sparse + RRF + rerank + contextual retrieval).
-4. Present the 6 negative results with one paragraph each explaining the root cause.
+4. Present the 7 negative results with one paragraph each explaining the root cause.
 5. Explain the matched-ablation + kill-criterion methodology as the contribution that makes the other claims trustworthy.
 6. Include the cost analysis with matched-reader caveats.
 
 ---
 
-## 10. Commits (across all 8 steps)
+## 10. Commits (across all 9 steps)
 
 ### agentos core (submodule)
 
@@ -377,13 +404,18 @@ Building on this doc, a publishable blog post should:
 - `b72686c63a` bench: Step 7 findings — Observer/Reflector Tier 2 RED at Tier A
 - `9a27b82ae0`, `33b72b355e`, `7106cdb2eb`, `3e1f8a897f`, `f2c615b013`, `182f792e3a` bench: Observer/Reflector replacement semantics (Step 8)
 - `37a6228f25` bench: Step 8 findings — Observer/Reflector REPLACEMENT Tier 2 RED at Tier A
+- `d924bcb1b2`, `574eacb581`, `b3ebbe8354`, `9ceca57237`, `6cae6e5e25`, `6bd35012e2` bench: Phase 1 eval upgrades (paired McNemar + evidenceOrigin + stage-level retrieval metrics) shipped alongside Step 9
+- `b6a6edbdd3`, `5ca8dd9792`, `d1cac881ef` chore: agentos submodule bumps for v0.1.250 + v0.1.251 (fact-graph + stageIds diagnostics)
+- `6bbc5d4c9e`, `c4586ccc6f`, `0ad5eb7262`, `52b44fc30a`, `08247adfac` bench: fact-graph wiring (RunConfig + createCognitiveManager + CLI + LongMemEvalS + Locomo) — Step 9
+- `abf18eaaa0` bench: Step 9 Tier A fact-graph RED at 58.3% (evidenceOrigin fact_graph: 0/24)
+- `e753563f27` bench: Step 9 findings — Fact-Graph Ingest RED at Tier A
 - Prior step commits from Step 1-3 (`c2171d07ed` Step 3 main wire, etc.)
 
 ---
 
 ## 11. Acknowledgments
 
-This rollout used the [superpowers](https://github.com/anthropics/claude-code) workflow suite (brainstorming → writing-plans → executing-plans → verification-before-completion) across all 8 steps. The matched-ablation + kill-criterion discipline was adapted from the AgentOS-Bench Phase 0 findings; bootstrap CI implementation draws from standard percentile bootstrap methodology.
+This rollout used the [superpowers](https://github.com/anthropics/claude-code) workflow suite (brainstorming → writing-plans → executing-plans → verification-before-completion) across all 9 steps. The matched-ablation + kill-criterion discipline was adapted from the AgentOS-Bench Phase 0 findings; bootstrap CI implementation draws from standard percentile bootstrap methodology.
 
 Published benchmarks referenced:
 - Wu et al. 2024 — LongMemEval
