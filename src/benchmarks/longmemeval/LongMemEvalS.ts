@@ -143,6 +143,14 @@ export interface LongMemEvalAdapterOptions {
    * and reflection cycles.
    */
   observerReflectorEnabled?: boolean;
+  /**
+   * Step-8: REPLACEMENT semantics. When true (requires
+   * `observerReflectorEnabled`), adapter skips raw chunk encoding,
+   * forces reflection at session boundaries via
+   * `manager.flushReflection()`, and indexes reflection-derived trace
+   * IDs into BM25.
+   */
+  observerReflectorReplaceEnabled?: boolean;
 }
 
 /**
@@ -258,6 +266,7 @@ export class LongMemEvalS implements IBenchmark {
         this.opts.factSupersessionEnabled,
         this.opts.splitAmbiguousThreshold,
         this.opts.observerReflectorEnabled,
+        this.opts.observerReflectorReplaceEnabled,
       );
       system = out.prompt;
       runMetadata.replayStats = out.replayStats;
@@ -693,6 +702,7 @@ export async function runFullCognitiveCase(
   factSupersessionEnabled?: boolean,
   splitAmbiguousThreshold?: number,
   observerReflectorEnabled?: boolean,
+  observerReflectorReplaceEnabled?: boolean,
 ): Promise<FullCognitiveOutput> {
   // Step 3 mutex: combined hybrid + session-level retrieval is Step 7
   // territory; MVP rejects the combination explicitly.
@@ -821,6 +831,7 @@ export async function runFullCognitiveCase(
       sessionSummaryStore,
       hybridRetriever?.bm25,
       observerReflectorEnabled,
+      observerReflectorReplaceEnabled,
     );
 
     // Build a per-call weight override when --ablate-signal is set.
@@ -1117,6 +1128,7 @@ async function replayForCognitive(
   sessionSummaryStore?: import('@framers/agentos/memory').SessionSummaryStore,
   hybridBm25?: import('@framers/agentos/memory').HybridRetriever['bm25'],
   observerReflectorEnabled?: boolean,
+  observerReflectorReplaceEnabled?: boolean,
 ): Promise<{
   sessionsReplayed: number;
   turnsReplayed: number;
@@ -1214,11 +1226,16 @@ async function replayForCognitive(
         const full = sessionContext
           ? `[Session context] ${sessionContext}\n${turn.role}: ${turn.content}`
           : `${turn.role}: ${turn.content}`;
-        for (const piece of splitForEmbedding(full)) {
-          const traceId = await timedEncode(piece, [sessionTag]);
-          // Step 3: also index into BM25 when hybrid retrieval is active.
-          if (hybridBm25) {
-            hybridBm25.addDocument(traceId, piece, { tag: sessionTag });
+        // Step 8: skip raw chunk encoding in REPLACEMENT mode.
+        // Reflection-derived traces produced via flushReflection below
+        // become the only content in MemoryStore and BM25.
+        if (!observerReflectorReplaceEnabled) {
+          for (const piece of splitForEmbedding(full)) {
+            const traceId = await timedEncode(piece, [sessionTag]);
+            // Step 3: also index into BM25 when hybrid retrieval is active.
+            if (hybridBm25) {
+              hybridBm25.addDocument(traceId, piece, { tag: sessionTag });
+            }
           }
         }
         // Step 7: feed the raw turn into Observer/Reflector pipeline.
@@ -1234,6 +1251,25 @@ async function replayForCognitive(
               // Observer errors are non-critical; continue ingest.
             }
           }
+        }
+      }
+      // Step 8: REPLACEMENT mode session boundary. Force reflection over
+      // accumulated pending notes; encode reflection-derived traces;
+      // index them into BM25 so sparse retrieval sees them too.
+      if (observerReflectorReplaceEnabled) {
+        try {
+          const flush = await handle.manager.flushReflection(neutralMood);
+          if (hybridBm25 && flush.encodedTraceIds.length > 0) {
+            const store = handle.manager.getStore();
+            for (const id of flush.encodedTraceIds) {
+              const trace = store.getTrace?.(id);
+              if (trace && trace.content) {
+                hybridBm25.addDocument(id, trace.content, { tag: sessionTag });
+              }
+            }
+          }
+        } catch {
+          // Flush errors non-critical; next session can still produce reflections.
         }
       }
     }
@@ -1269,22 +1305,25 @@ async function replayForCognitive(
       }
       const chunks = chunkSessionTurns(session.turns);
       turns += session.turns.length;
-      for (const chunk of chunks) {
-        if (!chunk.trim()) continue;
-        // Prepend order matters: context summary first, then date,
-        // then chunk text. The date prefix stays canonical for the
-        // reader's temporal-reasoning scratchpad.
-        const contextualized = sessionContext
-          ? `[Session context] ${sessionContext}\n${chunk}`
-          : chunk;
-        const dated = session.date
-          ? `[${session.date}] ${contextualized}`
-          : contextualized;
-        for (const piece of splitForEmbedding(dated)) {
-          const traceId = await timedEncode(piece, [sessionTag]);
-          // Step 3: also index into BM25 when hybrid retrieval is active.
-          if (hybridBm25) {
-            hybridBm25.addDocument(traceId, piece, { tag: sessionTag });
+      // Step 8: skip raw chunk encoding in REPLACEMENT mode.
+      if (!observerReflectorReplaceEnabled) {
+        for (const chunk of chunks) {
+          if (!chunk.trim()) continue;
+          // Prepend order matters: context summary first, then date,
+          // then chunk text. The date prefix stays canonical for the
+          // reader's temporal-reasoning scratchpad.
+          const contextualized = sessionContext
+            ? `[Session context] ${sessionContext}\n${chunk}`
+            : chunk;
+          const dated = session.date
+            ? `[${session.date}] ${contextualized}`
+            : contextualized;
+          for (const piece of splitForEmbedding(dated)) {
+            const traceId = await timedEncode(piece, [sessionTag]);
+            // Step 3: also index into BM25 when hybrid retrieval is active.
+            if (hybridBm25) {
+              hybridBm25.addDocument(traceId, piece, { tag: sessionTag });
+            }
           }
         }
       }
@@ -1300,6 +1339,25 @@ async function replayForCognitive(
           } catch {
             // Observer errors are non-critical; continue ingest.
           }
+        }
+      }
+      // Step 8: REPLACEMENT mode session boundary. Force reflection over
+      // accumulated pending notes; encode reflection-derived traces;
+      // index them into BM25 so sparse retrieval sees them too.
+      if (observerReflectorReplaceEnabled) {
+        try {
+          const flush = await handle.manager.flushReflection(neutralMood);
+          if (hybridBm25 && flush.encodedTraceIds.length > 0) {
+            const store = handle.manager.getStore();
+            for (const id of flush.encodedTraceIds) {
+              const trace = store.getTrace?.(id);
+              if (trace && trace.content) {
+                hybridBm25.addDocument(id, trace.content, { tag: sessionTag });
+              }
+            }
+          }
+        } catch {
+          // Flush errors non-critical; next session can still produce reflections.
         }
       }
     }
