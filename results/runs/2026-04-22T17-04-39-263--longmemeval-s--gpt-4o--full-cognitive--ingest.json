@@ -1,0 +1,1416 @@
+{
+  "benchmarkId": "longmemeval-s",
+  "benchmarkVersion": "1.0.0",
+  "config": {
+    "reader": "gpt-4o",
+    "memoryMode": "full-cognitive",
+    "replayMode": "ingest",
+    "concurrency": 3,
+    "maxUsd": 60,
+    "retrievalProfile": "balanced",
+    "adaptiveRetrieval": true,
+    "retrievalK": 10,
+    "stratified": true,
+    "samplePerType": 4,
+    "trackFootprint": true,
+    "judgeAdversarial": false,
+    "judgeAdversarialMaxProbes": 50,
+    "judgeAdversarialSynthModel": "gpt-5-mini",
+    "bootstrapResamples": 10000,
+    "seed": 42,
+    "sessionRetrieval": false,
+    "sessionRetrievalTopSessions": 5,
+    "sessionRetrievalChunksPerSession": 3,
+    "hybridRetrieval": false,
+    "hyde": false,
+    "factSupersession": false,
+    "observerReflector": false,
+    "observerReflectorReplace": false,
+    "factGraphIngest": false,
+    "graphActivation": false,
+    "twoCallReader": false,
+    "observationalMemory": true,
+    "omBatchTokenTarget": 24000,
+    "omMode": "dual-path",
+    "omReaderScaffold": true,
+    "omObserverModel": "gpt-4o"
+  },
+  "totalCases": 24,
+  "passedCases": 2,
+  "accuracy": 0.08333333333333333,
+  "avgScore": 0.08333333333333333,
+  "scoreStdDev": 0.2823298512866399,
+  "byType": {
+    "knowledge-update": {
+      "n": 4,
+      "accuracy": 0,
+      "avgScore": 0
+    },
+    "multi-session": {
+      "n": 4,
+      "accuracy": 0,
+      "avgScore": 0
+    },
+    "single-session-assistant": {
+      "n": 4,
+      "accuracy": 0.25,
+      "avgScore": 0.25
+    },
+    "single-session-preference": {
+      "n": 4,
+      "accuracy": 0.25,
+      "avgScore": 0.25
+    },
+    "single-session-user": {
+      "n": 4,
+      "accuracy": 0,
+      "avgScore": 0
+    },
+    "temporal-reasoning": {
+      "n": 4,
+      "accuracy": 0,
+      "avgScore": 0
+    }
+  },
+  "avgLatencyMs": 3852.75,
+  "p50LatencyMs": 3267,
+  "p95LatencyMs": 6889.149999999998,
+  "totalReaderTokens": 11423937,
+  "totalUsd": 32.760847500000004,
+  "costPerCorrect": 16.380423750000002,
+  "startedAt": "2026-04-22T17:04:39.263Z",
+  "completedAt": "2026-04-22T17:11:57.096Z",
+  "retrievalMetrics": {
+    "meanRecallAtK": 0,
+    "meanPrecisionAtK": 0,
+    "meanNdcgAtK": 0,
+    "meanMrr": 0,
+    "k": 10,
+    "sampleSize": 24
+  },
+  "stratifiedAccuracy": {
+    "byType": {
+      "knowledge-update": {
+        "n": 4,
+        "accuracy": 0,
+        "prior": 0.156
+      },
+      "multi-session": {
+        "n": 4,
+        "accuracy": 0,
+        "prior": 0.266
+      },
+      "single-session-assistant": {
+        "n": 4,
+        "accuracy": 0.25,
+        "prior": 0.112
+      },
+      "single-session-preference": {
+        "n": 4,
+        "accuracy": 0.25,
+        "prior": 0.06
+      },
+      "single-session-user": {
+        "n": 4,
+        "accuracy": 0,
+        "prior": 0.14
+      },
+      "temporal-reasoning": {
+        "n": 4,
+        "accuracy": 0,
+        "prior": 0.266
+      }
+    },
+    "weightedOverall": 0.043,
+    "unweightedOverall": 0.08333333333333333,
+    "missingTypes": []
+  },
+  "tokensPerCorrect": {
+    "readerIn": 5431901.5,
+    "readerOut": 280067,
+    "judgeIn": 0,
+    "judgeOut": 0,
+    "embeddingIn": 0,
+    "total": 5711968.5
+  },
+  "cases": [
+    {
+      "caseId": "6a1eabeb",
+      "actualOutput": "I'm sorry, but I don't have any information about your personal best time in the charity 5K run. If you share the details with me, I'll be happy to remember it for future reference!",
+      "latencyMs": 3332,
+      "tokensIn": 757,
+      "tokensOut": 40,
+      "usd": 0.0022925000000000003,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "knowledge-update",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 0,
+        "omPerSessionBatches": 0,
+        "omBatchedBatches": 0,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 58,
+        "omObserverTokensIn": 0,
+        "omObserverTokensOut": 0,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_a25d4a91_1",
+        "answer_a25d4a91_2"
+      ]
+    },
+    {
+      "caseId": "6aeb4375",
+      "actualOutput": "I don't have any records of you mentioning trying Korean restaurants in your city. If you've visited any recently or have plans to try some, feel free to share, and I can help keep track or offer recommendations!",
+      "latencyMs": 5275,
+      "tokensIn": 754,
+      "tokensOut": 42,
+      "usd": 0.0023049999999999998,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "knowledge-update",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 0,
+        "omPerSessionBatches": 0,
+        "omBatchedBatches": 0,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 58,
+        "omObserverTokensIn": 0,
+        "omObserverTokensOut": 0,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_3f9693b7_1",
+        "answer_3f9693b7_2"
+      ]
+    },
+    {
+      "caseId": "830ce83f",
+      "actualOutput": "I'm sorry, but I don't have any information about Rachel's recent relocation. Could you provide more details or context?",
+      "latencyMs": 4088,
+      "tokensIn": 753,
+      "tokensOut": 23,
+      "usd": 0.0021125000000000002,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "knowledge-update",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 0,
+        "omPerSessionBatches": 0,
+        "omBatchedBatches": 0,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 58,
+        "omObserverTokensIn": 0,
+        "omObserverTokensOut": 0,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_0b1a0942_1",
+        "answer_0b1a0942_2"
+      ]
+    },
+    {
+      "caseId": "852ce960",
+      "actualOutput": "I'm sorry, but I don't have access to specific financial details such as the amount you were pre-approved for your mortgage with Wells Fargo. You might want to check your mortgage documents or contact Wells Fargo directly for that information. If there's anything else I can help with, feel free to let me know!",
+      "latencyMs": 2582,
+      "tokensIn": 761,
+      "tokensOut": 60,
+      "usd": 0.0025025,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "knowledge-update",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 0,
+        "omPerSessionBatches": 0,
+        "omBatchedBatches": 0,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 58,
+        "omObserverTokensIn": 0,
+        "omObserverTokensOut": 0,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_3a6f1e82_1",
+        "answer_3a6f1e82_2"
+      ]
+    },
+    {
+      "caseId": "0a995998",
+      "actualOutput": "I'm sorry, but I don't have any information about your current clothing pick-up or return needs. If you provide more details, I can try to help you with that!",
+      "latencyMs": 3880,
+      "tokensIn": 760,
+      "tokensOut": 34,
+      "usd": 0.00224,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "multi-session",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 0,
+        "omPerSessionBatches": 0,
+        "omBatchedBatches": 0,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 58,
+        "omObserverTokensIn": 0,
+        "omObserverTokensOut": 0,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 3,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_afa9873b_2",
+        "answer_afa9873b_3",
+        "answer_afa9873b_1"
+      ]
+    },
+    {
+      "caseId": "6d550036",
+      "actualOutput": "I don't have any specific information about the number of projects you have led or are currently leading. If you could provide some details or context about your recent work or projects, I'd be happy to help you with any related questions or advice!",
+      "latencyMs": 2874,
+      "tokensIn": 754,
+      "tokensOut": 47,
+      "usd": 0.002355,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "multi-session",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 0,
+        "omPerSessionBatches": 0,
+        "omBatchedBatches": 0,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 58,
+        "omObserverTokensIn": 0,
+        "omObserverTokensOut": 0,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 4,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_ec904b3c_1",
+        "answer_ec904b3c_4",
+        "answer_ec904b3c_3",
+        "answer_ec904b3c_2"
+      ]
+    },
+    {
+      "caseId": "gpt4_59c863d7",
+      "actualOutput": "I don't have any specific information about the number of model kits you've worked on or bought. If you share some details about your experiences or purchases, I can help you keep track or offer suggestions based on your interests!",
+      "latencyMs": 2660,
+      "tokensIn": 754,
+      "tokensOut": 43,
+      "usd": 0.002315,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "multi-session",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 0,
+        "omPerSessionBatches": 0,
+        "omBatchedBatches": 0,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 58,
+        "omObserverTokensIn": 0,
+        "omObserverTokensOut": 0,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 4,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_593bdffd_4",
+        "answer_593bdffd_1",
+        "answer_593bdffd_3",
+        "answer_593bdffd_2"
+      ]
+    },
+    {
+      "caseId": "b5ef892d",
+      "actualOutput": "I'm sorry, but I don't have any information about your camping trips in the United States this year. If you provide some details about your trips, like the duration or specific dates, I can help you calculate the total number of days you spent camping.",
+      "latencyMs": 3109,
+      "tokensIn": 759,
+      "tokensOut": 50,
+      "usd": 0.0023975000000000003,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "multi-session",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 0,
+        "omPerSessionBatches": 0,
+        "omBatchedBatches": 0,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 58,
+        "omObserverTokensIn": 0,
+        "omObserverTokensOut": 0,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 3,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_a8b4290f_3",
+        "answer_a8b4290f_1",
+        "answer_a8b4290f_2"
+      ]
+    },
+    {
+      "caseId": "7161e7e2",
+      "actualOutput": "I'm sorry, but I don't have access to specific details about shift rotations or schedules from our previous conversations. If you have a copy of the rotation sheet or any notes from our past discussions, you might want to refer to those. Alternatively, if you provide more context or details, I might be able to help you recreate or understand the schedule better.",
+      "latencyMs": 2709,
+      "tokensIn": 774,
+      "tokensOut": 70,
+      "usd": 0.002635,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-assistant",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 0,
+        "omPerSessionBatches": 0,
+        "omBatchedBatches": 0,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 58,
+        "omObserverTokensIn": 0,
+        "omObserverTokensOut": 0,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_sharegpt_5Lzox6N_0"
+      ]
+    },
+    {
+      "caseId": "c4f10528",
+      "actualOutput": "I don't have the specific name of the restaurant you mentioned in Cihampelas Walk that serves great Nasi Goreng. However, Cihampelas Walk is known for having a variety of dining options, so you might find it by exploring the area again. If you remember any other details about the restaurant, feel free to share, and I might be able to help you narrow it down further!",
+      "latencyMs": 2898,
+      "tokensIn": 779,
+      "tokensOut": 81,
+      "usd": 0.0027575,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-assistant",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 0,
+        "omPerSessionBatches": 0,
+        "omBatchedBatches": 0,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 58,
+        "omObserverTokensIn": 0,
+        "omObserverTokensOut": 0,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_ultrachat_234453"
+      ]
+    },
+    {
+      "caseId": "89527b6b",
+      "actualOutput": "I'm sorry, but I don't have access to the specific details of the images from our previous conversation. However, if you have a copy of the book or remember any other details, I might be able to help you with more general information about Plesiosaurs or other aspects of the book.",
+      "latencyMs": 2589,
+      "tokensIn": 778,
+      "tokensOut": 59,
+      "usd": 0.002535,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-assistant",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 0,
+        "omPerSessionBatches": 0,
+        "omBatchedBatches": 0,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 58,
+        "omObserverTokensIn": 0,
+        "omObserverTokensOut": 0,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_sharegpt_YkWn1Ne_0"
+      ]
+    },
+    {
+      "caseId": "e9327a54",
+      "actualOutput": "I don't have a record of our previous conversation about a dessert shop in Orlando, but a popular spot known for its giant milkshakes is \"Sugar Factory.\" They are famous for their over-the-top milkshakes and vibrant atmosphere. If this isn't the place you were thinking of, feel free to provide more details, and I'll do my best to help!",
+      "latencyMs": 3885,
+      "tokensIn": 774,
+      "tokensOut": 72,
+      "usd": 0.0026550000000000002,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-assistant",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 0,
+        "omPerSessionBatches": 0,
+        "omBatchedBatches": 0,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 58,
+        "omObserverTokensIn": 0,
+        "omObserverTokensOut": 0,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_ultrachat_480665"
+      ]
+    },
+    {
+      "caseId": "8a2466db",
+      "actualOutput": "Certainly! Here are some resources that can help you learn more about video editing:\n\n1. **Online Courses:**\n   - **Coursera** and **Udemy** offer a variety of courses on video editing, covering different software like Adobe Premiere Pro, Final Cut Pro, and DaVinci Resolve.\n   - **LinkedIn Learning** provides courses that range from beginner to advanced levels, often taught by industry professionals.\n\n2. **YouTube Channels:**\n   - **Peter McKinnon** and **Film Riot** are popular channels that offer tutorials and tips on video editing and filmmaking.\n   - **Premiere Gal** focuses on Adobe Premiere Pro tutorials and creative editing techniques.\n\n3. **Books:**\n   - \"The Art of Editing\" by Walter Murch is a great read for understanding the theory and practice of film editing.\n   - \"In the Blink of an Eye\" also by Walter Murch, offers insights into the philosophy and techniques of editing.\n\n4. **Online Communities:**\n   - **Reddit** has several subreddits like r/editors and r/VideoEditing where you can ask questions and share knowledge with other editors.\n   - **Creative COW** is a forum where professionals discuss various aspects of video production and editing.\n\n5",
+      "latencyMs": 7516,
+      "tokensIn": 757,
+      "tokensOut": 256,
+      "usd": 0.0044525,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-preference",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 0,
+        "omPerSessionBatches": 0,
+        "omBatchedBatches": 0,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 58,
+        "omObserverTokensIn": 0,
+        "omObserverTokensOut": 0,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_edb03329"
+      ]
+    },
+    {
+      "caseId": "06878be2",
+      "actualOutput": "I'd be happy to help with that! Since I don't have specific details about your current photography setup, I'll provide some general accessory suggestions that can enhance most photography kits:\n\n1. **Tripod**: A sturdy tripod is essential for long exposure shots, landscapes, and low-light photography. Look for one that's lightweight and easy to carry if you travel often.\n\n2. **External Flash**: An external flash can greatly improve your indoor and low-light photography by providing more control over lighting.\n\n3. **Lens Filters**: Consider getting a set of lens filters, such as a polarizing filter for reducing glare and enhancing colors, or a neutral density filter for long exposure shots in daylight.\n\n4. **Camera Bag**: A good camera bag will protect your gear and make it easier to carry around. Look for one with customizable compartments to fit your specific equipment.\n\n5. **Remote Shutter Release**: This is useful for reducing camera shake during long exposures or when shooting at slow shutter speeds.\n\n6. **Extra Batteries and Memory Cards**: Always handy to have spares, especially if you're shooting for extended periods or in remote locations.\n\n7. **Cleaning Kit**: Keeping your lenses and camera sensor clean is crucial for maintaining image quality.\n\n8. **Reflectors**:",
+      "latencyMs": 6074,
+      "tokensIn": 756,
+      "tokensOut": 256,
+      "usd": 0.00445,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-preference",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 0,
+        "omPerSessionBatches": 0,
+        "omBatchedBatches": 0,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 58,
+        "omObserverTokensIn": 0,
+        "omObserverTokensOut": 0,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_555dfb94"
+      ]
+    },
+    {
+      "caseId": "75832dbd",
+      "actualOutput": "To give you the best recommendations, it would be helpful to know more about your specific interests or fields you are involved in. Are you looking for publications or conferences related to a particular industry, academic field, or hobby? Let me know, and I can tailor my suggestions accordingly!",
+      "latencyMs": 3202,
+      "tokensIn": 757,
+      "tokensOut": 56,
+      "usd": 0.0024525000000000003,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-preference",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 0,
+        "omPerSessionBatches": 0,
+        "omBatchedBatches": 0,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 58,
+        "omObserverTokensIn": 0,
+        "omObserverTokensOut": 0,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_d87a6ef8"
+      ]
+    },
+    {
+      "caseId": "0edc2aef",
+      "actualOutput": "I don't have specific details about your preferences or past experiences with hotels, but I can suggest a few popular options in Miami that cater to different tastes:\n\n1. **Luxury Stay**: The Fontainebleau Miami Beach is a classic choice for those looking for luxury and a vibrant atmosphere. It offers stunning ocean views and a range of amenities.\n\n2. **Boutique Experience**: The Betsy Hotel in South Beach is known for its elegant design and personalized service. It's perfect if you enjoy a more intimate and unique hotel experience.\n\n3. **Budget-Friendly**: The Freehand Miami offers a more affordable stay with a trendy vibe. It's a hostel/hotel hybrid with a great social atmosphere.\n\n4. **Family-Friendly**: Loews Miami Beach Hotel is great for families, offering kid-friendly amenities and a prime beachfront location.\n\nIf you have specific preferences or requirements, let me know, and I can tailor the suggestions further!",
+      "latencyMs": 7033,
+      "tokensIn": 755,
+      "tokensOut": 186,
+      "usd": 0.0037475,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-preference",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 0,
+        "omPerSessionBatches": 0,
+        "omBatchedBatches": 0,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 58,
+        "omObserverTokensIn": 0,
+        "omObserverTokensOut": 0,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_d586e9cd"
+      ]
+    },
+    {
+      "caseId": "e47becba",
+      "actualOutput": "I don't have information about your degree or educational background. Could you please share more details about your studies or the degree you graduated with?",
+      "latencyMs": 4989,
+      "tokensIn": 750,
+      "tokensOut": 27,
+      "usd": 0.0021449999999999998,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 0,
+        "omPerSessionBatches": 0,
+        "omBatchedBatches": 0,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 58,
+        "omObserverTokensIn": 0,
+        "omObserverTokensOut": 0,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_280352e9"
+      ]
+    },
+    {
+      "caseId": "118b2229",
+      "actualOutput": "I'm sorry, I don't have information about your daily commute to work. Could you tell me more about your location or the distance you travel? That way, I can help you better.",
+      "latencyMs": 2647,
+      "tokensIn": 752,
+      "tokensOut": 37,
+      "usd": 0.00225,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 0,
+        "omPerSessionBatches": 0,
+        "omBatchedBatches": 0,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 58,
+        "omObserverTokensIn": 0,
+        "omObserverTokensOut": 0,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_40a90d51"
+      ]
+    },
+    {
+      "caseId": "51a45a95",
+      "actualOutput": "I'm sorry, but I don't have any information about where you redeemed a $5 coupon on coffee creamer. If you provide more details or context, I might be able to help you better.",
+      "latencyMs": 1920,
+      "tokensIn": 756,
+      "tokensOut": 39,
+      "usd": 0.00228,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 0,
+        "omPerSessionBatches": 0,
+        "omBatchedBatches": 0,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 58,
+        "omObserverTokensIn": 0,
+        "omObserverTokensOut": 0,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_d61669c7"
+      ]
+    },
+    {
+      "caseId": "58bf7951",
+      "actualOutput": "I'm sorry, but I don't have any information about which play you attended at the local community theater. Could you share more details about it?",
+      "latencyMs": 4887,
+      "tokensIn": 754,
+      "tokensOut": 28,
+      "usd": 0.002165,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 0,
+        "omPerSessionBatches": 0,
+        "omBatchedBatches": 0,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 58,
+        "omObserverTokensIn": 0,
+        "omObserverTokensOut": 0,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_355c48bb"
+      ]
+    },
+    {
+      "caseId": "gpt4_59149c77",
+      "actualOutput": "I'm sorry, but I don't have any information about your visits to the Museum of Modern Art (MoMA) or the 'Ancient Civilizations' exhibit at the Metropolitan Museum of Art. If you provide the dates of these visits, I can help you calculate the number of days between them.",
+      "latencyMs": 2423,
+      "tokensIn": 776,
+      "tokensOut": 59,
+      "usd": 0.00253,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "temporal-reasoning",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 0,
+        "omPerSessionBatches": 0,
+        "omBatchedBatches": 0,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 58,
+        "omObserverTokensIn": 0,
+        "omObserverTokensOut": 0,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_d00ba6d0_1",
+        "answer_d00ba6d0_2"
+      ]
+    },
+    {
+      "caseId": "gpt4_f49edff3",
+      "actualOutput": "To determine the order of these events, I would need specific dates or a timeline from your past conversations. However, since I don't have that information, I can guide you on how to figure it out:\n\n1. **The day you helped your friend prepare the nursery** - Think about when your friend was expecting and when the nursery needed to be ready.\n\n2. **The day you helped your cousin pick out stuff for her baby shower** - Consider when the baby shower was planned, which is typically a few months before the baby's due date.\n\n3. **The day you ordered a customized phone case for your friend's birthday** - This would be around your friend's birthday.\n\nIf you can recall the approximate timing of these events, you can arrange them chronologically. If you have any specific dates or more context, feel free to share, and I can help you order them more accurately.",
+      "latencyMs": 3558,
+      "tokensIn": 793,
+      "tokensOut": 177,
+      "usd": 0.0037525,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "temporal-reasoning",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 0,
+        "omPerSessionBatches": 0,
+        "omBatchedBatches": 0,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 58,
+        "omObserverTokensIn": 0,
+        "omObserverTokensOut": 0,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 3,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_3e9fce53_1",
+        "answer_3e9fce53_2",
+        "answer_3e9fce53_3"
+      ]
+    },
+    {
+      "caseId": "71017276",
+      "actualOutput": "I'm sorry, but I don't have any information about when you met up with your aunt and received the crystal chandelier. Could you provide more details or remind me when that happened?",
+      "latencyMs": 5748,
+      "tokensIn": 760,
+      "tokensOut": 35,
+      "usd": 0.0022500000000000003,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "temporal-reasoning",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 0,
+        "omPerSessionBatches": 0,
+        "omBatchedBatches": 0,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 58,
+        "omObserverTokensIn": 0,
+        "omObserverTokensOut": 0,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_0b4a8adc_1"
+      ]
+    },
+    {
+      "caseId": "b46e15ed",
+      "actualOutput": "I don't have specific information about when you participated in those charity events. If you can provide the dates of those events, I can help you calculate how many months have passed since then.",
+      "latencyMs": 2588,
+      "tokensIn": 763,
+      "tokensOut": 37,
+      "usd": 0.0022775,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "temporal-reasoning",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 0,
+        "omPerSessionBatches": 0,
+        "omBatchedBatches": 0,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 58,
+        "omObserverTokensIn": 0,
+        "omObserverTokensOut": 0,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 4,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_4bfcc250_4",
+        "answer_4bfcc250_3",
+        "answer_4bfcc250_2",
+        "answer_4bfcc250_1"
+      ]
+    }
+  ],
+  "accuracyCI": {
+    "value": 0.08333333333333333,
+    "ciLo": 0,
+    "ciHi": 0.20833333333333334,
+    "resamples": 10000,
+    "ci": 0.95
+  },
+  "byTypeCI": {
+    "knowledge-update": {
+      "value": 0,
+      "ciLo": 0,
+      "ciHi": 0,
+      "resamples": 10000,
+      "ci": 0.95
+    },
+    "multi-session": {
+      "value": 0,
+      "ciLo": 0,
+      "ciHi": 0,
+      "resamples": 10000,
+      "ci": 0.95
+    },
+    "single-session-assistant": {
+      "value": 0.25,
+      "ciLo": 0,
+      "ciHi": 0.75,
+      "resamples": 10000,
+      "ci": 0.95
+    },
+    "single-session-preference": {
+      "value": 0.25,
+      "ciLo": 0,
+      "ciHi": 0.75,
+      "resamples": 10000,
+      "ci": 0.95
+    },
+    "single-session-user": {
+      "value": 0,
+      "ciLo": 0,
+      "ciHi": 0,
+      "resamples": 10000,
+      "ci": 0.95
+    },
+    "temporal-reasoning": {
+      "value": 0,
+      "ciLo": 0,
+      "ciHi": 0,
+      "resamples": 10000,
+      "ci": 0.95
+    }
+  },
+  "weightedAccuracyCI": {
+    "value": 0.043,
+    "ciLo": 0,
+    "ciHi": 0.11466666666666665,
+    "resamples": 10000,
+    "ci": 0.95
+  }
+}

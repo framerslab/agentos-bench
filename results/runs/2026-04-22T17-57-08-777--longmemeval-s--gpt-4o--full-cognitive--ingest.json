@@ -1,0 +1,1416 @@
+{
+  "benchmarkId": "longmemeval-s",
+  "benchmarkVersion": "1.0.0",
+  "config": {
+    "reader": "gpt-4o",
+    "memoryMode": "full-cognitive",
+    "replayMode": "ingest",
+    "concurrency": 3,
+    "maxUsd": 60,
+    "retrievalProfile": "balanced",
+    "adaptiveRetrieval": true,
+    "retrievalK": 10,
+    "stratified": true,
+    "samplePerType": 4,
+    "trackFootprint": true,
+    "judgeAdversarial": false,
+    "judgeAdversarialMaxProbes": 50,
+    "judgeAdversarialSynthModel": "gpt-5-mini",
+    "bootstrapResamples": 10000,
+    "seed": 42,
+    "sessionRetrieval": false,
+    "sessionRetrievalTopSessions": 5,
+    "sessionRetrievalChunksPerSession": 3,
+    "hybridRetrieval": false,
+    "hyde": false,
+    "factSupersession": false,
+    "observerReflector": false,
+    "observerReflectorReplace": false,
+    "factGraphIngest": false,
+    "graphActivation": false,
+    "twoCallReader": false,
+    "observationalMemory": true,
+    "omBatchTokenTarget": 24000,
+    "omMode": "dual-path",
+    "omReaderScaffold": true,
+    "omObserverModel": "gpt-4o"
+  },
+  "totalCases": 24,
+  "passedCases": 19,
+  "accuracy": 0.7916666666666666,
+  "avgScore": 0.7916666666666666,
+  "scoreStdDev": 0.41485111699905336,
+  "byType": {
+    "knowledge-update": {
+      "n": 4,
+      "accuracy": 0.75,
+      "avgScore": 0.75
+    },
+    "multi-session": {
+      "n": 4,
+      "accuracy": 0.25,
+      "avgScore": 0.25
+    },
+    "single-session-assistant": {
+      "n": 4,
+      "accuracy": 1,
+      "avgScore": 1
+    },
+    "single-session-preference": {
+      "n": 4,
+      "accuracy": 1,
+      "avgScore": 1
+    },
+    "single-session-user": {
+      "n": 4,
+      "accuracy": 1,
+      "avgScore": 1
+    },
+    "temporal-reasoning": {
+      "n": 4,
+      "accuracy": 0.75,
+      "avgScore": 0.75
+    }
+  },
+  "avgLatencyMs": 45962.166666666664,
+  "p50LatencyMs": 41515,
+  "p95LatencyMs": 55264.149999999994,
+  "totalReaderTokens": 8540354,
+  "totalUsd": 24.29565,
+  "costPerCorrect": 1.2787184210526314,
+  "startedAt": "2026-04-22T17:57:08.777Z",
+  "completedAt": "2026-04-22T18:01:36.050Z",
+  "retrievalMetrics": {
+    "meanRecallAtK": 0,
+    "meanPrecisionAtK": 0,
+    "meanNdcgAtK": 0,
+    "meanMrr": 0,
+    "k": 10,
+    "sampleSize": 24
+  },
+  "stratifiedAccuracy": {
+    "byType": {
+      "knowledge-update": {
+        "n": 4,
+        "accuracy": 0.75,
+        "prior": 0.156
+      },
+      "multi-session": {
+        "n": 4,
+        "accuracy": 0.25,
+        "prior": 0.266
+      },
+      "single-session-assistant": {
+        "n": 4,
+        "accuracy": 1,
+        "prior": 0.112
+      },
+      "single-session-preference": {
+        "n": 4,
+        "accuracy": 1,
+        "prior": 0.06
+      },
+      "single-session-user": {
+        "n": 4,
+        "accuracy": 1,
+        "prior": 0.14
+      },
+      "temporal-reasoning": {
+        "n": 4,
+        "accuracy": 0.75,
+        "prior": 0.266
+      }
+    },
+    "weightedOverall": 0.6950000000000001,
+    "unweightedOverall": 0.7916666666666666,
+    "missingTypes": []
+  },
+  "tokensPerCorrect": {
+    "readerIn": 428908.4736842105,
+    "readerOut": 20583.842105263157,
+    "judgeIn": 237.42105263157896,
+    "judgeOut": 1.5263157894736843,
+    "embeddingIn": 0,
+    "total": 449731.2631578947
+  },
+  "cases": [
+    {
+      "caseId": "6a1eabeb",
+      "actualOutput": "Your personal best time in the charity 5K run is 25:50.",
+      "latencyMs": 35836,
+      "tokensIn": 16779,
+      "tokensOut": 17,
+      "usd": 0.0421175,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "knowledge-update",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 47,
+        "omPerSessionBatches": 41,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 65587,
+        "omObserverTokensIn": 398600,
+        "omObserverTokensOut": 20480,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_a25d4a91_1",
+        "answer_a25d4a91_2"
+      ]
+    },
+    {
+      "caseId": "6aeb4375",
+      "actualOutput": "You've tried four different Korean restaurants in your city.",
+      "latencyMs": 39080,
+      "tokensIn": 17833,
+      "tokensOut": 10,
+      "usd": 0.0446825,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "knowledge-update",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 52,
+        "omPerSessionBatches": 46,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 69962,
+        "omObserverTokensIn": 413732,
+        "omObserverTokensOut": 21868,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "yes"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_3f9693b7_1",
+        "answer_3f9693b7_2"
+      ]
+    },
+    {
+      "caseId": "830ce83f",
+      "actualOutput": "Rachel recently moved to a new apartment in Chicago.",
+      "latencyMs": 43782,
+      "tokensIn": 18064,
+      "tokensOut": 10,
+      "usd": 0.04526,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "knowledge-update",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 55,
+        "omPerSessionBatches": 49,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 70692,
+        "omObserverTokensIn": 431029,
+        "omObserverTokensOut": 22192,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_0b1a0942_1",
+        "answer_0b1a0942_2"
+      ]
+    },
+    {
+      "caseId": "852ce960",
+      "actualOutput": "You were pre-approved for $400,000 from Wells Fargo for your mortgage.",
+      "latencyMs": 31791,
+      "tokensIn": 15107,
+      "tokensOut": 16,
+      "usd": 0.0379275,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "knowledge-update",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 48,
+        "omPerSessionBatches": 41,
+        "omBatchedBatches": 7,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 59274,
+        "omObserverTokensIn": 403477,
+        "omObserverTokensOut": 18552,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "yes"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_3a6f1e82_1",
+        "answer_3a6f1e82_2"
+      ]
+    },
+    {
+      "caseId": "0a995998",
+      "actualOutput": "You need to pick up or return two items of clothing from a store. You have a pair of boots from Zara that you exchanged for a larger size and have not yet picked up, and you also need to pick up your dry cleaning for the navy blue blazer you wore to a meeting a few weeks ago.",
+      "latencyMs": 44115,
+      "tokensIn": 16805,
+      "tokensOut": 62,
+      "usd": 0.042632500000000004,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "multi-session",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 51,
+        "omPerSessionBatches": 45,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 65774,
+        "omObserverTokensIn": 418888,
+        "omObserverTokensOut": 21448,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 3,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_afa9873b_2",
+        "answer_afa9873b_3",
+        "answer_afa9873b_1"
+      ]
+    },
+    {
+      "caseId": "6d550036",
+      "actualOutput": "Based on your past conversations, you have led or are currently leading the following projects:\n\n1. **Cloud Migration Effort**: You are responsible for leading your company's cloud migration effort as a software engineer in the IT industry.\n\n2. **Data Mining Class Project**: You are working on a solo project for a Data Mining class, focusing on customer purchase data.\n\n3. **New Product Feature Launch**: You are planning to launch a new product feature in June and are leading a team of five engineers.\n\n4. **Community-Driven Events in Mexico**: You are working on a project focused on community-driven events in Mexico related to Ethereum.\n\nThese projects highlight your leadership roles in various domains, including IT, data analysis, product development, and community events.",
+      "latencyMs": 40397,
+      "tokensIn": 17528,
+      "tokensOut": 153,
+      "usd": 0.04535,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "multi-session",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 59,
+        "omPerSessionBatches": 53,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 70109,
+        "omObserverTokensIn": 446525,
+        "omObserverTokensOut": 21874,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 4,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_ec904b3c_1",
+        "answer_ec904b3c_4",
+        "answer_ec904b3c_3",
+        "answer_ec904b3c_2"
+      ]
+    },
+    {
+      "caseId": "gpt4_59c863d7",
+      "actualOutput": "You've worked on or bought several model kits recently. Here's a summary:\n\n1. You purchased a 1/72 scale B-29 bomber model kit and a 1/24 scale '69 Camaro at a model show in mid-May 2023.\n2. You recently finished a Revell F-15 Eagle kit, which you picked up during a trip to the hobby store in late April 2023.\n3. You are planning to work on the 1/72 scale B-29 bomber next and want to try photo-etching and wire details.\n\nSo, you've worked on or bought at least three model kits recently.",
+      "latencyMs": 36538,
+      "tokensIn": 17775,
+      "tokensOut": 128,
+      "usd": 0.0457175,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "multi-session",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 54,
+        "omPerSessionBatches": 48,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 69420,
+        "omObserverTokensIn": 430080,
+        "omObserverTokensOut": 21931,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 4,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_593bdffd_4",
+        "answer_593bdffd_1",
+        "answer_593bdffd_3",
+        "answer_593bdffd_2"
+      ]
+    },
+    {
+      "caseId": "b5ef892d",
+      "actualOutput": "Based on your past activities, you went on a 5-day camping trip to Yellowstone National Park in March and a 3-day solo camping trip to Big Sur in early April. This totals 8 days spent on camping trips in the United States this year.",
+      "latencyMs": 44057,
+      "tokensIn": 16757,
+      "tokensOut": 52,
+      "usd": 0.042412500000000006,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "multi-session",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 62,
+        "omPerSessionBatches": 56,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 66072,
+        "omObserverTokensIn": 462216,
+        "omObserverTokensOut": 21013,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 3,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_a8b4290f_3",
+        "answer_a8b4290f_1",
+        "answer_a8b4290f_2"
+      ]
+    },
+    {
+      "caseId": "7161e7e2",
+      "actualOutput": "For the shift rotation sheet you requested for GM social media agents, Admon was scheduled for the \"8 am till 4 pm\" shift on Sunday.",
+      "latencyMs": 41496,
+      "tokensIn": 18411,
+      "tokensOut": 31,
+      "usd": 0.046337500000000004,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-assistant",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 54,
+        "omPerSessionBatches": 48,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 72288,
+        "omObserverTokensIn": 427823,
+        "omObserverTokensOut": 22695,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_sharegpt_5Lzox6N_0"
+      ]
+    },
+    {
+      "caseId": "c4f10528",
+      "actualOutput": "The restaurant you're thinking of is Miss Bee Providore. You mentioned planning to try their Nasi Goreng during your visit to Cihampelas Walk. Enjoy your meal!",
+      "latencyMs": 31078,
+      "tokensIn": 16571,
+      "tokensOut": 35,
+      "usd": 0.04177750000000001,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-assistant",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 50,
+        "omPerSessionBatches": 44,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 64423,
+        "omObserverTokensIn": 414178,
+        "omObserverTokensOut": 20521,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_ultrachat_234453"
+      ]
+    },
+    {
+      "caseId": "89527b6b",
+      "actualOutput": "In the children's book about dinosaurs, the Plesiosaur's scaly body was described as being a deep blue color.",
+      "latencyMs": 35006,
+      "tokensIn": 17944,
+      "tokensOut": 25,
+      "usd": 0.04511,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-assistant",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 53,
+        "omPerSessionBatches": 47,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 71416,
+        "omObserverTokensIn": 427286,
+        "omObserverTokensOut": 21999,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_sharegpt_YkWn1Ne_0"
+      ]
+    },
+    {
+      "caseId": "e9327a54",
+      "actualOutput": "During your previous planning for a trip to Orlando, you expressed interest in visiting multiple dessert spots in one night. While we didn't specifically mention a dessert shop with giant milkshakes, a popular spot in Orlando known for its extravagant milkshakes is \"Sugar Factory.\" They are famous for their over-the-top milkshakes and desserts. If this isn't the place you were thinking of, let me know, and I can help you find more options!",
+      "latencyMs": 36361,
+      "tokensIn": 18261,
+      "tokensOut": 90,
+      "usd": 0.0465525,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-assistant",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 59,
+        "omPerSessionBatches": 53,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 70777,
+        "omObserverTokensIn": 448169,
+        "omObserverTokensOut": 22376,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_ultrachat_480665"
+      ]
+    },
+    {
+      "caseId": "8a2466db",
+      "actualOutput": "Since you're already using Adobe Premiere Pro and are interested in learning more about its advanced settings, here are some resources that can help you deepen your video editing skills:\n\n1. **Adobe's Official Tutorials**: Adobe offers a range of tutorials on their website, covering both basic and advanced features of Premiere Pro. This is a great place to start for learning specific tools like the Lumetri Color Panel.\n\n2. **YouTube Channels**:\n   - **Premiere Gal**: Offers tutorials on various aspects of Premiere Pro, including color grading and effects.\n   - **Peter McKinnon**: While he covers a range of photography and video topics, his editing tutorials are particularly insightful.\n   - **Film Riot**: Provides tips and tricks for filmmaking and editing, including special effects.\n\n3. **Online Courses**:\n   - **LinkedIn Learning**: Offers courses on Premiere Pro, including advanced techniques and workflows.\n   - **Udemy**: Has a variety of courses on video editing, from beginner to advanced levels.\n   - **Skillshare**: Offers classes on creative video editing techniques and storytelling.\n\n4. **Books**:\n   - **\"Adobe Premiere Pro Classroom in a Book\"**: This book is part of the official training series from Adobe and covers",
+      "latencyMs": 50393,
+      "tokensIn": 16624,
+      "tokensOut": 256,
+      "usd": 0.04412,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-preference",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 60,
+        "omPerSessionBatches": 54,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 64778,
+        "omObserverTokensIn": 455376,
+        "omObserverTokensOut": 21509,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_edb03329"
+      ]
+    },
+    {
+      "caseId": "06878be2",
+      "actualOutput": "Given your current photography setup, which includes a Sony A7R IV, a Godox V1 flash, and a Sony 24-70mm f/2.8 lens, here are some accessories that could complement your gear:\n\n1. **Lens Filters**: Consider getting a set of high-quality lens filters, such as a polarizing filter to reduce glare and enhance colors, or a neutral density filter for long exposure shots.\n\n2. **Camera Strap**: A comfortable and durable camera strap can make a big difference during long shoots. Look for options like the Peak Design Slide or BlackRapid Sport Breathe.\n\n3. **Memory Cards**: Ensure you have fast and reliable memory cards, such as the SanDisk Extreme Pro SDXC UHS-I, to handle high-resolution images and 4K video.\n\n4. **Extra Batteries**: Having extra batteries, like the Sony NP-FZ100, is essential for extended shooting sessions.\n\n5. **Remote Shutter Release**: A remote shutter release can help you take long exposure shots without camera shake. Consider options like the Sony RMT-P1BT Wireless Remote Commander.\n\n6. **Camera Bag**: Since you're interested in upgrading your camera bag, consider brands like Lowepro, Think Tank, or Peak Design",
+      "latencyMs": 43220,
+      "tokensIn": 16947,
+      "tokensOut": 256,
+      "usd": 0.044927499999999995,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-preference",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 56,
+        "omPerSessionBatches": 50,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 66750,
+        "omObserverTokensIn": 438167,
+        "omObserverTokensOut": 21377,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_555dfb94"
+      ]
+    },
+    {
+      "caseId": "75832dbd",
+      "actualOutput": "Given your background in deep learning for medical image analysis and your interest in explainable AI, you might find the following recent publications and conferences particularly interesting:\n\n1. **Publications:**\n   - *Nature Machine Intelligence* and *IEEE Transactions on Medical Imaging* often publish cutting-edge research in deep learning and medical image analysis.\n   - Look for recent papers on explainable AI in medical imaging in journals like *Artificial Intelligence in Medicine* and *Journal of Biomedical Informatics*.\n\n2. **Conferences:**\n   - **MICCAI (Medical Image Computing and Computer-Assisted Intervention):** This conference is a leading forum for medical image analysis and computer-assisted interventions.\n   - **CVPR (Conference on Computer Vision and Pattern Recognition):** While broader in scope, CVPR often features sessions on medical imaging and explainable AI.\n   - **NeurIPS (Neural Information Processing Systems):** Known for its focus on machine learning and AI, NeurIPS includes workshops and papers on explainable AI and its applications in healthcare.\n\nThese resources should provide you with valuable insights and updates in your field of interest.",
+      "latencyMs": 40820,
+      "tokensIn": 18724,
+      "tokensOut": 225,
+      "usd": 0.049060000000000006,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-preference",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 57,
+        "omPerSessionBatches": 51,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 74333,
+        "omObserverTokensIn": 438291,
+        "omObserverTokensOut": 22663,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_d87a6ef8"
+      ]
+    },
+    {
+      "caseId": "0edc2aef",
+      "actualOutput": "For your upcoming trip to Miami, you might enjoy staying at a hotel that offers unique features and great views, similar to your preferences for your Seattle trip. Here are a few suggestions:\n\n1. **The Setai, Miami Beach**: Known for its luxurious ambiance and oceanfront views, The Setai offers a serene escape with its Asian-inspired design and three infinity pools.\n\n2. **1 Hotel South Beach**: This eco-friendly hotel offers stunning ocean views, a rooftop pool, and a focus on sustainability. It's perfect if you appreciate unique features like a rooftop pool.\n\n3. **Fontainebleau Miami Beach**: A classic Miami Beach hotel with a rich history, Fontainebleau offers a variety of dining options, a large pool area, and beautiful ocean views.\n\n4. **The Ritz-Carlton, South Beach**: Located in the heart of South Beach, this hotel offers luxurious accommodations, a beachfront location, and a rooftop pool with panoramic views.\n\n5. **W South Beach**: Known for its modern design and vibrant atmosphere, W South Beach offers oceanfront rooms, a rooftop pool, and a lively nightlife scene.\n\nThese hotels offer a mix of luxury, unique features, and great views, which should align well with your preferences. Enjoy your trip",
+      "latencyMs": 40667,
+      "tokensIn": 18137,
+      "tokensOut": 256,
+      "usd": 0.0479025,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-preference",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 55,
+        "omPerSessionBatches": 49,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 71996,
+        "omObserverTokensIn": 436195,
+        "omObserverTokensOut": 22432,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_d586e9cd"
+      ]
+    },
+    {
+      "caseId": "e47becba",
+      "actualOutput": "You graduated with a degree in Business Administration.",
+      "latencyMs": 141614,
+      "tokensIn": 33707,
+      "tokensOut": 9,
+      "usd": 0.08435750000000002,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 60,
+        "omPerSessionBatches": 54,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 130256,
+        "omObserverTokensIn": 452861,
+        "omObserverTokensOut": 38218,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_280352e9"
+      ]
+    },
+    {
+      "caseId": "118b2229",
+      "actualOutput": "Your daily commute to work takes 45 minutes each way, as you mentioned when discussing your audiobook listening habits during your commute.",
+      "latencyMs": 41549,
+      "tokensIn": 19107,
+      "tokensOut": 25,
+      "usd": 0.0480175,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 53,
+        "omPerSessionBatches": 47,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 73811,
+        "omObserverTokensIn": 427995,
+        "omObserverTokensOut": 22933,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_40a90d51"
+      ]
+    },
+    {
+      "caseId": "51a45a95",
+      "actualOutput": "You redeemed a $5 coupon on coffee creamer at Target on May 28, 2023.",
+      "latencyMs": 42834,
+      "tokensIn": 17675,
+      "tokensOut": 21,
+      "usd": 0.044397500000000006,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 57,
+        "omPerSessionBatches": 51,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 70227,
+        "omObserverTokensIn": 442686,
+        "omObserverTokensOut": 22201,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_d61669c7"
+      ]
+    },
+    {
+      "caseId": "58bf7951",
+      "actualOutput": "You attended a production of \"The Glass Menagerie\" at the local community theater.",
+      "latencyMs": 54279,
+      "tokensIn": 17799,
+      "tokensOut": 17,
+      "usd": 0.0446675,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 68,
+        "omPerSessionBatches": 62,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 70219,
+        "omObserverTokensIn": 488129,
+        "omObserverTokensOut": 22145,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "yes"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_355c48bb"
+      ]
+    },
+    {
+      "caseId": "gpt4_59149c77",
+      "actualOutput": "You visited the Museum of Modern Art (MoMA) on January 8, 2023, and attended the \"Ancient Civilizations\" exhibit at the Metropolitan Museum of Art on January 15, 2023. Therefore, 7 days passed between your visits to these two museums.",
+      "latencyMs": 38702,
+      "tokensIn": 17791,
+      "tokensOut": 59,
+      "usd": 0.0450675,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "temporal-reasoning",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 57,
+        "omPerSessionBatches": 51,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 70504,
+        "omObserverTokensIn": 438992,
+        "omObserverTokensOut": 21818,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_d00ba6d0_1",
+        "answer_d00ba6d0_2"
+      ]
+    },
+    {
+      "caseId": "gpt4_f49edff3",
+      "actualOutput": "To determine the order of these events, let's look at the dates:\n\n1. You helped your cousin pick out baby shower items at Target on February 10, 2023.\n2. You helped your friend prepare a nursery and shopped for baby supplies on February 5, 2023.\n3. You ordered a customized phone case for your friend's birthday on February 20, 2023.\n\nThe order from first to last is:\n1. Helped your friend prepare the nursery (February 5, 2023)\n2. Helped your cousin pick out baby shower items (February 10, 2023)\n3. Ordered a customized phone case for your friend's birthday (February 20, 2023)",
+      "latencyMs": 55438,
+      "tokensIn": 16901,
+      "tokensOut": 147,
+      "usd": 0.0437225,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "temporal-reasoning",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 53,
+        "omPerSessionBatches": 47,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 66536,
+        "omObserverTokensIn": 423400,
+        "omObserverTokensOut": 21161,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 3,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_3e9fce53_1",
+        "answer_3e9fce53_2",
+        "answer_3e9fce53_3"
+      ]
+    },
+    {
+      "caseId": "71017276",
+      "actualOutput": "You mentioned acquiring a crystal chandelier from your aunt on March 4, 2023. Today is October 23, 2023, so it has been approximately 33 weeks since you received the chandelier.",
+      "latencyMs": 52505,
+      "tokensIn": 17167,
+      "tokensOut": 42,
+      "usd": 0.0433375,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "temporal-reasoning",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 55,
+        "omPerSessionBatches": 49,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 66468,
+        "omObserverTokensIn": 430523,
+        "omObserverTokensOut": 21402,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_0b4a8adc_1"
+      ]
+    },
+    {
+      "caseId": "b46e15ed",
+      "actualOutput": "You participated in two charity events on consecutive days: the \"Books for Kids\" charity book drive on February 15, 2023, and the \"Walk for Hunger\" charity event on March 19, 2023. Since today is October 2023, approximately 7 months have passed since the \"Walk for Hunger\" event.",
+      "latencyMs": 41534,
+      "tokensIn": 16930,
+      "tokensOut": 69,
+      "usd": 0.043015000000000005,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "temporal-reasoning",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 54,
+        "omPerSessionBatches": 48,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 66447,
+        "omObserverTokensIn": 431956,
+        "omObserverTokensOut": 20876,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 4,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_4bfcc250_4",
+        "answer_4bfcc250_3",
+        "answer_4bfcc250_2",
+        "answer_4bfcc250_1"
+      ]
+    }
+  ],
+  "accuracyCI": {
+    "value": 0.7916666666666666,
+    "ciLo": 0.625,
+    "ciHi": 0.9583333333333334,
+    "resamples": 10000,
+    "ci": 0.95
+  },
+  "byTypeCI": {
+    "knowledge-update": {
+      "value": 0.75,
+      "ciLo": 0.25,
+      "ciHi": 1,
+      "resamples": 10000,
+      "ci": 0.95
+    },
+    "multi-session": {
+      "value": 0.25,
+      "ciLo": 0,
+      "ciHi": 0.75,
+      "resamples": 10000,
+      "ci": 0.95
+    },
+    "single-session-assistant": {
+      "value": 1,
+      "ciLo": 1,
+      "ciHi": 1,
+      "resamples": 10000,
+      "ci": 0.95
+    },
+    "single-session-preference": {
+      "value": 1,
+      "ciLo": 1,
+      "ciHi": 1,
+      "resamples": 10000,
+      "ci": 0.95
+    },
+    "single-session-user": {
+      "value": 1,
+      "ciLo": 1,
+      "ciHi": 1,
+      "resamples": 10000,
+      "ci": 0.95
+    },
+    "temporal-reasoning": {
+      "value": 0.75,
+      "ciLo": 0.25,
+      "ciHi": 1,
+      "resamples": 10000,
+      "ci": 0.95
+    }
+  },
+  "weightedAccuracyCI": {
+    "value": 0.6950000000000001,
+    "ciLo": 0.46776190476190477,
+    "ciHi": 0.8936,
+    "resamples": 10000,
+    "ci": 0.95
+  }
+}

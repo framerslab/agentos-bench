@@ -543,7 +543,45 @@ export function buildCli(): Command {
     )
     .option(
       '--observational-memory',
-      'Enable Step-15 Mastra-style Observational Memory. DISABLES the retrieval pipeline (no HybridRetriever, no rerank, no top-K). Per-session Observer LLM extracts dated priority-tagged observations; Reflector consolidates when the log exceeds 40k tokens. Reader sees the full observation log + question in a single call. Verbatim port of Mastra OM prompts (Apache-2.0). Observer model: --context-summary value (we substitute gpt-5-mini for Mastra\u2019s gemini-2.5-flash because the bench ships with OpenAI keys only). Default: off.',
+      'Enable Step-15 Mastra-style Observational Memory. DISABLES the retrieval pipeline (no HybridRetriever, no rerank, no top-K). Observer LLM extracts dated priority-tagged observations over token-bounded batches of sessions (Step 15 v2 default: 24k-token batches); Reflector consolidates when the log exceeds 40k tokens. Reader sees the full observation log + question in a single call. Verbatim port of Mastra OM prompts (Apache-2.0). Observer model: gpt-5-mini (substituted for Mastra\u2019s gemini-2.5-flash because the bench ships with OpenAI keys only). Default: off.',
+    )
+    .option(
+      '--om-batch-tokens <n>',
+      'Step 15 v2: token target per Observer batch in OM ingest (default 24000). Sessions are grouped in haystack order until cumulative tokens exceed this target; a single session exceeding the target becomes its own batch (no mid-session split). Matches Mastra\u2019s messageTokens \u00D7 bufferActivation = 30000 \u00D7 0.8 = 24000 default. Only effective with --observational-memory. Lower values (e.g. 12000) produce more, smaller batches; higher values (e.g. 40000) produce fewer, larger batches up to the observer\u2019s input budget.',
+      parsePositiveInteger,
+    )
+    .option(
+      '--om-mode <mode>',
+      'Step 15 observer ingest mode. Values: per-session (v1, one Observer call per session, preserves per-session fidelity), batched (v2, one call per 24k-token batch, encodes cross-session patterns but compresses per-session detail), dual-path (v3 default, both passes concatenated), hierarchical (v4b, per-session Observer + one synthesis call over the per-session log using --om-synthesis-model — compact synthesis block appended to the per-session log). Only effective with --observational-memory.',
+      (value: string) => {
+        if (
+          value !== 'per-session' &&
+          value !== 'batched' &&
+          value !== 'dual-path' &&
+          value !== 'hierarchical'
+        ) {
+          throw new Error(
+            `--om-mode must be 'per-session' | 'batched' | 'dual-path' | 'hierarchical', got "${value}"`,
+          );
+        }
+        return value;
+      },
+    )
+    .option(
+      '--om-synthesis-model <model>',
+      'Step 15 v4b: model identifier for the hierarchical-mode synthesis call over the per-session observation log. Typically a stronger reasoning model (e.g. gpt-4o) than the observer model. Only consulted when --om-mode is hierarchical. Default: same as the observer model (gpt-5-mini).',
+    )
+    .option(
+      '--om-observer-model <model>',
+      'Step 15 v5: model identifier for the Observer and Reflector LLM calls in OM ingest. Default gpt-5-mini. Upgrading to gpt-4o tests whether observer-model tier closes the ~10pp gap to Mastra\u2019s published 84.23% gpt-4o result (which uses gemini-2.5-flash as their observer). Only effective with --observational-memory.',
+    )
+    .option(
+      '--om-with-retrieval',
+      'Step 16: combine OM observation log with HybridRetriever top-K passages (BM25 + dense + RRF + Cohere rerank) in a single reader context. The reader sees both the dense cross-session synthesis (from OM) AND the per-chunk verbatim specifics (from retrieval), addressing multi-session gaps that neither layer solves alone. Runs both ingest pipelines. Only effective with --observational-memory.',
+    )
+    .option(
+      '--om-reader-scaffold',
+      'Step 15 v4a: append a cross-session reasoning scaffold to the OM reader system prompt. The scaffold walks the reader through multi-step synthesis (scan all date-grouped sections, extract per-session facts, order chronologically, synthesize). Targets the v3 failure mode where the reader fixates on the most-recent-date observation block and misses cross-session synthesis. Only effective with --observational-memory. Default off.',
     )
     .option(
       '--seed <n>',
@@ -655,6 +693,12 @@ export function buildCli(): Command {
         graphActivation: Boolean(opts.graphActivation),
         twoCallReader: Boolean(opts.twoCallReader),
         observationalMemory: Boolean(opts.observationalMemory),
+        omBatchTokenTarget: opts.omBatchTokens,
+        omMode: opts.omMode,
+        omReaderScaffold: Boolean(opts.omReaderScaffold),
+        omSynthesisModel: opts.omSynthesisModel,
+        omObserverModel: opts.omObserverModel,
+        omWithRetrieval: Boolean(opts.omWithRetrieval),
       };
 
       // Cost preflight — coarse but enough to catch "oh no I just

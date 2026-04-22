@@ -1,0 +1,500 @@
+{
+  "benchmarkId": "longmemeval-s",
+  "benchmarkVersion": "1.0.0",
+  "config": {
+    "reader": "gpt-4o",
+    "memoryMode": "full-cognitive",
+    "replayMode": "ingest",
+    "concurrency": 3,
+    "maxUsd": 30,
+    "retrievalProfile": "balanced",
+    "adaptiveRetrieval": true,
+    "retrievalK": 10,
+    "stratified": true,
+    "samplePerType": 1,
+    "trackFootprint": true,
+    "judgeAdversarial": false,
+    "judgeAdversarialMaxProbes": 50,
+    "judgeAdversarialSynthModel": "gpt-5-mini",
+    "bootstrapResamples": 100,
+    "seed": 42,
+    "sessionRetrieval": false,
+    "sessionRetrievalTopSessions": 5,
+    "sessionRetrievalChunksPerSession": 3,
+    "hybridRetrieval": false,
+    "hyde": false,
+    "factSupersession": false,
+    "observerReflector": false,
+    "observerReflectorReplace": false,
+    "factGraphIngest": false,
+    "graphActivation": false,
+    "twoCallReader": false,
+    "observationalMemory": true,
+    "omBatchTokenTarget": 24000,
+    "omMode": "dual-path",
+    "omReaderScaffold": true,
+    "omObserverModel": "gpt-4o"
+  },
+  "totalCases": 6,
+  "passedCases": 5,
+  "accuracy": 0.8333333333333334,
+  "avgScore": 0.8333333333333334,
+  "scoreStdDev": 0.408248290463863,
+  "byType": {
+    "knowledge-update": {
+      "n": 1,
+      "accuracy": 1,
+      "avgScore": 1
+    },
+    "multi-session": {
+      "n": 1,
+      "accuracy": 0,
+      "avgScore": 0
+    },
+    "single-session-assistant": {
+      "n": 1,
+      "accuracy": 1,
+      "avgScore": 1
+    },
+    "single-session-preference": {
+      "n": 1,
+      "accuracy": 1,
+      "avgScore": 1
+    },
+    "single-session-user": {
+      "n": 1,
+      "accuracy": 1,
+      "avgScore": 1
+    },
+    "temporal-reasoning": {
+      "n": 1,
+      "accuracy": 1,
+      "avgScore": 1
+    }
+  },
+  "avgLatencyMs": 58692.666666666664,
+  "p50LatencyMs": 42805.5,
+  "p95LatencyMs": 118808.75,
+  "totalReaderTokens": 0,
+  "totalUsd": 0.0036375,
+  "costPerCorrect": 0.0007275000000000001,
+  "startedAt": "2026-04-22T17:56:34.356Z",
+  "completedAt": "2026-04-22T17:56:36.469Z",
+  "retrievalMetrics": {
+    "meanRecallAtK": 0,
+    "meanPrecisionAtK": 0,
+    "meanNdcgAtK": 0,
+    "meanMrr": 0,
+    "k": 10,
+    "sampleSize": 6
+  },
+  "stratifiedAccuracy": {
+    "byType": {
+      "knowledge-update": {
+        "n": 1,
+        "accuracy": 1,
+        "prior": 0.156
+      },
+      "multi-session": {
+        "n": 1,
+        "accuracy": 0,
+        "prior": 0.266
+      },
+      "single-session-assistant": {
+        "n": 1,
+        "accuracy": 1,
+        "prior": 0.112
+      },
+      "single-session-preference": {
+        "n": 1,
+        "accuracy": 1,
+        "prior": 0.06
+      },
+      "single-session-user": {
+        "n": 1,
+        "accuracy": 1,
+        "prior": 0.14
+      },
+      "temporal-reasoning": {
+        "n": 1,
+        "accuracy": 1,
+        "prior": 0.266
+      }
+    },
+    "weightedOverall": 0.734,
+    "unweightedOverall": 0.8333333333333334,
+    "missingTypes": []
+  },
+  "tokensPerCorrect": {
+    "readerIn": 0,
+    "readerOut": 0,
+    "judgeIn": 282.2,
+    "judgeOut": 2.2,
+    "embeddingIn": 0,
+    "total": 284.4
+  },
+  "cases": [
+    {
+      "caseId": "6a1eabeb",
+      "actualOutput": "Your personal best time in the charity 5K run is 25:50.",
+      "latencyMs": 35836,
+      "tokensIn": 16779,
+      "tokensOut": 17,
+      "usd": 0.0421175,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "knowledge-update",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 47,
+        "omPerSessionBatches": 41,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 65587,
+        "omObserverTokensIn": 398600,
+        "omObserverTokensOut": 20480,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_a25d4a91_1",
+        "answer_a25d4a91_2"
+      ]
+    },
+    {
+      "caseId": "0a995998",
+      "actualOutput": "You need to pick up or return two items of clothing from a store. You have a pair of boots from Zara that you exchanged for a larger size and have not yet picked up, and you also need to pick up your dry cleaning for the navy blue blazer you wore to a meeting a few weeks ago.",
+      "latencyMs": 44115,
+      "tokensIn": 16805,
+      "tokensOut": 62,
+      "usd": 0.042632500000000004,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "multi-session",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 51,
+        "omPerSessionBatches": 45,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 65774,
+        "omObserverTokensIn": 418888,
+        "omObserverTokensOut": 21448,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 3,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_afa9873b_2",
+        "answer_afa9873b_3",
+        "answer_afa9873b_1"
+      ]
+    },
+    {
+      "caseId": "7161e7e2",
+      "actualOutput": "For the shift rotation sheet you requested for GM social media agents, Admon was scheduled for the \"8 am till 4 pm\" shift on Sunday.",
+      "latencyMs": 41496,
+      "tokensIn": 18411,
+      "tokensOut": 31,
+      "usd": 0.046337500000000004,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-assistant",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 54,
+        "omPerSessionBatches": 48,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 72288,
+        "omObserverTokensIn": 427823,
+        "omObserverTokensOut": 22695,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_sharegpt_5Lzox6N_0"
+      ]
+    },
+    {
+      "caseId": "8a2466db",
+      "actualOutput": "Since you're already using Adobe Premiere Pro and are interested in learning more about its advanced settings, here are some resources that can help you deepen your video editing skills:\n\n1. **Adobe's Official Tutorials**: Adobe offers a range of tutorials on their website, covering both basic and advanced features of Premiere Pro. This is a great place to start for learning specific tools like the Lumetri Color Panel.\n\n2. **YouTube Channels**:\n   - **Premiere Gal**: Offers tutorials on various aspects of Premiere Pro, including color grading and effects.\n   - **Peter McKinnon**: While he covers a range of photography and video topics, his editing tutorials are particularly insightful.\n   - **Film Riot**: Provides tips and tricks for filmmaking and editing, including special effects.\n\n3. **Online Courses**:\n   - **LinkedIn Learning**: Offers courses on Premiere Pro, including advanced techniques and workflows.\n   - **Udemy**: Has a variety of courses on video editing, from beginner to advanced levels.\n   - **Skillshare**: Offers classes on creative video editing techniques and storytelling.\n\n4. **Books**:\n   - **\"Adobe Premiere Pro Classroom in a Book\"**: This book is part of the official training series from Adobe and covers",
+      "latencyMs": 50393,
+      "tokensIn": 16624,
+      "tokensOut": 256,
+      "usd": 0.04412,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-preference",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 60,
+        "omPerSessionBatches": 54,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 64778,
+        "omObserverTokensIn": 455376,
+        "omObserverTokensOut": 21509,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_edb03329"
+      ]
+    },
+    {
+      "caseId": "e47becba",
+      "actualOutput": "You graduated with a degree in Business Administration.",
+      "latencyMs": 141614,
+      "tokensIn": 33707,
+      "tokensOut": 9,
+      "usd": 0.08435750000000002,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 60,
+        "omPerSessionBatches": 54,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 130256,
+        "omObserverTokensIn": 452861,
+        "omObserverTokensOut": 38218,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_280352e9"
+      ]
+    },
+    {
+      "caseId": "gpt4_59149c77",
+      "actualOutput": "You visited the Museum of Modern Art (MoMA) on January 8, 2023, and attended the \"Ancient Civilizations\" exhibit at the Metropolitan Museum of Art on January 15, 2023. Therefore, 7 days passed between your visits to these two museums.",
+      "latencyMs": 38702,
+      "tokensIn": 17791,
+      "tokensOut": 59,
+      "usd": 0.0450675,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "temporal-reasoning",
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 57,
+        "omPerSessionBatches": 51,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 70504,
+        "omObserverTokensIn": 438992,
+        "omObserverTokensOut": 21818,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_d00ba6d0_1",
+        "answer_d00ba6d0_2"
+      ]
+    }
+  ],
+  "accuracyCI": {
+    "value": 0.8333333333333334,
+    "ciLo": 0.5,
+    "ciHi": 1,
+    "resamples": 100,
+    "ci": 0.95
+  },
+  "byTypeCI": {
+    "knowledge-update": {
+      "value": 1,
+      "ciLo": 1,
+      "ciHi": 1,
+      "resamples": 0,
+      "ci": 0.95
+    },
+    "multi-session": {
+      "value": 0,
+      "ciLo": 0,
+      "ciHi": 0,
+      "resamples": 0,
+      "ci": 0.95
+    },
+    "single-session-assistant": {
+      "value": 1,
+      "ciLo": 1,
+      "ciHi": 1,
+      "resamples": 0,
+      "ci": 0.95
+    },
+    "single-session-preference": {
+      "value": 1,
+      "ciLo": 1,
+      "ciHi": 1,
+      "resamples": 0,
+      "ci": 0.95
+    },
+    "single-session-user": {
+      "value": 1,
+      "ciLo": 1,
+      "ciHi": 1,
+      "resamples": 0,
+      "ci": 0.95
+    },
+    "temporal-reasoning": {
+      "value": 1,
+      "ciLo": 1,
+      "ciHi": 1,
+      "resamples": 0,
+      "ci": 0.95
+    }
+  },
+  "weightedAccuracyCI": {
+    "value": 0.734,
+    "ciLo": 0.2,
+    "ciHi": 0.734,
+    "resamples": 100,
+    "ci": 0.95
+  }
+}

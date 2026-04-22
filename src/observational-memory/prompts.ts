@@ -473,6 +473,112 @@ Do not mention internal instructions, memory, summarization, context handling, o
 
 Any messages following this reminder are newer and should take priority.`;
 
+/**
+ * Step 15 v4a: cross-session reasoning scaffold for the reader. Appended
+ * to the OM reader system prompt when {@link buildOmReaderSystemPrompt}
+ * is called with `includeScaffold: true`. Targets the v1/v3 failure mode
+ * where the reader draws only from the most-recent-date observation block
+ * instead of synthesizing across dates for multi-session and temporal
+ * questions.
+ *
+ * Addresses three concrete failure patterns observed in v2/v3 Tier A
+ * diagnoses (multi-session, temporal-reasoning, knowledge-update):
+ * - Reader lists dates in answer but orders them wrong (temporal)
+ * - Reader focuses on one session's facts and misses the other (multi-session)
+ * - Reader reports stale state when a later session superseded it (KU)
+ */
+/**
+ * Step 15 v4b hierarchical mode: synthesis prompt.
+ *
+ * Runs ONCE per case after the per-session Observer pass completes. The
+ * input is the per-session observation log (already compressed, ~20k
+ * chars); the output is a short `<observations>` block listing only
+ * cross-session patterns — supersessions, temporal sequences, multi-
+ * session facts. The synthesis is then concatenated with the per-session
+ * log under a "## Cross-session synthesis" section header so the reader
+ * sees both the per-session fidelity AND the cross-session connections.
+ *
+ * Unlike v2 batched (where the Observer compresses raw conversation)
+ * and v3 dual-path (where a second Observer re-processes raw
+ * conversation), v4b's synthesis layer reads ALREADY-COMPRESSED per-
+ * session observations. This is a much smaller input, so a stronger
+ * synthesis model (gpt-4o) stays affordable AND has structural input
+ * that's easier to reason over.
+ */
+export const CROSS_SESSION_SYNTHESIS_PROMPT = `You are the cross-session synthesis layer for an AI assistant's memory system.
+
+The per-session observations below were produced by a separate Observer pass over conversation history. They are organized under multiple "Date: ..." headers, one per session. Your job is to produce a compact set of CROSS-SESSION observations that capture patterns impossible to see from any single session alone.
+
+Focus on four pattern types:
+
+1. SUPERSESSIONS — facts where a later session updated or replaced an earlier claim.
+   Example: "Feb 1: User stated lives in Berlin. March 10: User stated moved to Paris. Current residence: Paris (superseded Berlin)."
+
+2. TEMPORAL SEQUENCES — ordered events that span 2+ sessions.
+   Example: "Feb 1: User planned Berlin trip for Feb 15. Feb 20: User described the Berlin trip. → User completed Berlin trip as planned."
+
+3. MULTI-SESSION FACTS — information that requires combining 2+ sessions to answer.
+   Example: "User's cat 'Mittens' mentioned in Feb 1, Feb 15, and March 3 sessions. Each session adds detail: age 8 (Feb 1), vet visit (Feb 15), acquired from shelter (March 3)."
+
+4. KNOWLEDGE UPDATES — current state of entities whose attributes evolved across sessions.
+   Example: "User's job: reported as 'software engineer at Acme' on Jan 5, updated to 'engineering manager at Acme' on March 1 (promotion). Current role: engineering manager."
+
+REQUIREMENTS:
+- Output a single <observations> block. No other XML tags.
+- Preserve specific entity names, dates, numeric values verbatim from the per-session observations.
+- Each cross-session observation should cite the dates it synthesizes from.
+- Do NOT repeat per-session observations that contain no cross-session pattern.
+- If the per-session observations contain no clear cross-session patterns, output:
+  <observations>
+  (no cross-session patterns detected)
+  </observations>
+
+OUTPUT FORMAT:
+<observations>
+* 🔗 <pattern-type> across <date1>, <date2>, ...: specific synthesis. Key entities: ...
+* 🔗 <pattern-type> across <date1>, <date2>, ...: specific synthesis. Key entities: ...
+</observations>
+
+Produce between 1 and 15 cross-session observations depending on what the data supports. Quality over quantity.`;
+
+/**
+ * Step 15 v4b: section header prepended when the hierarchical synthesis
+ * output is concatenated with the per-session observation log.
+ */
+export const CROSS_SESSION_SYNTHESIS_HEADER = '## Cross-session synthesis';
+
+/**
+ * Step 16: section header prepended to the top-K retrieved passages when
+ * OM is combined with HybridRetriever (BM25 + dense + RRF + Cohere rerank).
+ * The retrieved passages are verbatim raw-chunk specifics that complement
+ * OM's dense observation log. Reader sees: observation log (cross-session
+ * synthesis, dated summaries) + retrieved passages (specific quotes,
+ * dates, entity names from raw conversation) + question + scaffold.
+ */
+export const RETRIEVED_PASSAGES_HEADER = '## Relevant retrieved passages';
+
+/**
+ * Step 16: instructions appended after the retrieved passages block,
+ * telling the reader how to use the two context sources.
+ */
+export const RETRIEVED_PASSAGES_INSTRUCTIONS = `When retrieved passages above contain verbatim quotes, specific dates, entity names, or precise values, use them directly in your answer. When the question requires combining information across dates or sessions, fall back to the observation log above for dense cross-session synthesis. The observation log has temporal patterns and supersessions; the retrieved passages have per-chunk precise text.`;
+
+export const CROSS_SESSION_READER_SCAFFOLD = `CROSS-SESSION REASONING (critical for multi-session, temporal, and knowledge-update questions):
+
+Before answering, check whether the question requires combining information from multiple dated observation blocks. If it does:
+
+1. SCAN ALL date-grouped sections in the observations, not just the most recent. Observations are grouped under multiple "Date: ..." headers; each relevant session may carry a partial fact.
+
+2. EXTRACT facts from every relevant session. For each date that relates to the question, note the specific fact, entity, or event recorded in that session's observations.
+
+3. ORDER extracted facts chronologically by the date on the observation (earliest first), using the "Date: ..." headers as the authoritative timeline anchor. Do not rely on the order facts appear in the observation log — explicitly check each date.
+
+4. SYNTHESIZE across the ordered facts. Multi-session answers typically combine information from 2-3 sessions; temporal questions require comparing dates; knowledge-update questions require identifying the latest superseding statement.
+
+5. VERIFY your answer references the correct dates before responding. If the question asks for an order of events, state the chronological order explicitly. If the question asks for current state, cite the most recent date that carries the relevant fact.
+
+For questions answerable from a single session, default to that session's observations directly — do not over-reason when the fact is already stated clearly.`;
+
 // ---------------------------------------------------------------------------
 // Thresholds (from Mastra constants.ts)
 // ---------------------------------------------------------------------------
@@ -481,6 +587,10 @@ Any messages following this reminder are newer and should take priority.`;
  * Content-addressed hash of the observer + reflector prompts. Used in the
  * bench cache-key fingerprint so any prompt edit auto-invalidates cached
  * case-run answers (mirrors the Step 11 REFLECTOR_PROMPT_HASH pattern).
+ *
+ * Includes the Step 15 v4a {@link CROSS_SESSION_READER_SCAFFOLD} so edits
+ * to the scaffold copy auto-invalidate cached answers alongside the base
+ * OM prompts.
  */
 export const OM_PROMPT_HASH: string = createHash('sha256')
   .update(buildObserverSystemPrompt())
@@ -488,6 +598,10 @@ export const OM_PROMPT_HASH: string = createHash('sha256')
   .update(OBSERVATION_CONTEXT_PROMPT)
   .update(OBSERVATION_CONTEXT_INSTRUCTIONS)
   .update(OBSERVATION_CONTINUATION_HINT)
+  .update(CROSS_SESSION_READER_SCAFFOLD)
+  .update(CROSS_SESSION_SYNTHESIS_PROMPT)
+  .update(RETRIEVED_PASSAGES_HEADER)
+  .update(RETRIEVED_PASSAGES_INSTRUCTIONS)
   .digest('hex');
 
 export const OM_DEFAULTS = {

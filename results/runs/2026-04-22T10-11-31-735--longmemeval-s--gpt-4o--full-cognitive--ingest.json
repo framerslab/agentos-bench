@@ -1,0 +1,449 @@
+{
+  "benchmarkId": "longmemeval-s",
+  "benchmarkVersion": "1.0.0",
+  "config": {
+    "reader": "gpt-4o",
+    "memoryMode": "full-cognitive",
+    "replayMode": "ingest",
+    "concurrency": 3,
+    "maxUsd": 10,
+    "retrievalProfile": "balanced",
+    "adaptiveRetrieval": true,
+    "retrievalK": 10,
+    "stratified": true,
+    "samplePerType": 1,
+    "trackFootprint": true,
+    "judgeAdversarial": false,
+    "judgeAdversarialMaxProbes": 50,
+    "judgeAdversarialSynthModel": "gpt-5-mini",
+    "bootstrapResamples": 100,
+    "seed": 42,
+    "sessionRetrieval": false,
+    "sessionRetrievalTopSessions": 5,
+    "sessionRetrievalChunksPerSession": 3,
+    "hybridRetrieval": false,
+    "hyde": false,
+    "factSupersession": false,
+    "observerReflector": false,
+    "observerReflectorReplace": false,
+    "factGraphIngest": false,
+    "graphActivation": false,
+    "twoCallReader": false,
+    "observationalMemory": true,
+    "omBatchTokenTarget": 24000
+  },
+  "totalCases": 6,
+  "passedCases": 6,
+  "accuracy": 1,
+  "avgScore": 1,
+  "scoreStdDev": 0,
+  "byType": {
+    "knowledge-update": {
+      "n": 1,
+      "accuracy": 1,
+      "avgScore": 1
+    },
+    "multi-session": {
+      "n": 1,
+      "accuracy": 1,
+      "avgScore": 1
+    },
+    "single-session-assistant": {
+      "n": 1,
+      "accuracy": 1,
+      "avgScore": 1
+    },
+    "single-session-preference": {
+      "n": 1,
+      "accuracy": 1,
+      "avgScore": 1
+    },
+    "single-session-user": {
+      "n": 1,
+      "accuracy": 1,
+      "avgScore": 1
+    },
+    "temporal-reasoning": {
+      "n": 1,
+      "accuracy": 1,
+      "avgScore": 1
+    }
+  },
+  "avgLatencyMs": 63666.166666666664,
+  "p50LatencyMs": 63053.5,
+  "p95LatencyMs": 72339.5,
+  "totalReaderTokens": 0,
+  "totalUsd": 0,
+  "costPerCorrect": 0,
+  "startedAt": "2026-04-22T10:11:31.735Z",
+  "completedAt": "2026-04-22T10:11:32.462Z",
+  "retrievalMetrics": {
+    "meanRecallAtK": 0,
+    "meanPrecisionAtK": 0,
+    "meanNdcgAtK": 0,
+    "meanMrr": 0,
+    "k": 10,
+    "sampleSize": 6
+  },
+  "stratifiedAccuracy": {
+    "byType": {
+      "knowledge-update": {
+        "n": 1,
+        "accuracy": 1,
+        "prior": 0.156
+      },
+      "multi-session": {
+        "n": 1,
+        "accuracy": 1,
+        "prior": 0.266
+      },
+      "single-session-assistant": {
+        "n": 1,
+        "accuracy": 1,
+        "prior": 0.112
+      },
+      "single-session-preference": {
+        "n": 1,
+        "accuracy": 1,
+        "prior": 0.06
+      },
+      "single-session-user": {
+        "n": 1,
+        "accuracy": 1,
+        "prior": 0.14
+      },
+      "temporal-reasoning": {
+        "n": 1,
+        "accuracy": 1,
+        "prior": 0.266
+      }
+    },
+    "weightedOverall": 1,
+    "unweightedOverall": 1,
+    "missingTypes": []
+  },
+  "tokensPerCorrect": {
+    "readerIn": 0,
+    "readerOut": 0,
+    "judgeIn": 0,
+    "judgeOut": 0,
+    "embeddingIn": 0,
+    "total": 0
+  },
+  "cases": [
+    {
+      "caseId": "6a1eabeb",
+      "actualOutput": "[dry-run mock answer]",
+      "latencyMs": 73133,
+      "tokensIn": 0,
+      "tokensOut": 1,
+      "usd": 0.00001,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "knowledge-update",
+        "omObservationBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 44414,
+        "omObserverTokensIn": 127509,
+        "omObserverTokensOut": 12711,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "yes"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_a25d4a91_1",
+        "answer_a25d4a91_2"
+      ]
+    },
+    {
+      "caseId": "0a995998",
+      "actualOutput": "[dry-run mock answer]",
+      "latencyMs": 50637,
+      "tokensIn": 0,
+      "tokensOut": 1,
+      "usd": 0.00001,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "multi-session",
+        "omObservationBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 28115,
+        "omObserverTokensIn": 129449,
+        "omObserverTokensOut": 8364,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "yes"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 3,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_afa9873b_2",
+        "answer_afa9873b_3",
+        "answer_afa9873b_1"
+      ]
+    },
+    {
+      "caseId": "7161e7e2",
+      "actualOutput": "[dry-run mock answer]",
+      "latencyMs": 63867,
+      "tokensIn": 0,
+      "tokensOut": 1,
+      "usd": 0.00001,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-assistant",
+        "omObservationBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 39116,
+        "omObserverTokensIn": 127765,
+        "omObserverTokensOut": 11357,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "yes"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_sharegpt_5Lzox6N_0"
+      ]
+    },
+    {
+      "caseId": "8a2466db",
+      "actualOutput": "[dry-run mock answer]",
+      "latencyMs": 69959,
+      "tokensIn": 0,
+      "tokensOut": 1,
+      "usd": 0.00001,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-preference",
+        "omObservationBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 39282,
+        "omObserverTokensIn": 129234,
+        "omObserverTokensOut": 11087,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "yes"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_edb03329"
+      ]
+    },
+    {
+      "caseId": "e47becba",
+      "actualOutput": "[dry-run mock answer]",
+      "latencyMs": 62240,
+      "tokensIn": 0,
+      "tokensOut": 1,
+      "usd": 0.00001,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "omObservationBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 34741,
+        "omObserverTokensIn": 127977,
+        "omObserverTokensOut": 10941,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "yes"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_280352e9"
+      ]
+    },
+    {
+      "caseId": "gpt4_59149c77",
+      "actualOutput": "[dry-run mock answer]",
+      "latencyMs": 62161,
+      "tokensIn": 0,
+      "tokensOut": 1,
+      "usd": 0.00001,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "temporal-reasoning",
+        "omObservationBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 34766,
+        "omObserverTokensIn": 127196,
+        "omObserverTokensOut": 10091,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "yes"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_d00ba6d0_1",
+        "answer_d00ba6d0_2"
+      ]
+    }
+  ],
+  "accuracyCI": {
+    "value": 1,
+    "ciLo": 1,
+    "ciHi": 1,
+    "resamples": 100,
+    "ci": 0.95
+  },
+  "byTypeCI": {
+    "knowledge-update": {
+      "value": 1,
+      "ciLo": 1,
+      "ciHi": 1,
+      "resamples": 0,
+      "ci": 0.95
+    },
+    "multi-session": {
+      "value": 1,
+      "ciLo": 1,
+      "ciHi": 1,
+      "resamples": 0,
+      "ci": 0.95
+    },
+    "single-session-assistant": {
+      "value": 1,
+      "ciLo": 1,
+      "ciHi": 1,
+      "resamples": 0,
+      "ci": 0.95
+    },
+    "single-session-preference": {
+      "value": 1,
+      "ciLo": 1,
+      "ciHi": 1,
+      "resamples": 0,
+      "ci": 0.95
+    },
+    "single-session-user": {
+      "value": 1,
+      "ciLo": 1,
+      "ciHi": 1,
+      "resamples": 0,
+      "ci": 0.95
+    },
+    "temporal-reasoning": {
+      "value": 1,
+      "ciLo": 1,
+      "ciHi": 1,
+      "resamples": 0,
+      "ci": 0.95
+    }
+  },
+  "weightedAccuracyCI": {
+    "value": 1,
+    "ciLo": 0.328,
+    "ciHi": 1,
+    "resamples": 100,
+    "ci": 0.95
+  }
+}
