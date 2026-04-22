@@ -419,6 +419,14 @@ export interface RunConfig {
    * Default: false. Opt-in behind `--graph-activation` CLI flag.
    */
   graphActivation?: boolean;
+  /**
+   * Step 14: enable the Emergence-style two-call reader. When true, the
+   * bench splits each case's single reader.invoke into an extract call
+   * (raw retrieved passages -> JSON fact scratchpad with passage-id
+   * citations) followed by an answer call (scratchpad only -> final
+   * answer). Both calls use `config.reader`. Default: false (single-call).
+   */
+  twoCallReader?: boolean;
 }
 
 /**
@@ -461,6 +469,7 @@ export interface BenchContext {
       | 'observerReflectorReplace'
       | 'factGraphIngest'
       | 'graphActivation'
+      | 'twoCallReader'
     >
   > &
     Pick<
@@ -495,6 +504,7 @@ export interface BenchContext {
       | 'observerReflectorReplace'
       | 'factGraphIngest'
       | 'graphActivation'
+      | 'twoCallReader'
     >;
   /** LLM-as-judge for external benchmarks. Micro-benchmarks ignore. */
   judge: IJudge;

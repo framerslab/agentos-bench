@@ -58,6 +58,7 @@ import type { IReader } from '../../readers/IReader.js';
 import { createReader } from '../../readers/createReader.js';
 import type { SessionSummarizer } from '@framers/agentos/memory';
 import { extractEntities } from '@framers/agentos/memory';
+import { twoCallRead, type RetrievedPassage } from '../../readers/twoCallReader.js';
 import { createCognitiveManager } from '../../cognitive/createCognitiveManager.js';
 import { loadLongMemEvalDataset, type LongMemEvalVariant } from './dataset.js';
 import {
@@ -303,27 +304,87 @@ export class LongMemEvalS implements IBenchmark {
       runMetadata.brainBytes = out.brainBytes;
     }
 
-    const response = await this.opts.reader.invoke({
-      system,
-      user: c.question,
-      maxTokens: this.opts.maxAnswerTokens ?? 256,
-      temperature: 0,
-    });
+    let actualOutput: string;
+    let tokensIn: number;
+    let tokensOut: number;
+    let usd: number;
 
-    const usd = ctx.costTracker.record({
-      category: 'reader',
-      model: response.model,
-      tokensIn: response.tokensIn,
-      tokensOut: response.tokensOut,
-      tag: c.id,
-    });
+    const evidenceForTwoCall = runMetadata.retrievedEvidence as
+      | Array<{ id: string; content: string }>
+      | undefined;
+    if (
+      ctx.config.twoCallReader &&
+      Array.isArray(evidenceForTwoCall) &&
+      evidenceForTwoCall.length > 0
+    ) {
+      // Step 14: Emergence-style two-call read. Extract facts from the
+      // already-retrieved evidence (raw content) and answer from the
+      // scratchpad only. Cost-tracked per-call so the findings-doc
+      // breakdown can attribute spend to extract vs answer.
+      const passages: RetrievedPassage[] = evidenceForTwoCall.map((ev, idx) => ({
+        id: `P${idx}`,
+        content: ev.content,
+      }));
+
+      const twoCall = await twoCallRead({
+        reader: this.opts.reader,
+        query: c.question,
+        passages,
+        answerMaxTokens: this.opts.maxAnswerTokens ?? 256,
+        // Fallback uses the bench's full memory-retrieval system prompt
+        // so malformed-JSON cases run identical to pre-Step-14 baseline.
+        fallbackSystemPrompt: system,
+      });
+
+      const extractUsd = ctx.costTracker.record({
+        category: 'reader',
+        model: twoCall.extractCost.model,
+        tokensIn: twoCall.extractCost.tokensIn,
+        tokensOut: twoCall.extractCost.tokensOut,
+        tag: `${c.id}:extract`,
+      });
+      const answerUsd = ctx.costTracker.record({
+        category: 'reader',
+        model: twoCall.answerCost.model,
+        tokensIn: twoCall.answerCost.tokensIn,
+        tokensOut: twoCall.answerCost.tokensOut,
+        tag: `${c.id}:answer`,
+      });
+
+      actualOutput = twoCall.answer;
+      tokensIn = twoCall.extractCost.tokensIn + twoCall.answerCost.tokensIn;
+      tokensOut = twoCall.extractCost.tokensOut + twoCall.answerCost.tokensOut;
+      usd = extractUsd + answerUsd;
+
+      runMetadata.twoCallFallbackUsed = twoCall.fallbackUsed;
+      runMetadata.twoCallFactCount = twoCall.scratchpadFacts.length;
+    } else {
+      const response = await this.opts.reader.invoke({
+        system,
+        user: c.question,
+        maxTokens: this.opts.maxAnswerTokens ?? 256,
+        temperature: 0,
+      });
+
+      usd = ctx.costTracker.record({
+        category: 'reader',
+        model: response.model,
+        tokensIn: response.tokensIn,
+        tokensOut: response.tokensOut,
+        tag: c.id,
+      });
+
+      actualOutput = response.text;
+      tokensIn = response.tokensIn;
+      tokensOut = response.tokensOut;
+    }
 
     return {
       caseId: c.id,
-      actualOutput: response.text,
+      actualOutput,
       latencyMs: Date.now() - start,
-      tokensIn: response.tokensIn,
-      tokensOut: response.tokensOut,
+      tokensIn,
+      tokensOut,
       usd,
       metadata: runMetadata,
     };

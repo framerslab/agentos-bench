@@ -24,6 +24,7 @@ import type {
   RunConfig,
 } from './IBenchmark.js';
 import { REFLECTOR_PROMPT_HASH } from '@framers/agentos';
+import { EXTRACT_PROMPT_HASH } from '../readers/twoCallReader.js';
 import { Cache, hashKey } from './Cache.js';
 import { CostTracker } from './CostTracker.js';
 import { ResultStore } from './ResultStore.js';
@@ -128,6 +129,8 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     factGraphIngest: cfg.factGraphIngest,
     // Step-13: graph activation wire-up (silent sixth signal fix).
     graphActivation: cfg.graphActivation,
+    // Step-14: Emergence-style two-call reader (extract + answer).
+    twoCallReader: cfg.twoCallReader,
   };
 }
 
@@ -353,6 +356,15 @@ export function computeCaseRunKeyParts(
   if (config.graphActivation) {
     runKeyParts.push('step-13-graph-activation:v1');
     resultKeyParts.push('step-13-graph-activation:v1');
+  }
+
+  // Step 14 two-call reader fingerprint. Content-addressed via the
+  // extract-prompt hash so any prompt edit auto-invalidates cached
+  // answers (mirrors the REFLECTOR_PROMPT_HASH pattern from Step 11).
+  if (config.twoCallReader) {
+    const tag = `step-14-two-call-reader:${EXTRACT_PROMPT_HASH.slice(0, 12)}`;
+    runKeyParts.push(tag);
+    resultKeyParts.push(tag);
   }
 
   return { runKeyParts, resultKeyParts };
