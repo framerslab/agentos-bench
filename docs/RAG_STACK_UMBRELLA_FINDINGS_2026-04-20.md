@@ -20,7 +20,7 @@ We set out to improve AgentOS's cognitive memory stack on LongMemEval-S and LOCO
 
 **Pattern confirmed empirically at n=8 RED/null steps:** on signal-dense specific-value benchmarks like LongMemEval, **additive retrieval signal wins** (add BM25 alongside dense, blend rerank alongside cognitive). **Destructive or LLM-as-filter modifications consistently regress, and synthetic / reflection traces never become load-bearing for the reader regardless of visibility or prompt quality.** The reader handles context better than an LLM filter handles precision; any LLM intermediate step that transforms retrieval content (paraphrase, filter, summary, tuple extraction) erases the specific tokens the reader needs; and even when reflection traces are made fully visible to BM25 (Step 12), they cannot outscore raw chunks on query-relevant high-IDF tokens. Step 9 confirmed the pattern extends to tuple extraction. Step 11 confirmed prompt tuning alone doesn't close the gap. Step 12 confirmed BM25 visibility alone doesn't either. Three independent mechanisms now point to reader-preference-for-raw-chunks as architectural to the benchmark's specific-value query distribution.
 
-**Total measurement cost:** ~$26.53 across 9 steps (9 matched ablations at Tier A smokes, Tier B Phase A, Phase B N=500). Kill-criterion discipline prevented ~$27 of wasted Tier B spend on known-dead variants (Steps 4, 5, 6, 7, 8, 9 all killed at Tier A).
+**Total measurement cost:** ~$36.60 across 12 matched-ablation steps (1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15). Kill-criterion discipline prevented ~$40-60 of wasted Tier B spend on known-dead variants (Steps 4, 5, 6 killed at Tier A; Steps 7, 8 killed at Tier A; Step 9 killed at Tier A; Step 13 killed at Tier A; Step 14 killed across three variants at Tier A). Breakdown: $26.53 Steps 1-9 + $1.45 Step 11 + $1.84 Step 12 + $0.42 Step 13 + $2.08 Step 14 + $4.28 Step 15.
 
 **Step 7 + Step 8 summary:** Observer/Reflector pipeline tested in two architectural shapes: ADDITIVE overlay (Step 7, 62.5% at N=24) and REPLACEMENT semantics matching Mastra (Step 8, 25% at N=24). Both RED. Mastra's 84.23% at gpt-4o does not reproduce in our implementation; the remaining gap is almost certainly reflector-prompt tuning (preserving high-IDF tokens) rather than pipeline wiring. Findings: [STEP_7_OBSERVER_REFLECTOR_FINDINGS_2026-04-20.md](STEP_7_OBSERVER_REFLECTOR_FINDINGS_2026-04-20.md), [STEP_8_OBSERVER_REPLACE_FINDINGS_2026-04-20.md](STEP_8_OBSERVER_REPLACE_FINDINGS_2026-04-20.md). Tier 1 remains the shipping default; Tier 2 ships opt-in only behind `--observer-reflector --observer-reflector-replace`.
 
@@ -146,7 +146,7 @@ LongMemEval-S is dominated by multi-session questions (26.6% of the real distrib
 
 ---
 
-## 4. What didn't work — seven negative results
+## 4. What didn't work — ten negative results (Steps 2, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14)
 
 Each negative result taught a specific lesson about retrieval on signal-dense benchmarks.
 
@@ -311,7 +311,7 @@ The Hybrid path adds one extra rerank call (Cohere rerank-v3.5, ~$0.0001 per que
 
 ---
 
-## 7. Running scoreboard across 9 steps
+## 7. Running scoreboard across 12 steps (1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15)
 
 | Step | Feature | Verdict | Primary metric change | Ships? |
 |---|---|---|---|---|
@@ -330,7 +330,7 @@ The Hybrid path adds one extra rerank call (Cohere rerank-v3.5, ~$0.0001 per que
 | 14 | Two-call reader (Emergence AI pattern) | RED | 45.8% N=24 CI [25.0%, 66.7%], multi-session 0% / temporal 0%, extractor atomization breaks cross-fact reasoning | opt-in `--two-call-reader`, ships as reusable `twoCallRead` helper with tolerant JSON parse |
 | 15 | Observational Memory (Mastra port) | **GREEN-soft** | **75.0% N=24 CI [58.3%, 91.7%]**, single-session all 100%, cross-session regression from per-session observer batching gap | opt-in `--observational-memory`, ships full `observational-memory/` module with Apache 2.0 Mastra prompt port |
 
-**Total measurement cost:** ~$26.53 across all 9 steps (Steps 4-6 killed at Tier A saving ~$5; Steps 7-8 killed at Tier A saving ~$20 more; Step 9 killed at Tier A saving ~$12-27 that would have been wasted on Phase A + B; `flushReflection` scope-override primitive ships regardless as v0.1.249; Phase 1 instrumentation upgrades — paired McNemar, `evidenceOrigin`, stage-level retrieval metrics — ship always-on alongside Step 9).
+**Total measurement cost:** ~$36.60 across all steps. Breakdown: $26.53 Steps 1-9 + $1.45 Step 11 + $1.84 Step 12 + $0.42 Step 13 + $2.08 Step 14 + $4.28 Step 15. Kill-criterion discipline at Tier A prevented ~$40-60 of wasted Tier B spend on known-dead variants across the rollout. Durable infrastructure ships regardless (Phase 1 paired McNemar + evidenceOrigin + stage-level retrieval metrics, N-regression guard on summary.json, `HeuristicEntityExtractor`, `twoCallRead`, `observational-memory/` module).
 
 ---
 
@@ -368,11 +368,11 @@ With Phase B N=500 confirming 73.2% at matched reader and +13.7pp delta over bas
 
 ### 9.2 Planned next steps
 
-Step 9 ran 2026-04-21, RED at Tier A (58.3% at N=24, 29.2pp below the 87.5% Tier 1 smoke baseline). See [STEP_9_FACT_GRAPH_FINDINGS_2026-04-21.md](STEP_9_FACT_GRAPH_FINDINGS_2026-04-21.md). Key diagnosis: the `evidenceOrigin` instrumentation showed zero of 24 reader answers attributed to fact-graph synthetic traces, proving the traces were decorative. Remaining candidates:
+Rollout state as of 2026-04-22: Steps 9-14 all RED/null as documented in individual findings docs. **Step 15 Observational Memory** (Mastra port) broke the streak at Tier A with 75.0% (18/24), CI [58.3%, 91.7%] — first architectural change to beat the 73.2% canonical point estimate. Full diagnostics in [STEP_15_OBSERVATIONAL_MEMORY_FINDINGS_2026-04-21.md](STEP_15_OBSERVATIONAL_MEMORY_FINDINGS_2026-04-21.md). Cross-session categories (multi-session 25%, temporal 50%) regress because our Observer runs per-session in parallel; Mastra runs rolling token-windows that span session boundaries. Concrete next actions:
 
-- **Step 10 two-call reader (Emergence AI pattern):** first reader call extracts relevant facts from retrieved chunks, second answers from the extracted facts only. Orthogonal to retrieval; changes the reader pipeline, not the retrieval layer. Budget: $20-40.
-- **Step 9b lower-retrievalScore fact-graph variant:** Step 9's `retrievalScore: 1.0` synthetic traces displaced real chunks during rerank. A variant setting the synthetic score to the fact's extraction confidence (or 0.5) would keep raw chunks in the final top-K while still giving fact-graph a chance. Cheapest Step 9 follow-up; budget ~$3 for Tier A.
-- **Step 11 tuned reflector prompt:** separate from Step 9; the cheapest remaining "closer to Mastra" experiment. A variant prompting the reflector to preserve names, dates, numeric values verbatim. Budget $3-5.
+- **Step 15 v2: cross-session observer batching** (highest expected value, cheapest). Refactor `ingestSessions` to group sessions into 24k-token rolling batches before each observer call (matching Mastra's `bufferActivation = 0.8 × messageTokens`). Expected to lift multi-session 25% → 60%+ and temporal 50% → 80%+ without regressing single-session categories (already at 100%). Combined point estimate could climb 75% → 80-83%. Budget: ~$5 Tier A v2 + $20 Phase A if GREEN + $100 Phase B if Phase A GREEN = ~$125 total. Detailed plan in [NEXT_SESSION_CONTINUATION_2026-04-22.md](NEXT_SESSION_CONTINUATION_2026-04-22.md) §3.
+- **Supermemory + Hindsight research** (medium priority, queued). Supermemory publishes 81.6% at gpt-4o and has open-source code at [github.com/supermemoryai/supermemory](https://github.com/supermemoryai/supermemory). Hindsight hits 91.4% at gemini-3-pro and beats Mastra on multi-session. If Step 15 v2 plateaus below 80%, pivot to porting one of these as Step 16.
+- **Phase A N=102 at current Step 15 implementation** (alternative to v2). Tightens CI from [58%, 92%] to ~[69%, 81%] but unlikely to shift the 75% point estimate dramatically. Budget ~$20. Prefer v2 first.
 
 ### 9.3 Open questions (still out of scope)
 
@@ -396,7 +396,7 @@ Building on this doc, a publishable blog post should:
 
 ---
 
-## 10. Commits (across all 9 steps)
+## 10. Commits (across all 12 steps)
 
 ### agentos core (submodule)
 
@@ -429,7 +429,7 @@ Building on this doc, a publishable blog post should:
 
 ## 11. Acknowledgments
 
-This rollout used the [superpowers](https://github.com/anthropics/claude-code) workflow suite (brainstorming → writing-plans → executing-plans → verification-before-completion) across all 9 steps. The matched-ablation + kill-criterion discipline was adapted from the AgentOS-Bench Phase 0 findings; bootstrap CI implementation draws from standard percentile bootstrap methodology.
+This rollout used the [superpowers](https://github.com/anthropics/claude-code) workflow suite (brainstorming → writing-plans → executing-plans → verification-before-completion) across all 12 steps. The matched-ablation + kill-criterion discipline was adapted from the AgentOS-Bench Phase 0 findings; bootstrap CI implementation draws from standard percentile bootstrap methodology.
 
 Published benchmarks referenced:
 - Wu et al. 2024 — LongMemEval
