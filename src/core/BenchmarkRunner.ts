@@ -134,6 +134,23 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     twoCallReader: cfg.twoCallReader,
     // Step-15: Mastra-style Observational Memory (no retrieval).
     observationalMemory: cfg.observationalMemory,
+    // Step-15 v2: token target per observer batch in OM ingest.
+    omBatchTokenTarget: cfg.omBatchTokenTarget,
+    // Step-15 v3: observer ingest mode (per-session | batched | dual-path).
+    omMode: cfg.omMode,
+    // Step-15 v4a: cross-session reasoning scaffold appended to the OM
+    // reader system prompt.
+    omReaderScaffold: cfg.omReaderScaffold,
+    // Step-15 v4b: synthesis model for hierarchical-mode cross-session
+    // synthesis call (typically gpt-4o).
+    omSynthesisModel: cfg.omSynthesisModel,
+    // Step-15 v5: observer + reflector LLM model (default gpt-5-mini
+    // applied at call site). Upgrading to gpt-4o tests observer-tier
+    // hypothesis vs Mastra's gemini-2.5-flash observer.
+    omObserverModel: cfg.omObserverModel,
+    // Step-16: combine OM observation log with HybridRetriever top-K
+    // passages in a single reader context.
+    omWithRetrieval: cfg.omWithRetrieval,
   };
 }
 
@@ -379,6 +396,59 @@ export function computeCaseRunKeyParts(
     const tag = `step-15-om:${OM_PROMPT_HASH.slice(0, 12)}`;
     runKeyParts.push(tag);
     resultKeyParts.push(tag);
+
+    // Step-15 v2: batching strategy + target size. Orthogonal to prompt
+    // hash so ablations at different batch targets don't collide in the
+    // cache. Default 24_000 matches Mastra's messageTokens ×
+    // bufferActivation (30_000 × 0.8) and is applied here even when the
+    // config field is undefined, so `--observational-memory` alone runs
+    // the v2 batched code path.
+    // Step-15 v3: observer ingest config. Mode + batch target both feed
+    // the tag so per-session / batched / dual-path variants — and
+    // different batch targets within a mode — all cache independently.
+    // Replaces the Step-15 v2 `step-15-om-batching:v2:{target}` tag.
+    const omMode = config.omMode ?? 'dual-path';
+    const batchTokenTarget = config.omBatchTokenTarget ?? 24_000;
+    const configTag = `step-15-om-config:${omMode}:${batchTokenTarget}`;
+    runKeyParts.push(configTag);
+    resultKeyParts.push(configTag);
+
+    // Step-15 v4a: cross-session reasoning scaffold on the reader
+    // system prompt. Only appended to the tag when on so existing
+    // runs without the scaffold keep their cache bucket.
+    if (config.omReaderScaffold) {
+      const scaffoldTag = 'step-15-om-scaffold:v4a';
+      runKeyParts.push(scaffoldTag);
+      resultKeyParts.push(scaffoldTag);
+    }
+
+    // Step-15 v4b: hierarchical-mode synthesis model. Different models
+    // produce different synthesis outputs, so cache independently.
+    if (omMode === 'hierarchical' && config.omSynthesisModel) {
+      const synthesisTag = `step-15-om-synthesis:${config.omSynthesisModel}`;
+      runKeyParts.push(synthesisTag);
+      resultKeyParts.push(synthesisTag);
+    }
+
+    // Step-15 v5: observer + reflector LLM model. Only tagged when the
+    // user explicitly overrides the default gpt-5-mini (so v1-v4 cache
+    // buckets stay untouched). Different observer models produce
+    // materially different observation content.
+    if (config.omObserverModel && config.omObserverModel !== 'gpt-5-mini') {
+      const observerTag = `step-15-om-observer:${config.omObserverModel}`;
+      runKeyParts.push(observerTag);
+      resultKeyParts.push(observerTag);
+    }
+
+    // Step-16: OM + HybridRetriever combined. Only tagged when on so
+    // existing Step-15 OM-only cache buckets stay untouched. Presence
+    // of the tag signals the reader saw both observation log and
+    // retrieved top-K passages.
+    if (config.omWithRetrieval) {
+      const retrievalTag = 'step-16-om-retrieval:v1';
+      runKeyParts.push(retrievalTag);
+      resultKeyParts.push(retrievalTag);
+    }
   }
 
   return { runKeyParts, resultKeyParts };

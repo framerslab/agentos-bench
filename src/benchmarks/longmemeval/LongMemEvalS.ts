@@ -36,6 +36,7 @@ import type {
   CaseResult,
   CaseRun,
   IBenchmark,
+  ReaderModel,
 } from '../../core/IBenchmark.js';
 import {
   buildHaystackContext,
@@ -253,7 +254,12 @@ export class LongMemEvalS implements IBenchmark {
     // is on we ignore `mode` and run a dedicated OM ingest + single-call
     // reader path. Mastra's published 84.23% at gpt-4o uses this shape.
     if (this.opts.observationalMemoryEnabled) {
-      const observerReader = createReader('gpt-5-mini');
+      // Step 15 v5: Observer/Reflector model selectable. Default
+      // gpt-5-mini (consistent with v1-v4); --om-observer-model upgrades
+      // to a stronger model (e.g. gpt-4o) when the caller wants to test
+      // the observer-tier hypothesis.
+      const observerModel = (ctx.config.omObserverModel ?? 'gpt-5-mini') as ReaderModel;
+      const observerReader = createReader(observerModel);
       const sessions: OmSession[] = c.haystack.map((s) => ({
         sessionId: s.sessionId,
         date: s.date,
@@ -263,16 +269,28 @@ export class LongMemEvalS implements IBenchmark {
           timestamp: t.timestamp,
         })),
       }));
+      // Step 15 v4b: hierarchical mode uses a separate synthesis reader
+      // (typically a stronger model like gpt-4o) for the single cross-
+      // session synthesis call over the per-session observation log. Not
+      // instantiated outside hierarchical mode to avoid unnecessary
+      // client overhead.
+      const synthesisReader =
+        ctx.config.omMode === 'hierarchical' && ctx.config.omSynthesisModel
+          ? createReader(ctx.config.omSynthesisModel as ReaderModel)
+          : undefined;
       const ingest = await ingestSessions({
         observerReader,
         sessions,
-        observerConcurrency: 4,
+        observerConcurrency: 6,
+        batchTokenTarget: ctx.config.omBatchTokenTarget ?? 24_000,
+        omMode: ctx.config.omMode ?? 'dual-path',
+        synthesisReader,
       });
       // Cost-track observer + reflector calls, tagged so run JSON
       // attributions separate OM ingest spend from the main reader.
       ctx.costTracker.record({
         category: 'reader',
-        model: 'gpt-5-mini',
+        model: observerModel,
         tokensIn: ingest.observerTokensIn,
         tokensOut: ingest.observerTokensOut,
         tag: `${c.id}:om-observer`,
@@ -280,14 +298,64 @@ export class LongMemEvalS implements IBenchmark {
       if (ingest.reflectorTokensIn > 0 || ingest.reflectorTokensOut > 0) {
         ctx.costTracker.record({
           category: 'reader',
-          model: 'gpt-5-mini',
+          model: observerModel,
           tokensIn: ingest.reflectorTokensIn,
           tokensOut: ingest.reflectorTokensOut,
           tag: `${c.id}:om-reflector`,
         });
       }
-      system = buildOmReaderSystemPrompt(ingest.finalLog);
+      // Step 16: when --om-with-retrieval is on, ALSO run the full-
+      // cognitive HybridRetriever pipeline to produce top-K retrieved
+      // passages, then fuse into the reader's system prompt alongside
+      // OM's observation log. Both ingest pipelines run; reader sees
+      // dense cross-session synthesis + per-chunk verbatim specifics.
+      let retrievedPassages: { id: string; content: string }[] | undefined;
+      if (ctx.config.omWithRetrieval) {
+        const retrievalRecallTopK = ctx.config.readerTopK ?? this.opts.recallTopK ?? 10;
+        const fullCog = await runFullCognitiveCase(
+          c,
+          ctx,
+          retrievalRecallTopK,
+          'longmemeval-s',
+          retrievalPolicy,
+          this.opts.embedder,
+          this.opts.sessionSummarizer,
+          this.opts.sessionSummaryStore,
+          ctx.config.sessionRetrievalTopSessions,
+          ctx.config.sessionRetrievalChunksPerSession,
+          this.opts.hybridRetrievalEnabled ?? true,
+          this.opts.hydeEnabled,
+          this.opts.reader,
+          this.opts.factSupersessionEnabled,
+          this.opts.splitAmbiguousThreshold,
+          this.opts.observerReflectorEnabled,
+          this.opts.observerReflectorReplaceEnabled,
+          this.opts.factGraphIngestEnabled,
+          this.opts.graphActivationEnabled,
+        );
+        retrievedPassages = (fullCog.retrievedEvidence ?? []).map((ev, idx) => ({
+          id: ev.id ?? `P${idx}`,
+          content: ev.content ?? '',
+        }));
+        runMetadata.omRetrievedPassagesCount = retrievedPassages?.length ?? 0;
+        runMetadata.replayStats = fullCog.replayStats;
+        runMetadata.recalledTraces = fullCog.recallCount;
+      }
+
+      system = buildOmReaderSystemPrompt(ingest.finalLog, {
+        includeScaffold: Boolean(ctx.config.omReaderScaffold),
+        retrievedPassages,
+      });
+      runMetadata.omBatchTokenTarget = ctx.config.omBatchTokenTarget ?? 24_000;
+      runMetadata.omMode = ctx.config.omMode ?? 'dual-path';
+      runMetadata.omReaderScaffold = Boolean(ctx.config.omReaderScaffold);
+      runMetadata.omObserverModel = observerModel;
+      runMetadata.omWithRetrieval = Boolean(ctx.config.omWithRetrieval);
+      runMetadata.omSynthesisModel = ingest.synthesisModel;
+      runMetadata.omSynthesisFired = ingest.synthesisOutput !== null;
       runMetadata.omObservationBatches = ingest.observationBatches.length;
+      runMetadata.omPerSessionBatches = ingest.perSessionBatches.length;
+      runMetadata.omBatchedBatches = ingest.batchedBatches.length;
       runMetadata.omReflectionsFired = ingest.reflections.length;
       runMetadata.omFinalLogChars = ingest.finalLog.length;
       runMetadata.omObserverTokensIn = ingest.observerTokensIn;

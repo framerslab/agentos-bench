@@ -437,7 +437,76 @@ export interface RunConfig {
    * prompt plus the question — no retrieval. Default: false.
    */
   observationalMemory?: boolean;
+
+  /**
+   * Step 15 v2: token target per Observer batch in OM ingest. Sessions
+   * are grouped in haystack order until the running token count exceeds
+   * this target. A single session exceeding the target becomes its own
+   * batch (no mid-session split). Default (applied at call site):
+   * 24_000 (Mastra `messageTokens × bufferActivation` = 30_000 × 0.8).
+   * Only effective when `observationalMemory` is true.
+   */
+  omBatchTokenTarget?: number;
+
+  /**
+   * Step 15 v3: observer ingest mode.
+   * - `per-session`: one Observer call per session (v1 behavior).
+   * - `batched`: one Observer call per token-bounded batch (v2 behavior).
+   * - `dual-path`: both passes in parallel, logs concatenated (v3 default).
+   * Default (applied at call site): `dual-path`. Only effective when
+   * `observationalMemory` is true.
+   */
+  omMode?: OmIngestMode;
+
+  /**
+   * Step 15 v4a: when true, the OM reader system prompt includes a
+   * cross-session reasoning scaffold. Targets the v3 failure mode where
+   * the reader fixates on the most-recent-date observation block and
+   * misses cross-session synthesis. Default false. Only effective when
+   * `observationalMemory` is true.
+   */
+  omReaderScaffold?: boolean;
+
+  /**
+   * Step 15 v4b: model identifier for the hierarchical-mode synthesis
+   * call. Only consulted when `omMode === 'hierarchical'`. When undefined,
+   * synthesis falls back to the observer model. Typically a stronger
+   * reasoning model (e.g. gpt-4o).
+   */
+  omSynthesisModel?: string;
+
+  /**
+   * Step 15 v5: model identifier for the Observer and Reflector LLM
+   * calls in OM ingest. Default 'gpt-5-mini' (applied at call site).
+   * Upgrading to 'gpt-4o' tests whether observer-model tier closes the
+   * ~10pp gap to Mastra's published 84.23% gpt-4o result, which uses
+   * gemini-2.5-flash as their observer. Only effective when
+   * `observationalMemory` is true.
+   */
+  omObserverModel?: string;
+
+  /**
+   * Step 16: when true, run BOTH the full-cognitive HybridRetriever
+   * ingest (BM25 + dense + RRF + Cohere rerank) AND the OM ingest for
+   * each case. Reader sees the OM observation log PLUS the retrieved
+   * top-K chunks in a single system prompt. Combines cross-session
+   * synthesis (OM) with per-chunk precision (retrieval) to address
+   * multi-session recall gaps that neither layer solves alone.
+   * Only effective when `observationalMemory` is true.
+   */
+  omWithRetrieval?: boolean;
 }
+
+/**
+ * Step 15 ingest mode. Re-exported from the observational-memory
+ * runner to keep the public config surface in one place.
+ * - `per-session` (v1): one Observer call per session.
+ * - `batched` (v2): one Observer call per 24k-token batch.
+ * - `dual-path` (v3): per-session + batched, concatenated.
+ * - `hierarchical` (v4b): per-session Observer + one synthesis call
+ *   over the per-session log using `omSynthesisModel`.
+ */
+export type OmIngestMode = 'per-session' | 'batched' | 'dual-path' | 'hierarchical';
 
 /**
  * Runtime context passed to every benchmark method. Bundles the shared
@@ -481,6 +550,12 @@ export interface BenchContext {
       | 'graphActivation'
       | 'twoCallReader'
       | 'observationalMemory'
+      | 'omBatchTokenTarget'
+      | 'omMode'
+      | 'omReaderScaffold'
+      | 'omSynthesisModel'
+      | 'omObserverModel'
+      | 'omWithRetrieval'
     >
   > &
     Pick<
@@ -517,6 +592,12 @@ export interface BenchContext {
       | 'graphActivation'
       | 'twoCallReader'
       | 'observationalMemory'
+      | 'omBatchTokenTarget'
+      | 'omMode'
+      | 'omReaderScaffold'
+      | 'omSynthesisModel'
+      | 'omObserverModel'
+      | 'omWithRetrieval'
     >;
   /** LLM-as-judge for external benchmarks. Micro-benchmarks ignore. */
   judge: IJudge;

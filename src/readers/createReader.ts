@@ -80,7 +80,13 @@ export class OpenAIHttpReader implements IReader {
       requestBody.reasoning_effort = 'minimal';
       // GPT-5 only accepts temperature=1 (the default). Omit to avoid 400.
     } else {
-      requestBody.max_tokens = req.maxTokens ?? 512;
+      // GPT-4-class models (gpt-4o, gpt-4o-mini, etc.) cap completion
+      // tokens at 16384 — the API rejects requests with max_tokens
+      // exceeding that ceiling. Clamp defensively at 16000 so callers
+      // who pass the OM_DEFAULTS observer/reflector budget (100_000,
+      // sized for Gemini) don't hit silent API failures.
+      const GPT4O_MAX_COMPLETION_TOKENS = 16000;
+      requestBody.max_tokens = Math.min(req.maxTokens ?? 512, GPT4O_MAX_COMPLETION_TOKENS);
       requestBody.temperature = req.temperature ?? 0;
     }
 
