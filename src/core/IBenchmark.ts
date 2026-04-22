@@ -427,6 +427,16 @@ export interface RunConfig {
    * answer). Both calls use `config.reader`. Default: false (single-call).
    */
   twoCallReader?: boolean;
+  /**
+   * Step 15: enable Mastra-style Observational Memory. When true, the
+   * bench DISABLES the retrieval pipeline entirely (no HybridRetriever,
+   * no rerank, no top-K). Ingest runs an Observer LLM over each session
+   * to produce dated, priority-tagged observations, with a Reflector
+   * pass if the accumulated log exceeds the 40k-token threshold. The
+   * reader sees the full consolidated observation log in its system
+   * prompt plus the question — no retrieval. Default: false.
+   */
+  observationalMemory?: boolean;
 }
 
 /**
@@ -470,6 +480,7 @@ export interface BenchContext {
       | 'factGraphIngest'
       | 'graphActivation'
       | 'twoCallReader'
+      | 'observationalMemory'
     >
   > &
     Pick<
@@ -505,6 +516,7 @@ export interface BenchContext {
       | 'factGraphIngest'
       | 'graphActivation'
       | 'twoCallReader'
+      | 'observationalMemory'
     >;
   /** LLM-as-judge for external benchmarks. Micro-benchmarks ignore. */
   judge: IJudge;

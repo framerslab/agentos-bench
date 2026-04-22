@@ -110,6 +110,14 @@ export interface LocomoAdapterOptions {
    * `LongMemEvalAdapterOptions.graphActivationEnabled`.
    */
   graphActivationEnabled?: boolean;
+  /**
+   * Step-15: Observational Memory mode. Same semantics as
+   * `LongMemEvalAdapterOptions.observationalMemoryEnabled`. NOT
+   * currently wired through LOCOMO's case-run path; accepted on the
+   * constructor so the CLI build signature stays uniform across
+   * benchmarks.
+   */
+  observationalMemoryEnabled?: boolean;
 }
 
 /**

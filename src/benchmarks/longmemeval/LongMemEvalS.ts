@@ -59,6 +59,11 @@ import { createReader } from '../../readers/createReader.js';
 import type { SessionSummarizer } from '@framers/agentos/memory';
 import { extractEntities } from '@framers/agentos/memory';
 import { twoCallRead, type RetrievedPassage } from '../../readers/twoCallReader.js';
+import {
+  ingestSessions,
+  buildOmReaderSystemPrompt,
+  type OmSession,
+} from '../../observational-memory/index.js';
 import { createCognitiveManager } from '../../cognitive/createCognitiveManager.js';
 import { loadLongMemEvalDataset, type LongMemEvalVariant } from './dataset.js';
 import {
@@ -175,6 +180,15 @@ export interface LongMemEvalAdapterOptions {
    * per-candidate spreading-activation scores (sixth composite signal).
    */
   graphActivationEnabled?: boolean;
+  /**
+   * Step-15: enable Mastra-style Observational Memory. When true, the
+   * retrieval pipeline is bypassed entirely. Each haystack session
+   * is processed by an Observer LLM into dated priority-tagged
+   * observations. A single Reflector pass consolidates if the log
+   * exceeds 40k tokens. The reader sees the consolidated observation
+   * log as its system prompt plus the question.
+   */
+  observationalMemoryEnabled?: boolean;
 }
 
 /**
@@ -235,7 +249,52 @@ export class LongMemEvalS implements IBenchmark {
       caseType: c.type,
     };
 
-    if (mode === 'none') {
+    // Step 15: Observational Memory bypasses ALL retrieval. When the flag
+    // is on we ignore `mode` and run a dedicated OM ingest + single-call
+    // reader path. Mastra's published 84.23% at gpt-4o uses this shape.
+    if (this.opts.observationalMemoryEnabled) {
+      const observerReader = createReader('gpt-5-mini');
+      const sessions: OmSession[] = c.haystack.map((s) => ({
+        sessionId: s.sessionId,
+        date: s.date,
+        turns: s.turns.map((t) => ({
+          role: t.role,
+          content: t.content,
+          timestamp: t.timestamp,
+        })),
+      }));
+      const ingest = await ingestSessions({
+        observerReader,
+        sessions,
+        observerConcurrency: 4,
+      });
+      // Cost-track observer + reflector calls, tagged so run JSON
+      // attributions separate OM ingest spend from the main reader.
+      ctx.costTracker.record({
+        category: 'reader',
+        model: 'gpt-5-mini',
+        tokensIn: ingest.observerTokensIn,
+        tokensOut: ingest.observerTokensOut,
+        tag: `${c.id}:om-observer`,
+      });
+      if (ingest.reflectorTokensIn > 0 || ingest.reflectorTokensOut > 0) {
+        ctx.costTracker.record({
+          category: 'reader',
+          model: 'gpt-5-mini',
+          tokensIn: ingest.reflectorTokensIn,
+          tokensOut: ingest.reflectorTokensOut,
+          tag: `${c.id}:om-reflector`,
+        });
+      }
+      system = buildOmReaderSystemPrompt(ingest.finalLog);
+      runMetadata.omObservationBatches = ingest.observationBatches.length;
+      runMetadata.omReflectionsFired = ingest.reflections.length;
+      runMetadata.omFinalLogChars = ingest.finalLog.length;
+      runMetadata.omObserverTokensIn = ingest.observerTokensIn;
+      runMetadata.omObserverTokensOut = ingest.observerTokensOut;
+      runMetadata.omReflectorTokensIn = ingest.reflectorTokensIn;
+      runMetadata.omReflectorTokensOut = ingest.reflectorTokensOut;
+    } else if (mode === 'none') {
       system = buildNoMemorySystemPrompt(c);
     } else if (mode === 'base-memory') {
       // Resolution priority for K:
