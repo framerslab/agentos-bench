@@ -43,7 +43,7 @@
     "clean": "rimraf dist"
   },
   "peerDependencies": {
-    "@framers/agentos": "^0.1.244"
+    "@framers/agentos": "^0.2.0"
   },
   "dependencies": {
     "commander": "^12.0.0",
