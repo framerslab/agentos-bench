@@ -57,6 +57,7 @@ import {
 import type { IReader } from '../../readers/IReader.js';
 import { createReader } from '../../readers/createReader.js';
 import type { SessionSummarizer } from '@framers/agentos/memory';
+import { extractEntities } from '@framers/agentos/memory';
 import { createCognitiveManager } from '../../cognitive/createCognitiveManager.js';
 import { loadLongMemEvalDataset, type LongMemEvalVariant } from './dataset.js';
 import {
@@ -164,6 +165,15 @@ export interface LongMemEvalAdapterOptions {
    * `observerReflectorEnabled` (enforced in resolveRunConfig).
    */
   factGraphIngestEnabled?: boolean;
+  /**
+   * Step-13: enable graph-activation wire-up. When true, the bench runs
+   * heuristic entity extraction at every `manager.encode` call
+   * (populating `trace.entities`) and passes
+   * `enableGraphActivation: true` to `createCognitiveManager` so ingest
+   * creates entity nodes + co-occurrence edges and retrieve computes
+   * per-candidate spreading-activation scores (sixth composite signal).
+   */
+  graphActivationEnabled?: boolean;
 }
 
 /**
@@ -275,6 +285,7 @@ export class LongMemEvalS implements IBenchmark {
         this.opts.observerReflectorEnabled,
         this.opts.observerReflectorReplaceEnabled,
         this.opts.factGraphIngestEnabled,
+        this.opts.graphActivationEnabled,
       );
       system = out.prompt;
       runMetadata.replayStats = out.replayStats;
@@ -815,6 +826,7 @@ export async function runFullCognitiveCase(
   observerReflectorEnabled?: boolean,
   observerReflectorReplaceEnabled?: boolean,
   factGraphIngestEnabled?: boolean,
+  graphActivationEnabled?: boolean,
 ): Promise<FullCognitiveOutput> {
   // Step 3 mutex: combined hybrid + session-level retrieval is Step 7
   // territory; MVP rejects the combination explicitly.
@@ -942,6 +954,7 @@ export async function runFullCognitiveCase(
     hydeLlmInvoker,
     observerReflectorLlmInvoker,
     factExtractorLlmInvoker,
+    enableGraphActivation: graphActivationEnabled,
   });
   try {
     // Step 3: construct per-case HybridRetriever if enabled. The
@@ -978,6 +991,7 @@ export async function runFullCognitiveCase(
       observerReflectorEnabled,
       observerReflectorReplaceEnabled,
       factGraphIngestEnabled,
+      graphActivationEnabled,
     );
 
     // Build a per-call weight override when --ablate-signal is set.
@@ -1334,6 +1348,7 @@ async function replayForCognitive(
   observerReflectorEnabled?: boolean,
   observerReflectorReplaceEnabled?: boolean,
   factGraphIngestEnabled?: boolean,
+  graphActivationEnabled?: boolean,
 ): Promise<{
   sessionsReplayed: number;
   turnsReplayed: number;
@@ -1399,12 +1414,20 @@ async function replayForCognitive(
     tags: string[],
   ): Promise<string> => {
     const t0 = Date.now();
-    const trace = await handle.manager.encode(content, neutralMood, '', {
+    // Step 13: when graph activation is enabled, extract entities
+    // heuristically and pass them so `MemoryStore.store` can upsert
+    // entity nodes + co-occurrence edges. Zero cost (pure regex);
+    // safe no-op when flag is off.
+    const encodeOptions: Parameters<typeof handle.manager.encode>[3] = {
       type: 'episodic',
       scope: 'user',
       scopeId: 'bench',
       tags,
-    });
+    };
+    if (graphActivationEnabled) {
+      encodeOptions.entities = extractEntities(content);
+    }
+    const trace = await handle.manager.encode(content, neutralMood, '', encodeOptions);
     encodeMsSamples.push(Date.now() - t0);
     encodeCalls += 1;
     // Sample working-memory slots every 10 encodes — peak is stable

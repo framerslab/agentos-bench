@@ -407,6 +407,18 @@ export interface RunConfig {
    * Default: false. Opt-in behind `--fact-graph-ingest` CLI flag.
    */
   factGraphIngest?: boolean;
+  /**
+   * Step 13: enable graph-activation wire-up. When true the bench runs
+   * `extractEntities` at every `manager.encode` call (populating
+   * `MemoryTrace.entities`) and configures the underlying `MemoryStore`
+   * with `enableGraphActivation: true` so ingest creates entity nodes
+   * + co-occurrence edges and retrieve computes per-candidate spreading
+   * activation scores (weight 0.10 in `RetrievalPriorityScorer`,
+   * previously a silent zero).
+   *
+   * Default: false. Opt-in behind `--graph-activation` CLI flag.
+   */
+  graphActivation?: boolean;
 }
 
 /**
@@ -448,6 +460,7 @@ export interface BenchContext {
       | 'observerReflector'
       | 'observerReflectorReplace'
       | 'factGraphIngest'
+      | 'graphActivation'
     >
   > &
     Pick<
@@ -481,6 +494,7 @@ export interface BenchContext {
       | 'observerReflector'
       | 'observerReflectorReplace'
       | 'factGraphIngest'
+      | 'graphActivation'
     >;
   /** LLM-as-judge for external benchmarks. Micro-benchmarks ignore. */
   judge: IJudge;

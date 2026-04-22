@@ -144,6 +144,18 @@ export interface CreateCognitiveManagerOptions {
    * keep the fact-graph path dormant (bench default pre-Step-9).
    */
   factExtractorLlmInvoker?: (systemPrompt: string, userPrompt: string) => Promise<string>;
+
+  /**
+   * Step-13: enable graph activation. Propagates to
+   * `MemoryStoreConfig.enableGraphActivation`. When true, the underlying
+   * `MemoryStore` upserts entity nodes + `related_to:co_occurs` relations
+   * at encode, and seeds Anderson spreading activation from query
+   * entities at retrieve. Activates the sixth composite-scoring signal
+   * (weight 0.10, previously a silent zero).
+   *
+   * Default: false. Bench sets this when `--graph-activation` is passed.
+   */
+  enableGraphActivation?: boolean;
 }
 
 /**
@@ -257,6 +269,8 @@ export async function createCognitiveManager(
     // Consolidation loop would spawn timers we don't want in a
     // short-lived per-case run. Disable it for benchmark cases.
     consolidation: { enabled: false } as unknown as import('@framers/agentos').CognitiveMemoryConfig['consolidation'],
+    // Step 13: opt-in to graph activation wire-up.
+    enableGraphActivation: opts.enableGraphActivation ?? false,
   });
 
   let closed = false;
