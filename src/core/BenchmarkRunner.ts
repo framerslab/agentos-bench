@@ -25,6 +25,7 @@ import type {
 } from './IBenchmark.js';
 import { REFLECTOR_PROMPT_HASH } from '@framers/agentos';
 import { EXTRACT_PROMPT_HASH } from '../readers/twoCallReader.js';
+import { OM_PROMPT_HASH } from '../observational-memory/prompts.js';
 import { Cache, hashKey } from './Cache.js';
 import { CostTracker } from './CostTracker.js';
 import { ResultStore } from './ResultStore.js';
@@ -131,6 +132,8 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     graphActivation: cfg.graphActivation,
     // Step-14: Emergence-style two-call reader (extract + answer).
     twoCallReader: cfg.twoCallReader,
+    // Step-15: Mastra-style Observational Memory (no retrieval).
+    observationalMemory: cfg.observationalMemory,
   };
 }
 
@@ -363,6 +366,17 @@ export function computeCaseRunKeyParts(
   // answers (mirrors the REFLECTOR_PROMPT_HASH pattern from Step 11).
   if (config.twoCallReader) {
     const tag = `step-14-two-call-reader:${EXTRACT_PROMPT_HASH.slice(0, 12)}`;
+    runKeyParts.push(tag);
+    resultKeyParts.push(tag);
+  }
+
+  // Step 15 observational-memory fingerprint. Content-addressed via the
+  // combined observer/reflector/context prompt hash so any prompt edit
+  // auto-invalidates cached answers. Also: OM completely changes the
+  // reader's context (no retrieval, full observation log instead), so
+  // flag-on runs must be in a fresh bucket from any prior step.
+  if (config.observationalMemory) {
+    const tag = `step-15-om:${OM_PROMPT_HASH.slice(0, 12)}`;
     runKeyParts.push(tag);
     resultKeyParts.push(tag);
   }

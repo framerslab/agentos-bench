@@ -144,6 +144,14 @@ interface BenchEntry {
      * edges and computes spreading activation at retrieve.
      */
     graphActivationEnabled?: boolean;
+    /**
+     * Step-15: when true, the adapter bypasses retrieval entirely and
+     * runs Mastra-style Observational Memory ingest (Observer LLM per
+     * session + optional Reflector pass) before each case query. The
+     * reader sees the consolidated observation log + question in a
+     * single call.
+     */
+    observationalMemoryEnabled?: boolean;
   }) => IBenchmark;
 }
 
@@ -194,29 +202,29 @@ const BENCHMARKS: BenchEntry[] = [
     id: 'longmemeval-s',
     family: 'external',
     description: 'LongMemEval-S (500 cases, ~115k-token haystacks)',
-    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled }) =>
-      new LongMemEvalS({ reader, variant: 's', embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled, observationalMemoryEnabled }) =>
+      new LongMemEvalS({ reader, variant: 's', embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled, observationalMemoryEnabled }),
   },
   {
     id: 'longmemeval-m',
     family: 'external',
     description: 'LongMemEval-M (~500 sessions per haystack) — medium-difficulty variant',
-    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled }) =>
-      new LongMemEvalM({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled, observationalMemoryEnabled }) =>
+      new LongMemEvalM({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled, observationalMemoryEnabled }),
   },
   {
     id: 'longmemeval-oracle',
     family: 'external',
     description: 'LongMemEval-Oracle (evidence-only) — isolates reader quality from retrieval',
-    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled }) =>
-      new LongMemEvalOracle({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled, observationalMemoryEnabled }) =>
+      new LongMemEvalOracle({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled, observationalMemoryEnabled }),
   },
   {
     id: 'locomo',
     family: 'external',
     description: 'LOCOMO (Maharana et al. 2024, 10 convos × ~300 turns, QA task only in v1)',
-    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled }) =>
-      new Locomo({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled }),
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled, observationalMemoryEnabled }) =>
+      new Locomo({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled, observationalMemoryEnabled }),
   },
   {
     id: 'beam-500k',
@@ -534,6 +542,10 @@ export function buildCli(): Command {
       'Enable Step-14 Emergence-style two-call reader. First call extracts a JSON fact scratchpad from top-K retrieved passages with passage-id citations; second call answers from the scratchpad only (no raw passages in final context). Both calls use --reader. Targets reader-conversion headroom (~83% at single-call baseline) to close the gap toward competitor systems that publish 80%+. Default: off.',
     )
     .option(
+      '--observational-memory',
+      'Enable Step-15 Mastra-style Observational Memory. DISABLES the retrieval pipeline (no HybridRetriever, no rerank, no top-K). Per-session Observer LLM extracts dated priority-tagged observations; Reflector consolidates when the log exceeds 40k tokens. Reader sees the full observation log + question in a single call. Verbatim port of Mastra OM prompts (Apache-2.0). Observer model: --context-summary value (we substitute gpt-5-mini for Mastra\u2019s gemini-2.5-flash because the bench ships with OpenAI keys only). Default: off.',
+    )
+    .option(
       '--seed <n>',
       'Deterministic seed for bootstrap resampling (and any future RNG-dependent pipeline). Use for reproducible findings-doc CIs.',
       parseInteger,
@@ -642,6 +654,7 @@ export function buildCli(): Command {
         factGraphIngest: Boolean(opts.factGraphIngest),
         graphActivation: Boolean(opts.graphActivation),
         twoCallReader: Boolean(opts.twoCallReader),
+        observationalMemory: Boolean(opts.observationalMemory),
       };
 
       // Cost preflight — coarse but enough to catch "oh no I just
@@ -830,6 +843,7 @@ export function buildCli(): Command {
         observerReflectorReplaceEnabled: runConfig.observerReflectorReplace,
         factGraphIngestEnabled: runConfig.factGraphIngest,
         graphActivationEnabled: runConfig.graphActivation,
+        observationalMemoryEnabled: runConfig.observationalMemory,
       });
       const result = await runner.run(benchmark, runConfig);
 
