@@ -530,6 +530,10 @@ export function buildCli(): Command {
       'Enable Step-13 graph activation wire-up. Heuristic regex entity extraction (zero LLM) at ingest populates trace.entities and creates co-occurrence edges in SqliteKnowledgeGraph. At retrieve, Anderson spreading activation seeded from query entities computes the sixth composite-score signal (weight 0.10 in RetrievalPriorityScorer, previously hardcoded to 0). Additive, deterministic, dodges the n=8 LLM-mediated-content RED pattern by construction.',
     )
     .option(
+      '--two-call-reader',
+      'Enable Step-14 Emergence-style two-call reader. First call extracts a JSON fact scratchpad from top-K retrieved passages with passage-id citations; second call answers from the scratchpad only (no raw passages in final context). Both calls use --reader. Targets reader-conversion headroom (~83% at single-call baseline) to close the gap toward competitor systems that publish 80%+. Default: off.',
+    )
+    .option(
       '--seed <n>',
       'Deterministic seed for bootstrap resampling (and any future RNG-dependent pipeline). Use for reproducible findings-doc CIs.',
       parseInteger,
@@ -637,6 +641,7 @@ export function buildCli(): Command {
         observerReflectorReplace: Boolean(opts.observerReflectorReplace),
         factGraphIngest: Boolean(opts.factGraphIngest),
         graphActivation: Boolean(opts.graphActivation),
+        twoCallReader: Boolean(opts.twoCallReader),
       };
 
       // Cost preflight — coarse but enough to catch "oh no I just
