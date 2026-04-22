@@ -1,0 +1,15 @@
+
+> @framers/agentos-bench@0.1.0 bench /Users/johnn/Documents/git/voice-chat-assistant/packages/agentos-bench
+> node ./dist/cli.js run longmemeval-s --reader gpt-4o --judge-model gpt-4o --memory full-cognitive --replay ingest --observational-memory --reader-top-k 10 --stratified --sample-per-type 4 --bootstrap-resamples 10000 --seed 42 --concurrency 2
+
+Preflight cost estimate: ~$6.79 for 500 cases ($0.0110/case reader, $0.0026/case judge).
+Running longmemeval-s reader=gpt-4o memory=full-cognitive replay=ingest
+[ResultStore] N-regression guard: skipping summary update for "longmemeval-s|gpt-4o|full-cognitive|ingest" — new run has 24 cases, existing row has 500. Summary row not overwritten. Run file written to runs/2026-04-22T05-09-47-690--longmemeval-s--gpt-4o--full-cognitive--ingest.json.
+Done. accuracy=75.0% passed=18/24 avg=124199ms p50=123800ms p95=148798ms totalUsd=$4.2830 costPerCorrect=$0.2379
+By type:
+  single-session-assistant   n=  4  acc=100.0%  avgScore=1.000
+  single-session-preference  n=  4  acc=100.0%  avgScore=1.000
+  single-session-user        n=  4  acc=100.0%  avgScore=1.000
+  knowledge-update           n=  4  acc= 75.0%  avgScore=0.750
+  temporal-reasoning         n=  4  acc= 50.0%  avgScore=0.500
+  multi-session              n=  4  acc= 25.0%  avgScore=0.250
