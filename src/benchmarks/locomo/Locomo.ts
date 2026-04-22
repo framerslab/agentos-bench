@@ -105,6 +105,11 @@ export interface LocomoAdapterOptions {
    * `LongMemEvalAdapterOptions.factGraphIngestEnabled`.
    */
   factGraphIngestEnabled?: boolean;
+  /**
+   * Step-13: graph activation wire-up. Same semantics as
+   * `LongMemEvalAdapterOptions.graphActivationEnabled`.
+   */
+  graphActivationEnabled?: boolean;
 }
 
 /**
@@ -199,6 +204,7 @@ export class Locomo implements IBenchmark {
         this.opts.observerReflectorEnabled,
         this.opts.observerReflectorReplaceEnabled,
         this.opts.factGraphIngestEnabled,
+        this.opts.graphActivationEnabled,
       );
       system = out.prompt;
       runMeta.replayStats = out.replayStats;

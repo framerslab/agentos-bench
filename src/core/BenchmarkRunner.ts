@@ -126,6 +126,8 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     observerReflectorReplace: cfg.observerReflectorReplace,
     // Step-9: Mem0-style fact-graph ingest (Tier 3).
     factGraphIngest: cfg.factGraphIngest,
+    // Step-13: graph activation wire-up (silent sixth signal fix).
+    graphActivation: cfg.graphActivation,
   };
 }
 
@@ -342,6 +344,15 @@ export function computeCaseRunKeyParts(
   if (config.factGraphIngest) {
     runKeyParts.push('fact-graph-ingest:gpt-5-mini:v1');
     resultKeyParts.push('fact-graph-ingest:gpt-5-mini:v1');
+  }
+
+  // Step 13 graph-activation fingerprint. Conditional append so Tier 1
+  // (flag off) cache entries remain valid; flag-on runs get a fresh
+  // case-run bucket because activation scoring changes the composite
+  // ordering and therefore the retrieved top-K that the reader sees.
+  if (config.graphActivation) {
+    runKeyParts.push('step-13-graph-activation:v1');
+    resultKeyParts.push('step-13-graph-activation:v1');
   }
 
   return { runKeyParts, resultKeyParts };
