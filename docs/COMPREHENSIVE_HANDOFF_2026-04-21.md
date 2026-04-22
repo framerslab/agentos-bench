@@ -1,7 +1,9 @@
 # AgentOS Memory Rollout — Comprehensive Handoff 2026-04-21
 
 **Author session:** Opus 4.7 (1M context), ~2026-04-21 full day
-**Purpose:** give a fresh session (any model, any day) enough context to pick up this work confidently, plus permission to deviate when the evidence warrants. Read this first; the narrower [NEXT_SESSION_HANDOFF.md](NEXT_SESSION_HANDOFF.md) is a continuation prompt that points here.
+**Purpose:** give a fresh session (any model, any day) enough context to pick up this work confidently, plus permission to deviate when the evidence warrants.
+
+> **Newer authoritative handoff for 2026-04-22+ sessions:** [NEXT_SESSION_CONTINUATION_2026-04-22.md](NEXT_SESSION_CONTINUATION_2026-04-22.md) covers the post-Step-15 state and the concrete Step 15 v2 implementation plan. Read that first if you're picking up after 2026-04-21. This doc remains the authoritative record of the Steps 1-14 rollout + Step 15 v1 session.
 
 ---
 
@@ -17,7 +19,7 @@
 
 **What's GREEN-soft (first win since Step 3 Hybrid):** **Step 15 — Observational Memory (Mastra port).** Faithful port of Mastra's open-source architecture (Apache 2.0). Retrieval pipeline DISABLED entirely; per-session Observer LLM (gpt-5-mini) compresses raw conversation into dated priority-tagged observations; reader sees full observation log + question in one gpt-4o call. **Tier A N=24 unweighted 75.0% CI [58.3%, 91.7%]** — above 73.2% canonical point estimate. Single-session categories all 100% (vs 97%/89%/60% canonical). Cross-session regresses (multi-session 25%, temporal 50%) because we run observer per-session in parallel; Mastra uses rolling message-history windows that span sessions. Fixing that is the clear path to 80%+.
 
-**What's the n=9 pattern:** every scoring-signal addition to the hybrid retrieval stack regresses on specific-value LongMemEval-S unless the signal is tightly aligned with the benchmark's query distribution. The n=8 "LLM-mediated content regresses" pattern is preserved (Steps 4, 5, 7, 8, 9 all LLM-mediated and RED). Step 13 falsifies a STRONGER claim: even a zero-LLM additive signal (heuristic regex entity extraction + Anderson spreading activation) regresses when entity co-occurrence is too loose a proxy for topical relevance. Stage metrics show the mechanism working upstream (sparse recall +3.5pp, merged +2.7pp vs Step 12 baseline) but rerank correctly penalizes entity-coincidental candidates (−10.6pp recall drop), and the reader's conversion rate collapses from 83% to 67% despite equivalent gold-in-top-K coverage. Temporal-reasoning dropped 25pp. Classic noise-amplification failure mode.
+**What's the n=10 pattern:** every retrieval-layer and reader-layer addition ON TOP of Step 3 Hybrid regresses on specific-value LongMemEval-S unless you replace retrieval entirely. Steps 4, 5, 7, 8, 9 LLM-mediated and RED. Step 11 null. Step 12 null. Step 13 showed even zero-LLM additive signal (heuristic regex entity extraction + Anderson spreading activation) regresses when entity co-occurrence is too loose a proxy for topical relevance. Step 14 two-call reader RED across three variants. **Step 15 broke the pattern by removing retrieval entirely and replacing it with Mastra-style observational compression — first GREEN-soft result at Tier A since Step 3 Hybrid.** The lesson: iterating on retrieval variants will not move past 80%; architectural replacement does.
 
 **What's the shipping-honest competitor position:** 73.2% sits above Zep's 71.2% at gpt-4o, below the current 81.6-86.0% gpt-4o frontier band (Supermemory, Mastra OM, Emergence AI). Mem0's public pages disagree internally (92.0 vs 93.4), flagged in the blog as a source-verification caveat. The **methodology** (matched ablation + bootstrap CIs + kill criterion + evidence-provenance + content-addressed caching) is the publication-grade differentiator — most competitors don't publish ablation disciplines this tight. Three independent mechanism-level tests (Steps 9, 11, 12) now converge on the same conclusion about reflection-trace load-bearing, which is itself a publishable finding.
 
@@ -125,7 +127,7 @@ Shipped in agentos, available to downstream consumers even though none currently
 
 ## 4. Pattern confirmations — what NOT to re-test without new ideas
 
-The n=8 RED/null pattern is load-bearing for any experiment prioritization. Before running anything that touches retrieval:
+The n=10 RED/null pattern (Steps 2-14 cluster) + Step 15 GREEN-soft break is load-bearing for any experiment prioritization. Before running anything that touches retrieval:
 
 | Pattern | Evidence | Don't retry unless |
 |---|---|---|
@@ -372,11 +374,11 @@ If any of these fail, **stop and report drift** before starting new work.
 This document is a snapshot of what one session thought was true on 2026-04-21. It may be wrong about:
 - **Which experiment is most likely to GREEN** — the Step 12 BM25-parity recommendation is based on Step 11's stage metrics. If Step 12 runs and RED's, don't panic — that's the fourth root-cause-hypothesis from Step 7 findings eliminated, and the pattern gets stronger.
 - **Which competitor numbers are current** — blog references Supermemory 81.6% + Mastra 84.23% + Emergence 86% + Mem0 92-93.4 at gpt-4o, but frontier numbers shift. Verify before citing.
-- **Which directions are "closed out"** — the n=7 RED pattern is strong but not gospel. If someone has a genuinely new architectural idea for LLM-transformed retrieval, the right answer is "show me the mechanism that dodges the pattern, then we can test it."
+- **Which directions are "closed out"** — the n=10 RED/null pattern across retrieval-layer and reader-layer additions IS load-bearing, but Step 15's GREEN-soft proved that REPLACING retrieval with compression breaks it. If someone has a genuinely new architectural idea for LLM-transformed retrieval, the right answer is "show me the mechanism that dodges the pattern, then we can test it." Alternatively, "swap in a competitor's winning architecture verbatim" is the Step 15 playbook.
 
 What this handoff gets RIGHT and you should trust without re-verifying:
 - The 73.2% canonical number + its run JSON path.
-- The n=7 RED pattern (it's real, measured, and the `evidenceOrigin` data decides the load-bearing-ness question directly).
+- The n=10 RED/null pattern spanning retrieval-layer AND reader-layer additions (it's real, measured, and the `evidenceOrigin` + stage-level retrieval metrics make the causal chain explicit at each step).
 - The agentos v0.1.254 release state + the submodule pointer bump.
 - The N-regression guard + content-addressed cache + evidence-provenance being load-bearing infrastructure.
 

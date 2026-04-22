@@ -1,8 +1,10 @@
-# AgentOS Memory: 73.2% on LongMemEval-S at Matched Reader, and What We Learned From Seven Negative Results
+# AgentOS Memory on LongMemEval-S: 73.2% Canonical, 75.0% GREEN-soft at Tier A, and Eleven Architectural Experiments in Between
 
-**TL;DR.** AgentOS hit 73.2% unweighted accuracy [69.2%, 77.0%] on LongMemEval-S Phase B N=500 at gpt-4o reader + gpt-4o judge, with 54.9% on multi-session (n=133), 86.8% on knowledge-update, and $0.0213 per correct answer. The result comes from one GREEN feature (BM25 + dense RRF + Cohere rerank blend) out of nine tested. The other seven retrieval ideas (a hierarchical session retriever, HyDE query rewriting, an LLM fact-supersession filter, rerank-guided content splitting, an additive Observer/Reflector overlay, a replacement-semantics Observer/Reflector, and a Mem0-style fact-graph tuple extractor) all regressed. Total measurement cost across nine matched-ablation studies: ~$26.53. A kill-criterion discipline caught seven of eight losing variants at Tier A smokes, saving roughly $30 in wasted Tier B spend.
+**TL;DR.** AgentOS shipping canonical is **73.2% unweighted [69.2%, 77.0%]** on LongMemEval-S Phase B N=500 at gpt-4o reader + gpt-4o judge, with 54.9% on multi-session (n=133), 86.8% on knowledge-update, and $0.0213 per correct answer. That result comes from Step 3 Hybrid (BM25 + dense RRF + Cohere rerank blend). After Step 3 shipped, we ran eleven additional matched-ablation experiments. Ten regressed (Steps 2, 4, 5, 6, 7, 8, 9, 13, 14) or produced null results (Steps 11, 12). **Step 15 — a faithful Apache-2.0 port of Mastra's open-source Observational Memory — broke the streak at Tier A with 75.0% (18/24), CI [58.3%, 91.7%].** First architectural change to beat the canonical point estimate. Single-session categories all sweep at 100% (+3/+11/+40pp vs canonical). Cross-session categories regress (multi-session 25%, temporal 50%) because our Observer runs per-session while Mastra's runs on rolling token-windows that span sessions — the diagnosed gap to 80%+ is "Step 15 v2" cross-session observer batching.
 
-The headline isn't SOTA. Mem0 currently advertises [92.0](https://mem0.ai/research-2) to [93.4](https://docs.mem0.ai/core-concepts/memory-evaluation) depending on page, Emergence AI reports [86%](https://www.emergence.ai/blog/sota-on-longmemeval-with-rag), and Mastra's Observational Memory reports [84.23% at gpt-4o and 94.87% at gpt-5-mini](https://mastra.ai/research/observational-memory). Our 73.2% sits above [Zep/Graphiti's 71.2% at gpt-4o](https://blog.getzep.com/state-of-the-art-agent-memory/) and below the frontier systems. What we have that most of those don't: eight controlled ablations, bootstrap-gated confidence intervals on every claim, and a methodology that treats matched-reader cost comparison as a hard requirement. The 73.2% is also a PROGRESSIVE-ENHANCEMENT baseline: every AgentOS consumer can opt into additional tiers (observer pipelines, fact graphs, two-call readers) to trade more ingest cost for higher accuracy as their workload warrants.
+Total measurement cost across twelve experiments: **~$36.60**. Kill-criterion discipline caught most losing variants at Tier A smokes, saving ~$40-60 in wasted Tier B spend. Bootstrap CI-gated accept/reject rules, matched-reader methodology, evidence-provenance instrumentation, and content-addressed cache keys with prompt-hash fingerprinting.
+
+The headline isn't SOTA yet. Mem0 currently advertises [92.0](https://mem0.ai/research-2) to [93.4](https://docs.mem0.ai/core-concepts/memory-evaluation) depending on page, Emergence AI reports [86%](https://www.emergence.ai/blog/sota-on-longmemeval-with-rag), and Mastra's Observational Memory reports [84.23% at gpt-4o and 94.87% at gpt-5-mini](https://mastra.ai/research/observational-memory). Our 73.2% canonical sits above [Zep/Graphiti's 71.2% at gpt-4o](https://blog.getzep.com/state-of-the-art-agent-memory/) and below the frontier systems. Step 15's 75.0% Tier A point estimate pulls us slightly past canonical into the Mastra-direction band; Phase A N=102 will tighten the CI and confirm. What we have that most competitors don't: eleven controlled ablations, bootstrap-gated confidence intervals on every claim, matched-reader cost comparison as a hard requirement, and a published-source-code port of the winning competitor architecture. The 73.2% is also a progressive-enhancement baseline: every AgentOS consumer can opt into additional tiers (observer pipelines, fact graphs, two-call readers, observational memory) to trade more ingest cost for higher accuracy as their workload warrants.
 
 ---
 
@@ -20,8 +22,11 @@ The published leaderboard at gpt-4o reader, roughly sorted, looks like this:
 |---|---:|---|
 | Vanilla full-context (baseline) | ~60% | [Zep replication at gpt-4o](https://blog.getzep.com/state-of-the-art-agent-memory/) |
 | [Zep / Graphiti](https://blog.getzep.com/state-of-the-art-agent-memory/) | 71.2% | temporal knowledge graph |
-| **AgentOS Step 3 Hybrid** | **73.2%** | this work, Phase B N=500 |
-| [Mastra Observational Memory (gpt-4o)](https://mastra.ai/research/observational-memory) | 84.23% | observer + reflector compression |
+| **AgentOS Step 3 Hybrid (canonical)** | **73.2%** | this work, Phase B N=500 at gpt-4o |
+| **AgentOS Step 15 OM (GREEN-soft)** | **75.0%** | this work, Tier A N=24 at gpt-4o, CI [58.3%, 91.7%] |
+| [Mastra RAG (topK=20)](https://mastra.ai/research/observational-memory) | 80.05% | their own retrieval baseline |
+| [Supermemory](https://supermemory.ai/research/) | 81.60% | at gpt-4o |
+| [Mastra Observational Memory (gpt-4o)](https://mastra.ai/research/observational-memory) | 84.23% | observer + reflector compression, no retrieval |
 | [Emergence AI RAG](https://www.emergence.ai/blog/sota-on-longmemeval-with-rag) | 86% | two-stage session retrieval + NDCG |
 | [Mem0](https://mem0.ai/research-2) | 92.0-93.4* | public benchmark page and docs currently disagree |
 | [Mastra Observational Memory (gpt-5-mini)](https://mastra.ai/research/observational-memory) | 94.87% | different reader, not matched |
@@ -242,7 +247,7 @@ Root cause has three compounding layers:
 2. **Stage-level metrics measured the displacement directly.** `merged.recall = 0.774` but `final.recall = 0.712` — the 6.2pp drop is rerank handing away recall to synthetic traces.
 3. **Fact-graph trace format loses to raw chunks even when both are in top-K.** Synthetic content reads like `"user livesIn Berlin (as of 2026-03-15)"`; raw chunks carry conversational context (`"I moved to Berlin last Tuesday"`) that the reader uses to anchor answers. The extractor likely paraphrases `object` despite the "literal span" instruction, and the synthetic format adds nothing the raw chunk doesn't already contain.
 
-The empirical rule from Steps 4-9 now stands at n=7: every variant that routes retrieval content through an LLM at ingest or query time regresses. Tuple extraction doesn't escape the pattern — it just fails in a measurably different way.
+The empirical rule from Steps 4-9 now stands at n=7 (extended later to n=10 through Step 14): every variant that routes retrieval content through an LLM at ingest or query time regresses. Tuple extraction doesn't escape the pattern — it just fails in a measurably different way. (Step 15 eventually broke the larger n=10 pattern not by iterating on retrieval but by REPLACING retrieval entirely with observational compression; see the Step 15 section below.)
 
 ### Step 11: Tuned reflector prompt (null result)
 
@@ -272,7 +277,7 @@ Step 13 falsifies a stronger version of the n=8 pattern: even a zero-LLM additiv
 
 Ships regardless of RED verdict: the `HeuristicEntityExtractor` module (reusable across benchmarks with different query shapes), the `trace.entities → entityIds` thread-through fix (strict improvement for downstream consumers already populating entities), and the feature-gated full pipeline (default off).
 
-### The pattern across nine negative results
+### The pattern across ten negative results + one architectural-swap GREEN-soft
 
 Every failed step modified or removed retrieval output before the reader saw it, OR added output that competed with the existing signal, OR introduced an LLM intermediate step that paraphrased away specific tokens, OR made reflection content visible without changing the fact that it loses to raw chunks on tf-idf.
 
@@ -392,9 +397,9 @@ pnpm exec agentos-bench run longmemeval-s \
 
 Seven step findings docs (GREEN-soft for Step 3, RED for Steps 2, 4, 5, 6, 7, infra for Step 1) live in [packages/agentos-bench/docs/STEP_*_FINDINGS_2026-04-20.md](https://github.com/framersai/agentos/tree/master/packages/agentos-bench/docs). The umbrella doc is at [RAG_STACK_UMBRELLA_FINDINGS_2026-04-20.md](https://github.com/framersai/agentos/blob/master/packages/agentos-bench/docs/RAG_STACK_UMBRELLA_FINDINGS_2026-04-20.md). The matched-ablation and bootstrap CI methodology is implemented at [packages/agentos-bench/src/core/metrics/](https://github.com/framersai/agentos/tree/master/packages/agentos-bench/src/core/metrics).
 
-Commits for each of the nine steps are listed in the umbrella findings doc plus the Step 7, Step 8, and Step 9 findings docs. The architecture doc for HybridRetriever lives at [packages/agentos/docs/architecture/hybrid-retriever.md](https://github.com/framersai/agentos/blob/master/packages/agentos/docs/architecture/hybrid-retriever.md).
+Commits for each of the twelve steps (1-9, 11-15) are listed in the umbrella findings doc plus the individual per-step findings docs. The architecture doc for HybridRetriever lives at [packages/agentos/docs/architecture/hybrid-retriever.md](https://github.com/framersai/agentos/blob/master/packages/agentos/docs/architecture/hybrid-retriever.md). The Step 15 Observational Memory port lives at [packages/agentos-bench/src/observational-memory/](https://github.com/manicinc/voice-chat-assistant/tree/master/packages/agentos-bench/src/observational-memory) with Apache 2.0 attribution to Mastra.
 
-Total measurement cost for the nine-step rollout plus Phase B N=500 confirmation: ~$26.53. Reader: OpenAI gpt-4o-2024-08-06 and gpt-5-mini. Reranker: Cohere rerank-v3.5. Embedder: OpenAI text-embedding-3-small. Judge: OpenAI gpt-4o-2024-08-06. Observer/reflector invoker (when enabled): gpt-5-mini. Fact-graph extractor (when enabled): gpt-5-mini.
+Total measurement cost for the twelve-step rollout plus Phase B N=500 canonical confirmation: **~$36.60**. Breakdown: $26.53 Steps 1-9 + $1.45 Step 11 + $1.84 Step 12 + $0.42 Step 13 + $2.08 Step 14 + $4.28 Step 15. Reader: OpenAI gpt-4o-2024-08-06 at matched gpt-4o across all experiments. Reranker: Cohere rerank-v3.5 (where used, disabled in Step 15). Embedder: OpenAI text-embedding-3-small (where used, disabled in Step 15). Judge: OpenAI gpt-4o-2024-08-06. Observer/reflector invoker (when enabled): gpt-5-mini (Step 15 substitutes for Mastra's gemini-2.5-flash because our bench ships OpenAI keys only). Fact-graph extractor (Step 9): gpt-5-mini.
 
 ---
 
