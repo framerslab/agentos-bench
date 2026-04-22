@@ -258,7 +258,21 @@ Result: 62.5% unweighted at N=24, identical to Step 7 and Step 11. Stage-level r
 
 Three independent mechanisms now converge on the same conclusion: **reflection traces are not load-bearing for the reader on this benchmark**. Neither a better prompt (Step 11) nor better retrieval visibility (Step 12) nor synthetic-trace injection (Step 9) lifts the 62.5% floor.
 
-### The pattern across eight negative results
+### Step 13: Graph activation wire-up (the audit-driven experiment)
+
+During Step 12 exploration, a broader audit of the agentos memory architecture surfaced an architectural bug: `RetrievalPriorityScorer` declares a 6-signal cognitive composite with `graphActivation` weighted at 10%, but the input value is hardcoded to 0 at `MemoryStore.ts:376` and `HybridRetriever.ts:560`. The `SqliteKnowledgeGraph` is populated via `recordMemory` but with `entityIds: []`, so the graph gets memory nodes with zero edges. The declared 6-signal composite was effectively a 5-signal composite with a silent sixth.
+
+Step 13 closes the gap end-to-end: a new `HeuristicEntityExtractor` module (five regex pattern families covering proper nouns, ISO dates, named dates, currency amounts, and numeric-with-unit quantities, zero LLM calls, deterministic), threading `trace.entities` through to the KG as entity nodes and bidirectional `related_to:co_occurs` relations, Anderson spreading activation seeded from query-extracted entities at retrieve time. Dodges the n=8 LLM-mediated-content pattern by construction.
+
+The mechanism works at upstream stages. Stage metrics vs Step 12 baseline: sparse recall +3.5pp (0.882 → 0.917), merged recall +2.7pp (0.774 → 0.801). Graph activation IS boosting candidates that share query entities. But rerank drops recall −10.6pp — Cohere `rerank-v3.5` correctly penalizes candidates where the entity match is topically coincidental, and the 0.7 cognitive + 0.3 neural blend still lets activation-inflated scores propagate into the final ordering, pushing genuinely-relevant candidates out. Final recall ends up roughly unchanged, but the reader sees reordered context where entity-coincidental candidates appear near gold, and conversion rate drops from 83% to 67%.
+
+Result: Tier A N=24 unweighted 50.0%, CI [29.2%, 70.8%], RED at 27pp below the 77% kill gate. Multi-session +8pp point estimate (the target category) but confounded by a n=3 vs n=4 sample shift. Temporal-reasoning regresses 25pp. Classic noise-amplification: the signal helps where entities bridge sessions meaningfully (multi-session) but hurts where entity coincidence is irrelevant (temporal relations, preference statements).
+
+Step 13 falsifies a stronger version of the n=8 pattern: even a zero-LLM additive signal can regress when the signal's correspondence to the benchmark's query distribution is loose. Graph activation over shared-entity co-occurrence is too loose for specific-value LongMemEval-S. The pattern now reads: **"adding scoring signals to the hybrid retrieval stack regresses on this workload unless the signal is tightly aligned with the query distribution."**
+
+Ships regardless of RED verdict: the `HeuristicEntityExtractor` module (reusable across benchmarks with different query shapes), the `trace.entities → entityIds` thread-through fix (strict improvement for downstream consumers already populating entities), and the feature-gated full pipeline (default off).
+
+### The pattern across nine negative results
 
 Every failed step modified or removed retrieval output before the reader saw it, OR added output that competed with the existing signal, OR introduced an LLM intermediate step that paraphrased away specific tokens, OR made reflection content visible without changing the fact that it loses to raw chunks on tf-idf.
 
@@ -271,6 +285,7 @@ Every failed step modified or removed retrieval output before the reader saw it,
 - Step 9 (Fact-graph tuple injection): synthetic traces with `retrievalScore: 1.0` displaced raw chunks and the reader still quoted raw.
 - Step 11 (Tuned reflector prompt): null — prompt-level fix does not move the number.
 - Step 12 (BM25 parity sweep): null — visibility-level fix does not move the number.
+- Step 13 (Heuristic graph activation): RED — zero-LLM additive signal over entity co-occurrence is noise-amplified; rerank correctly penalizes entity-coincidental candidates, reader conversion drops.
 
 Every destructive, competition-inducing, or LLM-mediated modification regressed. Every visibility- or prompt-only fix produced a null. The rule that holds on this workload: **add signal in ways that compose with existing signal without competing for rank position, and do not expect LLM-summarized content to become load-bearing for the reader on specific-value queries.** BM25 alongside dense is additive AND composes through RRF. Rerank as a blend component is additive AND composes through the 0.7/0.3 weights. Every intervention that skipped that composition discipline regressed. Every intervention that merely exposed LLM-summarized content to the retrieval stack without changing its content shape produced a null.
 
