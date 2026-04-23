@@ -1,0 +1,1812 @@
+{
+  "benchmarkId": "longmemeval-s",
+  "benchmarkVersion": "1.0.0",
+  "config": {
+    "reader": "gpt-4o",
+    "memoryMode": "full-cognitive",
+    "replayMode": "ingest",
+    "concurrency": 3,
+    "maxUsd": 60,
+    "retrievalProfile": "balanced",
+    "adaptiveRetrieval": true,
+    "retrievalK": 10,
+    "stratified": true,
+    "samplePerType": 4,
+    "trackFootprint": true,
+    "rerank": {
+      "provider": "cohere"
+    },
+    "contextSummaryModel": "gpt-5-mini",
+    "readerTopK": 5,
+    "judgeAdversarial": false,
+    "judgeAdversarialMaxProbes": 50,
+    "judgeAdversarialSynthModel": "gpt-5-mini",
+    "bootstrapResamples": 10000,
+    "seed": 42,
+    "sessionRetrieval": false,
+    "sessionRetrievalTopSessions": 5,
+    "sessionRetrievalChunksPerSession": 3,
+    "hybridRetrieval": true,
+    "hyde": false,
+    "factSupersession": false,
+    "observerReflector": false,
+    "observerReflectorReplace": false,
+    "factGraphIngest": false,
+    "graphActivation": false,
+    "twoCallReader": false,
+    "observationalMemory": true,
+    "omBatchTokenTarget": 24000,
+    "omMode": "dual-path",
+    "omReaderScaffold": true,
+    "omObserverModel": "gpt-4o",
+    "omWithRetrieval": false,
+    "omDynamicRouter": false,
+    "omClassifierFewshot": false,
+    "omGuidedRetrieval": true,
+    "omGuidedRetrievalK": 5
+  },
+  "totalCases": 24,
+  "passedCases": 12,
+  "accuracy": 0.5,
+  "avgScore": 0.5,
+  "scoreStdDev": 0.5107539184552492,
+  "byType": {
+    "knowledge-update": {
+      "n": 4,
+      "accuracy": 0.5,
+      "avgScore": 0.5
+    },
+    "multi-session": {
+      "n": 3,
+      "accuracy": 0.3333333333333333,
+      "avgScore": 0.3333333333333333
+    },
+    "unknown": {
+      "n": 6,
+      "accuracy": 0,
+      "avgScore": 0
+    },
+    "single-session-assistant": {
+      "n": 2,
+      "accuracy": 1,
+      "avgScore": 1
+    },
+    "single-session-preference": {
+      "n": 4,
+      "accuracy": 0.75,
+      "avgScore": 0.75
+    },
+    "single-session-user": {
+      "n": 4,
+      "accuracy": 1,
+      "avgScore": 1
+    },
+    "temporal-reasoning": {
+      "n": 1,
+      "accuracy": 0,
+      "avgScore": 0
+    }
+  },
+  "avgLatencyMs": 163047.91666666666,
+  "p50LatencyMs": 103188,
+  "p95LatencyMs": 569134.0499999999,
+  "totalReaderTokens": 11362154,
+  "totalUsd": 32.55974499999999,
+  "costPerCorrect": 2.713312083333333,
+  "startedAt": "2026-04-23T05:34:40.952Z",
+  "completedAt": "2026-04-23T06:01:02.419Z",
+  "retrievalMetrics": {
+    "meanRecallAtK": 0,
+    "meanPrecisionAtK": 0,
+    "meanNdcgAtK": 0,
+    "meanMrr": 0,
+    "k": 10,
+    "sampleSize": 18
+  },
+  "stratifiedAccuracy": {
+    "byType": {
+      "knowledge-update": {
+        "n": 4,
+        "accuracy": 0.5,
+        "prior": 0.156
+      },
+      "multi-session": {
+        "n": 3,
+        "accuracy": 0.3333333333333333,
+        "prior": 0.266
+      },
+      "unknown": {
+        "n": 6,
+        "accuracy": 0,
+        "prior": 0
+      },
+      "single-session-assistant": {
+        "n": 2,
+        "accuracy": 1,
+        "prior": 0.112
+      },
+      "single-session-preference": {
+        "n": 4,
+        "accuracy": 0.75,
+        "prior": 0.06
+      },
+      "single-session-user": {
+        "n": 4,
+        "accuracy": 1,
+        "prior": 0.14
+      },
+      "temporal-reasoning": {
+        "n": 1,
+        "accuracy": 0,
+        "prior": 0.266
+      }
+    },
+    "weightedOverall": 0.46366666666666667,
+    "unweightedOverall": 0.5,
+    "missingTypes": []
+  },
+  "tokensPerCorrect": {
+    "readerIn": 900805.75,
+    "readerOut": 46040.416666666664,
+    "judgeIn": 348.75,
+    "judgeOut": 2.1666666666666665,
+    "embeddingIn": 0,
+    "total": 947197.0833333333
+  },
+  "cases": [
+    {
+      "caseId": "6a1eabeb",
+      "actualOutput": "Your personal best time in the charity 5K run was 25:50.",
+      "latencyMs": 166591,
+      "tokensIn": 22913,
+      "tokensOut": 17,
+      "usd": 0.057452500000000004,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "knowledge-update",
+        "omGuidedCandidateSessionCount": 5,
+        "omGuidedEvidenceFilteredFrom": 30,
+        "omGuidedEvidenceFilteredTo": 14,
+        "omGuidedSessionScores": [
+          {
+            "sessionId": "4aaf678f_3",
+            "score": 0.3947488114207825
+          },
+          {
+            "sessionId": "answer_a25d4a91_2",
+            "score": 0.357014394833865
+          },
+          {
+            "sessionId": "answer_a25d4a91_1",
+            "score": 0.27241549113447905
+          },
+          {
+            "sessionId": "sharegpt_wsUEkMN_0",
+            "score": 0.1797367157357855
+          },
+          {
+            "sessionId": "131ff17e",
+            "score": 0.15571999984026863
+          }
+        ],
+        "omRetrievedPassagesCount": 5,
+        "replayStats": {
+          "sessionsReplayed": 41,
+          "turnsReplayed": 413,
+          "durationMs": 102624
+        },
+        "recalledTraces": 30,
+        "omGuidedRetrieval": true,
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omWithRetrieval": false,
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 47,
+        "omPerSessionBatches": 41,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 72924,
+        "omObserverTokensIn": 398600,
+        "omObserverTokensOut": 22171,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_a25d4a91_1",
+        "answer_a25d4a91_2"
+      ]
+    },
+    {
+      "caseId": "6aeb4375",
+      "actualOutput": "You've tried four different Korean restaurants in your city.",
+      "latencyMs": 171259,
+      "tokensIn": 19960,
+      "tokensOut": 10,
+      "usd": 0.05,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "knowledge-update",
+        "omGuidedCandidateSessionCount": 5,
+        "omGuidedEvidenceFilteredFrom": 30,
+        "omGuidedEvidenceFilteredTo": 14,
+        "omGuidedSessionScores": [
+          {
+            "sessionId": "answer_3f9693b7_1",
+            "score": 0.48816787167428344
+          },
+          {
+            "sessionId": "answer_3f9693b7_2",
+            "score": 0.37370736449316977
+          },
+          {
+            "sessionId": "sharegpt_MWlvrvZ_0",
+            "score": 0.2912436698036047
+          },
+          {
+            "sessionId": "402e0082_5",
+            "score": 0.24051078688173305
+          },
+          {
+            "sessionId": "93bed3d8_1",
+            "score": 0.15191985234952968
+          }
+        ],
+        "omRetrievedPassagesCount": 5,
+        "replayStats": {
+          "sessionsReplayed": 47,
+          "turnsReplayed": 468,
+          "durationMs": 102533
+        },
+        "recalledTraces": 30,
+        "omGuidedRetrieval": true,
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omWithRetrieval": false,
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 53,
+        "omPerSessionBatches": 47,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 68592,
+        "omObserverTokensIn": 420327,
+        "omObserverTokensOut": 21734,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "yes"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_3f9693b7_1",
+        "answer_3f9693b7_2"
+      ]
+    },
+    {
+      "caseId": "830ce83f",
+      "actualOutput": "Rachel recently moved to a new apartment in Chicago.",
+      "latencyMs": 206699,
+      "tokensIn": 23485,
+      "tokensOut": 10,
+      "usd": 0.058812500000000004,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "knowledge-update",
+        "omGuidedCandidateSessionCount": 5,
+        "omGuidedEvidenceFilteredFrom": 30,
+        "omGuidedEvidenceFilteredTo": 9,
+        "omGuidedSessionScores": [
+          {
+            "sessionId": "answer_0b1a0942_1",
+            "score": 0.41177580994809937
+          },
+          {
+            "sessionId": "47c5482a",
+            "score": 0.2865179812711298
+          },
+          {
+            "sessionId": "8d77be9a_2",
+            "score": 0.2730966707386514
+          },
+          {
+            "sessionId": "dfbda5e9",
+            "score": 0.2730260324203834
+          },
+          {
+            "sessionId": "7ddf575b",
+            "score": 0.2665742801609752
+          }
+        ],
+        "omRetrievedPassagesCount": 5,
+        "replayStats": {
+          "sessionsReplayed": 49,
+          "turnsReplayed": 511,
+          "durationMs": 138455
+        },
+        "recalledTraces": 30,
+        "omGuidedRetrieval": true,
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omWithRetrieval": false,
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 55,
+        "omPerSessionBatches": 49,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 78220,
+        "omObserverTokensIn": 431029,
+        "omObserverTokensOut": 23899,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_0b1a0942_1",
+        "answer_0b1a0942_2"
+      ]
+    },
+    {
+      "caseId": "852ce960",
+      "actualOutput": "You were pre-approved for a $350,000 mortgage from Wells Fargo.",
+      "latencyMs": 554435,
+      "tokensIn": 19212,
+      "tokensOut": 15,
+      "usd": 0.04818,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "knowledge-update",
+        "omGuidedCandidateSessionCount": 5,
+        "omGuidedEvidenceFilteredFrom": 30,
+        "omGuidedEvidenceFilteredTo": 13,
+        "omGuidedSessionScores": [
+          {
+            "sessionId": "answer_3a6f1e82_1",
+            "score": 0.46763338043723185
+          },
+          {
+            "sessionId": "answer_3a6f1e82_2",
+            "score": 0.3012658777354195
+          },
+          {
+            "sessionId": "sharegpt_V2j1zkI_1",
+            "score": 0.21824754546934422
+          },
+          {
+            "sessionId": "a76e7e3c_1",
+            "score": 0.1772611182268752
+          },
+          {
+            "sessionId": "114c1fb7_4",
+            "score": 0.17269490960868078
+          }
+        ],
+        "omRetrievedPassagesCount": 5,
+        "replayStats": {
+          "sessionsReplayed": 41,
+          "turnsReplayed": 396,
+          "durationMs": 526231
+        },
+        "recalledTraces": 30,
+        "omGuidedRetrieval": true,
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omWithRetrieval": false,
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 48,
+        "omPerSessionBatches": 41,
+        "omBatchedBatches": 7,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 59700,
+        "omObserverTokensIn": 403477,
+        "omObserverTokensOut": 18854,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 2,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_3a6f1e82_1",
+        "answer_3a6f1e82_2"
+      ]
+    },
+    {
+      "caseId": "0a995998",
+      "actualOutput": "You need to pick up a pair of boots from Zara that you exchanged for a larger size on February 5th. You haven't mentioned any other items that need to be picked up or returned from a store. If there are any updates or additional items, feel free to let me know!",
+      "latencyMs": 571728,
+      "tokensIn": 19622,
+      "tokensOut": 58,
+      "usd": 0.049635,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "multi-session",
+        "omGuidedCandidateSessionCount": 5,
+        "omGuidedEvidenceFilteredFrom": 30,
+        "omGuidedEvidenceFilteredTo": 8,
+        "omGuidedSessionScores": [
+          {
+            "sessionId": "answer_afa9873b_2",
+            "score": 0.4699219971666877
+          },
+          {
+            "sessionId": "answer_afa9873b_1",
+            "score": 0.4585930459972965
+          },
+          {
+            "sessionId": "answer_afa9873b_3",
+            "score": 0.44977384923676084
+          },
+          {
+            "sessionId": "ultrachat_331531",
+            "score": 0.3234578252479041
+          },
+          {
+            "sessionId": "25091584_1",
+            "score": 0.31191057348001117
+          }
+        ],
+        "omRetrievedPassagesCount": 5,
+        "replayStats": {
+          "sessionsReplayed": 45,
+          "turnsReplayed": 484,
+          "durationMs": 536479
+        },
+        "recalledTraces": 30,
+        "omGuidedRetrieval": true,
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omWithRetrieval": false,
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 51,
+        "omPerSessionBatches": 45,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 63589,
+        "omObserverTokensIn": 418888,
+        "omObserverTokensOut": 20567,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 3,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_afa9873b_2",
+        "answer_afa9873b_3",
+        "answer_afa9873b_1"
+      ]
+    },
+    {
+      "caseId": "6d550036",
+      "actualOutput": "You are currently leading a project to launch a new product feature in June, and you are responsible for leading your company's cloud migration effort. Additionally, you have completed a high-priority project two months ahead of time, which significantly increased company revenue. Therefore, you have led or are currently leading at least three projects.",
+      "latencyMs": 724783,
+      "tokensIn": 21094,
+      "tokensOut": 63,
+      "usd": 0.053365,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "multi-session",
+        "omGuidedCandidateSessionCount": 5,
+        "omGuidedEvidenceFilteredFrom": 30,
+        "omGuidedEvidenceFilteredTo": 6,
+        "omGuidedSessionScores": [
+          {
+            "sessionId": "2e4430d8_2",
+            "score": 0.42085416493668326
+          },
+          {
+            "sessionId": "e255d6fc_2",
+            "score": 0.34001365536881145
+          },
+          {
+            "sessionId": "sharegpt_J7ZAFLd_0",
+            "score": 0.30735380525611383
+          },
+          {
+            "sessionId": "sharegpt_nVi6tIt_0",
+            "score": 0.28731247101807666
+          },
+          {
+            "sessionId": "answer_ec904b3c_2",
+            "score": 0.28569367764589343
+          }
+        ],
+        "omRetrievedPassagesCount": 5,
+        "replayStats": {
+          "sessionsReplayed": 53,
+          "turnsReplayed": 517,
+          "durationMs": 510901
+        },
+        "recalledTraces": 30,
+        "omGuidedRetrieval": true,
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omWithRetrieval": false,
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 57,
+        "omPerSessionBatches": 51,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 67671,
+        "omObserverTokensIn": 434000,
+        "omObserverTokensOut": 20984,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 4,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_ec904b3c_1",
+        "answer_ec904b3c_4",
+        "answer_ec904b3c_3",
+        "answer_ec904b3c_2"
+      ]
+    },
+    {
+      "caseId": "gpt4_59c863d7",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "Embedding request failed (503): upstream connect error or disconnect/reset before headers. reset reason: connection timeout",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "b5ef892d",
+      "actualOutput": "Based on your past activities, you spent 5 days on a camping trip to Yellowstone National Park in March 2023 and 3 days on a solo camping trip to Big Sur in early April 2023. In total, you have spent 8 days on camping trips in the United States this year.",
+      "latencyMs": 235327,
+      "tokensIn": 19371,
+      "tokensOut": 62,
+      "usd": 0.0490475,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "multi-session",
+        "omGuidedCandidateSessionCount": 5,
+        "omGuidedEvidenceFilteredFrom": 30,
+        "omGuidedEvidenceFilteredTo": 3,
+        "omGuidedSessionScores": [
+          {
+            "sessionId": "answer_a8b4290f_1",
+            "score": 0.41341107053677856
+          },
+          {
+            "sessionId": "answer_a8b4290f_3",
+            "score": 0.3953487985124637
+          },
+          {
+            "sessionId": "answer_a8b4290f_2",
+            "score": 0.34777013095831066
+          },
+          {
+            "sessionId": "12cff183_1",
+            "score": 0.27154850159921223
+          },
+          {
+            "sessionId": "1a44346c_1",
+            "score": 0.19036846931850662
+          }
+        ],
+        "omRetrievedPassagesCount": 3,
+        "replayStats": {
+          "sessionsReplayed": 56,
+          "turnsReplayed": 516,
+          "durationMs": 155734
+        },
+        "recalledTraces": 30,
+        "omGuidedRetrieval": true,
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omWithRetrieval": false,
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 62,
+        "omPerSessionBatches": 56,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 65880,
+        "omObserverTokensIn": 462216,
+        "omObserverTokensOut": 20951,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "yes"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 3,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_a8b4290f_3",
+        "answer_a8b4290f_1",
+        "answer_a8b4290f_2"
+      ]
+    },
+    {
+      "caseId": "7161e7e2",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "Embedding request failed (503): upstream connect error or disconnect/reset before headers. reset reason: connection timeout",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "c4f10528",
+      "actualOutput": "The restaurant in Cihampelas Walk that serves a great Nasi Goreng is Miss Bee Providore. Enjoy your visit and the delicious food!",
+      "latencyMs": 92931,
+      "tokensIn": 20442,
+      "tokensOut": 30,
+      "usd": 0.051405000000000006,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-assistant",
+        "omGuidedCandidateSessionCount": 5,
+        "omGuidedEvidenceFilteredFrom": 30,
+        "omGuidedEvidenceFilteredTo": 7,
+        "omGuidedSessionScores": [
+          {
+            "sessionId": "answer_ultrachat_234453",
+            "score": 0.5295529446579899
+          },
+          {
+            "sessionId": "bf5bfb7b_3",
+            "score": 0.2568586413838958
+          },
+          {
+            "sessionId": "b4f94171_4",
+            "score": 0.2506737276400761
+          },
+          {
+            "sessionId": "367b6c01",
+            "score": 0.21317041380595123
+          },
+          {
+            "sessionId": "de55485d_1",
+            "score": 0.20204337234876804
+          }
+        ],
+        "omRetrievedPassagesCount": 5,
+        "replayStats": {
+          "sessionsReplayed": 44,
+          "turnsReplayed": 485,
+          "durationMs": 64597
+        },
+        "recalledTraces": 30,
+        "omGuidedRetrieval": true,
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omWithRetrieval": false,
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 50,
+        "omPerSessionBatches": 44,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 70077,
+        "omObserverTokensIn": 414178,
+        "omObserverTokensOut": 22061,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_ultrachat_234453"
+      ]
+    },
+    {
+      "caseId": "89527b6b",
+      "actualOutput": "In the children's book about dinosaurs, the Plesiosaur was described as having a blue scaly body in the image.",
+      "latencyMs": 95499,
+      "tokensIn": 18582,
+      "tokensOut": 25,
+      "usd": 0.046705,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-assistant",
+        "omGuidedCandidateSessionCount": 5,
+        "omGuidedEvidenceFilteredFrom": 30,
+        "omGuidedEvidenceFilteredTo": 2,
+        "omGuidedSessionScores": [
+          {
+            "sessionId": "answer_sharegpt_YkWn1Ne_0",
+            "score": 0.45338541466236765
+          },
+          {
+            "sessionId": "c367b622_1",
+            "score": 0.23912954796796493
+          },
+          {
+            "sessionId": "ultrachat_442154",
+            "score": 0.2366193098943431
+          },
+          {
+            "sessionId": "1e517a18_1",
+            "score": 0.2322017503597534
+          },
+          {
+            "sessionId": "sharegpt_CqJTtJZ_78",
+            "score": 0.23028416933190873
+          }
+        ],
+        "omRetrievedPassagesCount": 2,
+        "replayStats": {
+          "sessionsReplayed": 47,
+          "turnsReplayed": 467,
+          "durationMs": 66106
+        },
+        "recalledTraces": 30,
+        "omGuidedRetrieval": true,
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omWithRetrieval": false,
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 53,
+        "omPerSessionBatches": 47,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 68268,
+        "omObserverTokensIn": 427286,
+        "omObserverTokensOut": 21120,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_sharegpt_YkWn1Ne_0"
+      ]
+    },
+    {
+      "caseId": "e9327a54",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "Embedding request failed (503): upstream connect error or disconnect/reset before headers. reset reason: connection timeout",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "8a2466db",
+      "actualOutput": "Since you're already using Adobe Premiere Pro and exploring its advanced features, here are some resources that can help you deepen your video editing skills:\n\n1. **Adobe Premiere Pro Official Documentation and Tutorials**: Adobe's official website offers comprehensive guides and tutorials that cover both basic and advanced features of Premiere Pro.\n\n2. **YouTube Channels**:\n   - **Premiere Bro**: Offers tips, tricks, and tutorials specifically for Premiere Pro users.\n   - **Video Copilot**: Known for After Effects, but also provides valuable insights into video editing techniques.\n   - **Adobe Creative Cloud**: The official Adobe channel with tutorials and updates on all Adobe products.\n\n3. **Online Courses**:\n   - **Udemy**: Offers a variety of courses on Premiere Pro, ranging from beginner to advanced levels.\n   - **LinkedIn Learning**: Provides structured courses on video editing, including specific courses on color grading and effects.\n   - **Skillshare**: Offers creative courses, including video editing and storytelling techniques.\n\n4. **Books**:\n   - **\"The Art of Editing in the Age of Convergence\" by Michael Frierson**: Explores the principles of editing and how they apply to digital media.\n   - **\"Adobe Premiere Pro Classroom in a Book",
+      "latencyMs": 97263,
+      "tokensIn": 21713,
+      "tokensOut": 256,
+      "usd": 0.056842500000000004,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-preference",
+        "omGuidedCandidateSessionCount": 5,
+        "omGuidedEvidenceFilteredFrom": 30,
+        "omGuidedEvidenceFilteredTo": 5,
+        "omGuidedSessionScores": [
+          {
+            "sessionId": "answer_edb03329",
+            "score": 0.524516006239144
+          },
+          {
+            "sessionId": "sharegpt_osTHjYi_0",
+            "score": 0.3119914953051736
+          },
+          {
+            "sessionId": "6a5b5a78",
+            "score": 0.2987242777572351
+          },
+          {
+            "sessionId": "6be54739_3",
+            "score": 0.2847509721812613
+          },
+          {
+            "sessionId": "6dcf5fa0_1",
+            "score": 0.27679243330432407
+          }
+        ],
+        "omRetrievedPassagesCount": 5,
+        "replayStats": {
+          "sessionsReplayed": 54,
+          "turnsReplayed": 508,
+          "durationMs": 64878
+        },
+        "recalledTraces": 30,
+        "omGuidedRetrieval": true,
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omWithRetrieval": false,
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 60,
+        "omPerSessionBatches": 54,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 66119,
+        "omObserverTokensIn": 455376,
+        "omObserverTokensOut": 21551,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_edb03329"
+      ]
+    },
+    {
+      "caseId": "06878be2",
+      "actualOutput": "Given your current photography setup with the Sony A7R IV and the Godox V1 flash, here are some accessories that could complement your gear:\n\n1. **Lenses**: Consider expanding your lens collection to cover different focal lengths and styles. For example, a wide-angle lens for landscapes or a prime lens for portraits could be great additions.\n\n2. **Tripod**: Since you're considering the Gitzo GT3543LS, this would be an excellent choice for stability and durability, especially for landscape or long-exposure photography.\n\n3. **Camera Bag**: A comfortable and durable camera bag is essential. Brands like Think Tank Photo, Lowepro, and Peak Design offer great options that are compatible with Sony cameras.\n\n4. **External Battery Pack**: To keep your camera and other devices charged on the go, consider an external battery pack like the Anker PowerCore 20000 PD or Mophie Powerstation XXL.\n\n5. **Lens Filters**: Polarizing filters can enhance landscape photography by reducing glare and improving color saturation. ND filters are useful for long-exposure shots.\n\n6. **Remote Shutter Release**: This can be helpful for long exposures or when you want to avoid camera shake.\n\n7. **Memory Cards**: High-speed memory cards",
+      "latencyMs": 102761,
+      "tokensIn": 22559,
+      "tokensOut": 256,
+      "usd": 0.0589575,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-preference",
+        "omGuidedCandidateSessionCount": 5,
+        "omGuidedEvidenceFilteredFrom": 30,
+        "omGuidedEvidenceFilteredTo": 7,
+        "omGuidedSessionScores": [
+          {
+            "sessionId": "answer_555dfb94",
+            "score": 0.4947470736815574
+          },
+          {
+            "sessionId": "8fcfbe43_2",
+            "score": 0.2935432558999903
+          },
+          {
+            "sessionId": "dc18f65b",
+            "score": 0.2659643430357837
+          },
+          {
+            "sessionId": "ultrachat_474421",
+            "score": 0.24538629814405008
+          },
+          {
+            "sessionId": "465e7ef9",
+            "score": 0.24033857968604858
+          }
+        ],
+        "omRetrievedPassagesCount": 5,
+        "replayStats": {
+          "sessionsReplayed": 50,
+          "turnsReplayed": 443,
+          "durationMs": 71494
+        },
+        "recalledTraces": 30,
+        "omGuidedRetrieval": true,
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omWithRetrieval": false,
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 56,
+        "omPerSessionBatches": 50,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 74093,
+        "omObserverTokensIn": 438167,
+        "omObserverTokensOut": 22714,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_555dfb94"
+      ]
+    },
+    {
+      "caseId": "75832dbd",
+      "actualOutput": "Given your expertise and interests in deep learning for medical image analysis, explainable AI, and reinforcement learning, here are some recent publications and conferences that might be of interest to you:\n\n### Publications:\n1. **\"Multi-Modal Fusion with Deep Neural Networks for Medical Image Analysis\"** by Wang et al. (2019) - This paper surveys multi-modal image fusion using deep neural networks, which could be relevant given your interest in multi-modal image fusion.\n2. **\"Explainable AI in Medical Imaging: A Survey\"** by Rajpurkar et al. (2020) - A comprehensive survey of explainable AI techniques in medical imaging, which aligns with your interest in explainable AI.\n3. **\"Transfer Learning for Medical Image Analysis: A Review\"** by Rajpurkar et al. (2020) - This review paper covers various applications and challenges in transfer learning for medical image analysis.\n\n### Conferences:\n1. **NeurIPS (Neural Information Processing Systems)** - A leading conference in AI and machine learning, where you can find cutting-edge research on deep learning and reinforcement learning.\n2. **CVPR (Conference on Computer Vision and Pattern Recognition)** - This conference often features advancements in medical image analysis and computer vision.\n3. **IC",
+      "latencyMs": 95215,
+      "tokensIn": 22780,
+      "tokensOut": 256,
+      "usd": 0.05951,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-preference",
+        "omGuidedCandidateSessionCount": 5,
+        "omGuidedEvidenceFilteredFrom": 30,
+        "omGuidedEvidenceFilteredTo": 7,
+        "omGuidedSessionScores": [
+          {
+            "sessionId": "answer_d87a6ef8",
+            "score": 0.40591810689016766
+          },
+          {
+            "sessionId": "sharegpt_E0YL5SX_157",
+            "score": 0.3119132159474919
+          },
+          {
+            "sessionId": "sharegpt_xni9yYO_6",
+            "score": 0.3116082441209726
+          },
+          {
+            "sessionId": "6172cc72_1",
+            "score": 0.28192720809744426
+          },
+          {
+            "sessionId": "c51583cd_1",
+            "score": 0.2818675307218367
+          }
+        ],
+        "omRetrievedPassagesCount": 5,
+        "replayStats": {
+          "sessionsReplayed": 51,
+          "turnsReplayed": 474,
+          "durationMs": 61927
+        },
+        "recalledTraces": 30,
+        "omGuidedRetrieval": true,
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omWithRetrieval": false,
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 57,
+        "omPerSessionBatches": 51,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 71988,
+        "omObserverTokensIn": 438291,
+        "omObserverTokensOut": 21857,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_d87a6ef8"
+      ]
+    },
+    {
+      "caseId": "0edc2aef",
+      "actualOutput": "For your upcoming trip to Miami, here are a few hotel recommendations that offer great amenities and locations:\n\n1. **Fontainebleau Miami Beach**: This iconic hotel offers luxurious accommodations, a variety of dining options, and a lively nightlife scene. It's located right on the beach, providing stunning ocean views.\n\n2. **The Ritz-Carlton, South Beach**: Known for its exceptional service, this hotel is situated in the heart of South Beach. It offers a beautiful beachfront location, a luxurious spa, and easy access to the vibrant nightlife of Miami.\n\n3. **EAST Miami**: Located in the Brickell City Centre, this modern hotel offers a rooftop bar with panoramic views of the city, spacious rooms, and a convenient location for exploring downtown Miami.\n\n4. **The Setai, Miami Beach**: This hotel combines Asian-inspired design with Art Deco architecture. It offers a serene atmosphere, beachfront access, and a renowned spa.\n\n5. **W South Beach**: Known for its chic design and vibrant atmosphere, this hotel offers spacious suites, a lively pool scene, and direct beach access.\n\nEach of these hotels offers unique features and amenities, so you can choose one that best fits your preferences for your Miami trip.",
+      "latencyMs": 111790,
+      "tokensIn": 22022,
+      "tokensOut": 249,
+      "usd": 0.057545,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-preference",
+        "omGuidedCandidateSessionCount": 5,
+        "omGuidedEvidenceFilteredFrom": 30,
+        "omGuidedEvidenceFilteredTo": 0,
+        "omGuidedSessionScores": [
+          {
+            "sessionId": "answer_d586e9cd",
+            "score": 0.3265185928593569
+          },
+          {
+            "sessionId": "f20e72e4_1",
+            "score": 0.2598117169280811
+          },
+          {
+            "sessionId": "8464304d_2",
+            "score": 0.2421070910121367
+          },
+          {
+            "sessionId": "3c3a9042_3",
+            "score": 0.20830160019868435
+          },
+          {
+            "sessionId": "6a747f2e",
+            "score": 0.20586226307103803
+          }
+        ],
+        "omRetrievedPassagesCount": 5,
+        "replayStats": {
+          "sessionsReplayed": 49,
+          "turnsReplayed": 475,
+          "durationMs": 79680
+        },
+        "recalledTraces": 30,
+        "omGuidedRetrieval": true,
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omWithRetrieval": false,
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 55,
+        "omPerSessionBatches": 49,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 71941,
+        "omObserverTokensIn": 436195,
+        "omObserverTokensOut": 21912,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes."
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_d586e9cd"
+      ]
+    },
+    {
+      "caseId": "e47becba",
+      "actualOutput": "You graduated with a degree in Business Administration.",
+      "latencyMs": 103615,
+      "tokensIn": 21980,
+      "tokensOut": 9,
+      "usd": 0.05504,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "omGuidedCandidateSessionCount": 5,
+        "omGuidedEvidenceFilteredFrom": 30,
+        "omGuidedEvidenceFilteredTo": 3,
+        "omGuidedSessionScores": [
+          {
+            "sessionId": "sharegpt_PdnvIns_0",
+            "score": 0.1929684871977891
+          },
+          {
+            "sessionId": "sharegpt_Jcy1CVN_0",
+            "score": 0.1724051720517131
+          },
+          {
+            "sessionId": "sharegpt_UnjngE7_65",
+            "score": 0.14997313254466557
+          },
+          {
+            "sessionId": "sharegpt_T1EiHWI_13",
+            "score": 0.13270639597760595
+          },
+          {
+            "sessionId": "sharegpt_QZMeA7V_17",
+            "score": 0.12974050453891312
+          }
+        ],
+        "omRetrievedPassagesCount": 3,
+        "replayStats": {
+          "sessionsReplayed": 54,
+          "turnsReplayed": 550,
+          "durationMs": 67886
+        },
+        "recalledTraces": 30,
+        "omGuidedRetrieval": true,
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omWithRetrieval": false,
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 60,
+        "omPerSessionBatches": 54,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 75694,
+        "omObserverTokensIn": 452861,
+        "omObserverTokensOut": 24094,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_280352e9"
+      ]
+    },
+    {
+      "caseId": "118b2229",
+      "actualOutput": "Your daily commute to work takes approximately 45 minutes each way. You mentioned that you enjoy listening to audiobooks during this time, which is a great way to make the most of your commute. If you need any more information or assistance, feel free to ask!",
+      "latencyMs": 90148,
+      "tokensIn": 21167,
+      "tokensOut": 53,
+      "usd": 0.05344750000000001,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "omGuidedCandidateSessionCount": 5,
+        "omGuidedEvidenceFilteredFrom": 30,
+        "omGuidedEvidenceFilteredTo": 9,
+        "omGuidedSessionScores": [
+          {
+            "sessionId": "5cd6ab1b",
+            "score": 0.32055253369270303
+          },
+          {
+            "sessionId": "7d8b5834_1",
+            "score": 0.23424791585516636
+          },
+          {
+            "sessionId": "answer_40a90d51",
+            "score": 0.23240976418133982
+          },
+          {
+            "sessionId": "0afa904a",
+            "score": 0.22467346956982032
+          },
+          {
+            "sessionId": "004edb32",
+            "score": 0.21952278170142558
+          }
+        ],
+        "omRetrievedPassagesCount": 5,
+        "replayStats": {
+          "sessionsReplayed": 47,
+          "turnsReplayed": 497,
+          "durationMs": 61600
+        },
+        "recalledTraces": 30,
+        "omGuidedRetrieval": true,
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omWithRetrieval": false,
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 53,
+        "omPerSessionBatches": 47,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 70412,
+        "omObserverTokensIn": 427995,
+        "omObserverTokensOut": 21797,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "Yes"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_40a90d51"
+      ]
+    },
+    {
+      "caseId": "51a45a95",
+      "actualOutput": "You redeemed a $5 coupon on coffee creamer at Target.",
+      "latencyMs": 183537,
+      "tokensIn": 36209,
+      "tokensOut": 13,
+      "usd": 0.09065250000000001,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "omGuidedCandidateSessionCount": 5,
+        "omGuidedEvidenceFilteredFrom": 30,
+        "omGuidedEvidenceFilteredTo": 6,
+        "omGuidedSessionScores": [
+          {
+            "sessionId": "answer_d61669c7",
+            "score": 0.41926848546467005
+          },
+          {
+            "sessionId": "07d1915d_1",
+            "score": 0.20012484190301816
+          },
+          {
+            "sessionId": "sharegpt_MKMWjX0_25",
+            "score": 0.19328102054795507
+          },
+          {
+            "sessionId": "f32d1ccf_1",
+            "score": 0.19160265524159126
+          },
+          {
+            "sessionId": "sharegpt_apWLb2c_0",
+            "score": 0.18371951833785033
+          }
+        ],
+        "omRetrievedPassagesCount": 5,
+        "replayStats": {
+          "sessionsReplayed": 51,
+          "turnsReplayed": 529,
+          "durationMs": 65491
+        },
+        "recalledTraces": 30,
+        "omGuidedRetrieval": true,
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omWithRetrieval": false,
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 57,
+        "omPerSessionBatches": 51,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 138726,
+        "omObserverTokensIn": 442686,
+        "omObserverTokensOut": 37497,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "yes"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_d61669c7"
+      ]
+    },
+    {
+      "caseId": "58bf7951",
+      "actualOutput": "You attended a production of \"The Glass Menagerie\" at the local community theater.",
+      "latencyMs": 150882,
+      "tokensIn": 20604,
+      "tokensOut": 17,
+      "usd": 0.051680000000000004,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "single-session-user",
+        "omGuidedCandidateSessionCount": 5,
+        "omGuidedEvidenceFilteredFrom": 30,
+        "omGuidedEvidenceFilteredTo": 9,
+        "omGuidedSessionScores": [
+          {
+            "sessionId": "answer_355c48bb",
+            "score": 0.5011774574668103
+          },
+          {
+            "sessionId": "ultrachat_155546",
+            "score": 0.22123067506147653
+          },
+          {
+            "sessionId": "66960ea1_1",
+            "score": 0.18934780595379436
+          },
+          {
+            "sessionId": "987b36db_2",
+            "score": 0.1881607687652183
+          },
+          {
+            "sessionId": "793382f9_2",
+            "score": 0.18423973064763746
+          }
+        ],
+        "omRetrievedPassagesCount": 5,
+        "replayStats": {
+          "sessionsReplayed": 62,
+          "turnsReplayed": 616,
+          "durationMs": 115103
+        },
+        "recalledTraces": 30,
+        "omGuidedRetrieval": true,
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omWithRetrieval": false,
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 68,
+        "omPerSessionBatches": 62,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 71692,
+        "omObserverTokensIn": 488129,
+        "omObserverTokensOut": 22646,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 1,
+      "passed": true,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "yes"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_355c48bb"
+      ]
+    },
+    {
+      "caseId": "gpt4_59149c77",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "Embedding request failed (503): upstream connect error or disconnect/reset before headers. reset reason: connection timeout",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "gpt4_f49edff3",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "Embedding request failed (503): upstream connect error or disconnect/reset before headers. reset reason: connection timeout",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "71017276",
+      "actualOutput": "You mentioned receiving the crystal chandelier from your aunt on March 4, 2023. Today is March 4, 2023, so you received the chandelier today.",
+      "latencyMs": 158687,
+      "tokensIn": 21271,
+      "tokensOut": 35,
+      "usd": 0.053527500000000006,
+      "metadata": {
+        "memoryMode": "full-cognitive",
+        "replayMode": "ingest",
+        "caseType": "temporal-reasoning",
+        "omGuidedCandidateSessionCount": 5,
+        "omGuidedEvidenceFilteredFrom": 30,
+        "omGuidedEvidenceFilteredTo": 6,
+        "omGuidedSessionScores": [
+          {
+            "sessionId": "answer_0b4a8adc_1",
+            "score": 0.4574293895222854
+          },
+          {
+            "sessionId": "f78a22b6_4",
+            "score": 0.30027369846656743
+          },
+          {
+            "sessionId": "sharegpt_CjoQMV6_0",
+            "score": 0.23590970864581765
+          },
+          {
+            "sessionId": "398f23e7",
+            "score": 0.21312493376911362
+          },
+          {
+            "sessionId": "sharegpt_5pIFvuH_0",
+            "score": 0.20999938987504363
+          }
+        ],
+        "omRetrievedPassagesCount": 5,
+        "replayStats": {
+          "sessionsReplayed": 49,
+          "turnsReplayed": 614,
+          "durationMs": 123801
+        },
+        "recalledTraces": 30,
+        "omGuidedRetrieval": true,
+        "omBatchTokenTarget": 24000,
+        "omMode": "dual-path",
+        "omReaderScaffold": true,
+        "omObserverModel": "gpt-4o",
+        "omWithRetrieval": false,
+        "omSynthesisModel": null,
+        "omSynthesisFired": false,
+        "omObservationBatches": 55,
+        "omPerSessionBatches": 49,
+        "omBatchedBatches": 6,
+        "omReflectionsFired": 0,
+        "omFinalLogChars": 64363,
+        "omObserverTokensIn": 430523,
+        "omObserverTokensOut": 20785,
+        "omReflectorTokensIn": 0,
+        "omReflectorTokensOut": 0
+      },
+      "score": 0,
+      "passed": false,
+      "scoreMetadata": {
+        "judgeModel": "gpt-4o-2024-08-06",
+        "rubricVersion": "2026-04-18.1",
+        "reasoning": "No"
+      },
+      "retrievalMetrics": {
+        "recallAtK": 0,
+        "precisionAtK": 0,
+        "ndcgAtK": 0,
+        "mrr": 0,
+        "k": 10,
+        "goldCount": 1,
+        "retrievedCount": 0,
+        "hits": 0,
+        "goldSessionsHit": 0
+      },
+      "retrievalStageMetrics": null,
+      "goldSessionIds": [
+        "answer_0b4a8adc_1"
+      ]
+    },
+    {
+      "caseId": "b46e15ed",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "Embedding request failed (503): upstream connect error or disconnect/reset before headers. reset reason: connection timeout",
+      "score": 0,
+      "passed": false
+    }
+  ],
+  "accuracyCI": {
+    "value": 0.5,
+    "ciLo": 0.2916666666666667,
+    "ciHi": 0.7083333333333334,
+    "resamples": 10000,
+    "ci": 0.95
+  },
+  "byTypeCI": {
+    "knowledge-update": {
+      "value": 0.5,
+      "ciLo": 0,
+      "ciHi": 1,
+      "resamples": 10000,
+      "ci": 0.95
+    },
+    "multi-session": {
+      "value": 0.3333333333333333,
+      "ciLo": 0,
+      "ciHi": 1,
+      "resamples": 10000,
+      "ci": 0.95
+    },
+    "unknown": {
+      "value": 0,
+      "ciLo": 0,
+      "ciHi": 0,
+      "resamples": 10000,
+      "ci": 0.95
+    },
+    "single-session-assistant": {
+      "value": 1,
+      "ciLo": 1,
+      "ciHi": 1,
+      "resamples": 10000,
+      "ci": 0.95
+    },
+    "single-session-preference": {
+      "value": 0.75,
+      "ciLo": 0.25,
+      "ciHi": 1,
+      "resamples": 10000,
+      "ci": 0.95
+    },
+    "single-session-user": {
+      "value": 1,
+      "ciLo": 1,
+      "ciHi": 1,
+      "resamples": 10000,
+      "ci": 0.95
+    },
+    "temporal-reasoning": {
+      "value": 0,
+      "ciLo": 0,
+      "ciHi": 0,
+      "resamples": 0,
+      "ci": 0.95
+    }
+  },
+  "weightedAccuracyCI": {
+    "value": 0.46366666666666667,
+    "ciLo": 0.258,
+    "ciHi": 0.6596000000000001,
+    "resamples": 10000,
+    "ci": 0.95
+  }
+}
