@@ -76,7 +76,7 @@ export interface TokenRetentionResult {
     perCategory: Record<string, TokenRetentionPerCorrectness>;
     overall: TokenRetentionPerCorrectness;
   };
-  /** Cases excluded from per-category aggregate (n < 3 high-IDF tokens after filtering). */
+  /** Cases excluded from per-category aggregate (zero high-IDF tokens after stopword + length filtering). */
   excluded: TokenRetentionExclusion[];
 }
 
@@ -168,6 +168,20 @@ function computePerCase(
     e2e: scoreStageRetention(tokens, reader),
   };
 
+  // SEMANTICS NOTE: `observerToReader` and `retrievedToReader` are
+  // ABSOLUTE reader-side retention rates (the reader's actualOutput
+  // scored against the gold high-IDF tokens), reported per-stage-source
+  // when that upstream stage was present. They are NOT conditional rates
+  // (i.e., they do NOT divide reader retention by the upstream stage's
+  // retention). When BOTH observerLog AND retrievedJoined are present
+  // (e.g., the Step 16 OM + retrieval combined path), `e2e`,
+  // `observerToReader`, and `retrievedToReader` will all equal each
+  // other — they're the same reader-side measurement, surfaced under
+  // three names so per-stage attribution analyses can pivot freely
+  // without a separate join. For TRUE conditional rates (reader
+  // retention given that the gold token survived to a stage), compute
+  // post-hoc via `scoreStageRetention(tokens, reader) / max(epsilon,
+  // scoreStageRetention(tokens, observerLog))` at the consumer site.
   if (observerLog !== undefined) {
     rates.rawToObserver = scoreStageRetention(tokens, observerLog);
     rates.observerToReader = scoreStageRetention(tokens, reader);
@@ -181,24 +195,27 @@ function computePerCase(
   return { rates, tokenCount: tokens.length };
 }
 
+function aggregateStage(
+  rates: PerCaseStageRates[],
+  pick: (r: PerCaseStageRates) => number | undefined,
+  bootstrapResamples: number,
+  seed: number,
+): TokenRetentionStageRates | undefined {
+  const values = rates.map(pick).filter((v): v is number => typeof v === 'number');
+  if (values.length === 0) return undefined;
+  const ci = computeBootstrapCI(
+    values,
+    (s) => s.reduce((a, b) => a + b, 0) / s.length,
+    { resamples: bootstrapResamples, seed, ci: 0.95 },
+  );
+  return { n: values.length, retention: ci };
+}
+
 function aggregateBucket(
   rates: PerCaseStageRates[],
   bootstrapResamples: number,
   seed: number,
 ): TokenRetentionPerCategory {
-  function aggregateStage(
-    pick: (r: PerCaseStageRates) => number | undefined,
-  ): TokenRetentionStageRates | undefined {
-    const values = rates.map(pick).filter((v): v is number => typeof v === 'number');
-    if (values.length === 0) return undefined;
-    const ci = computeBootstrapCI(
-      values,
-      (s) => s.reduce((a, b) => a + b, 0) / s.length,
-      { resamples: bootstrapResamples, seed, ci: 0.95 },
-    );
-    return { n: values.length, retention: ci };
-  }
-
   const e2eValues = rates.map((r) => r.e2e);
   const e2eCI = computeBootstrapCI(
     e2eValues,
@@ -207,10 +224,10 @@ function aggregateBucket(
   );
 
   return {
-    rawToObserver: aggregateStage((r) => r.rawToObserver),
-    rawToRetrieved: aggregateStage((r) => r.rawToRetrieved),
-    observerToReader: aggregateStage((r) => r.observerToReader),
-    retrievedToReader: aggregateStage((r) => r.retrievedToReader),
+    rawToObserver: aggregateStage(rates, (r) => r.rawToObserver, bootstrapResamples, seed),
+    rawToRetrieved: aggregateStage(rates, (r) => r.rawToRetrieved, bootstrapResamples, seed),
+    observerToReader: aggregateStage(rates, (r) => r.observerToReader, bootstrapResamples, seed),
+    retrievedToReader: aggregateStage(rates, (r) => r.retrievedToReader, bootstrapResamples, seed),
     e2eRetention: { n: e2eValues.length, retention: e2eCI },
   };
 }

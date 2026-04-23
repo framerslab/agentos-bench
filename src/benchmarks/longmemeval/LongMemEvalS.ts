@@ -70,6 +70,7 @@ import {
   extractPerSessionBlocks,
   scoreSessionsByQueryRelevance,
   pickCandidateSessions,
+  CONDITIONAL_VERBATIM_CITATION,
   type OmSession,
   type QuestionCategory,
   type RouterConfig,
@@ -308,11 +309,18 @@ export class LongMemEvalS implements IBenchmark {
         classifierTokensOut = result.tokensOut;
         classifierModel = result.model;
       } catch {
+        // Classifier errored: fall back to the static DEFAULT_ROUTE
+        // (multi-session / runOM=true) so behavior degrades to v5 OM-only
+        // semantics rather than to the canonical retriever (which would
+        // bypass OM entirely and lose the cross-session signal).
+        // The 'multi-session' default category is intentional and pinned
+        // — if DEFAULT_ROUTE ever changes to a category not represented
+        // in the v11 routing table, revisit this default to ensure the
+        // fallback still routes through OM.
         routerCategory = 'multi-session';
         routerDecision = DEFAULT_ROUTE;
-        // Classifier errored: skip cost record. No tokens were consumed
-        // by us (the error came from the reader), so recording zeros is
-        // the honest accounting.
+        // Skip cost record: no tokens were consumed by us (the error came
+        // from the reader), so recording zeros is the honest accounting.
       }
       if (classifierTokensIn > 0 || classifierTokensOut > 0) {
         ctx.costTracker.record({
@@ -424,6 +432,13 @@ export class LongMemEvalS implements IBenchmark {
         // post-hoc session filter has enough headroom to find candidate-
         // session traces. Step 16 path uses finalK directly.
         const retrievalRecallTopK = guidedRetrievalOn ? finalK * 6 : finalK;
+        // Step 19: hybridSparseWeightOverride and hybridOverFetchMultiplier
+        // are intentionally NOT passed here. The Step 19 conditional retriever
+        // knobs are scoped to the canonical `runFullCognitiveCase` callsite
+        // below (line ~622) which serves the v10 router's canonical-route
+        // path. This OM-with-retrieval branch (Step 16 family, RED at Tier A)
+        // is reached only via static --om-with-retrieval, where the multi-
+        // session knob overrides have no validated effect.
         const fullCog = await runFullCognitiveCase(
           c,
           ctx,
@@ -537,7 +552,13 @@ export class LongMemEvalS implements IBenchmark {
       runMetadata.omReflectionsFired = ingest.reflections.length;
       runMetadata.omFinalLogChars = ingest.finalLog.length;
       // Step 18: capture full text for the token-retention metric.
-      runMetadata.omFinalLog = ingest.finalLog;
+      // Default behavior captures the full log so the per-stage retention
+      // rates are computable; opt out via --no-capture-retention-inputs
+      // when running benchmarks that don't consume the metric (saves
+      // ~10-20MB per cached run JSON at N=500).
+      if (ctx.config.captureRetentionInputs !== false) {
+        runMetadata.omFinalLog = ingest.finalLog;
+      }
       runMetadata.omObserverTokensIn = ingest.observerTokensIn;
       runMetadata.omObserverTokensOut = ingest.observerTokensOut;
       runMetadata.omReflectorTokensIn = ingest.reflectorTokensIn;
@@ -572,8 +593,45 @@ export class LongMemEvalS implements IBenchmark {
       //   1. ctx.config.readerTopK  (from --reader-top-k CLI flag)
       //   2. this.opts.recallTopK   (from adapter construction)
       //   3. 10                     (hardcoded fallback)
-      const effectiveRecallTopK =
+      const baseRecallTopK =
         ctx.config.readerTopK ?? this.opts.recallTopK ?? 10;
+
+      // Step 19A/B/C: per-case retriever overrides for MS questions.
+      // GROUND TRUTH category (c.type) is used, not router output —
+      // because v10's router sends MS to the OM path (where there is
+      // no retriever to tune), so the overrides would never fire if
+      // gated on routerCategory. Canonical-only mode (no router) is
+      // the intended target: MS cases flow through HybridRetriever
+      // and the override applies. Under v10 with --observational-memory,
+      // MS cases hit the OM branch and skip this code path entirely
+      // (this whole `else` block is the canonical-route branch).
+      const isMsCase = c.type === 'multi-session';
+      const effectiveRecallTopK =
+        isMsCase && typeof ctx.config.omRetrieverMsKOverride === 'number'
+          ? ctx.config.omRetrieverMsKOverride
+          : baseRecallTopK;
+      if (isMsCase && typeof ctx.config.omRetrieverMsKOverride === 'number') {
+        runMetadata.omRetrieverMsKApplied = ctx.config.omRetrieverMsKOverride;
+      }
+
+      // Step 19B: per-case BM25 weight override for MS questions.
+      const hybridSparseWeightForCase =
+        isMsCase && typeof ctx.config.omRetrieverMsBm25Weight === 'number'
+          ? ctx.config.omRetrieverMsBm25Weight
+          : undefined;
+      if (hybridSparseWeightForCase !== undefined) {
+        runMetadata.omRetrieverMsBm25Applied = hybridSparseWeightForCase;
+      }
+
+      // Step 19C: per-case over-fetch multiplier for MS questions.
+      const hybridOverFetchForCase =
+        isMsCase && typeof ctx.config.omRetrieverMsOverFetchMultiplier === 'number'
+          ? ctx.config.omRetrieverMsOverFetchMultiplier
+          : undefined;
+      if (hybridOverFetchForCase !== undefined) {
+        runMetadata.omRetrieverMsOverFetchApplied = hybridOverFetchForCase;
+      }
+
       const out = await runFullCognitiveCase(
         c,
         ctx,
@@ -594,8 +652,16 @@ export class LongMemEvalS implements IBenchmark {
         this.opts.observerReflectorReplaceEnabled,
         this.opts.factGraphIngestEnabled,
         this.opts.graphActivationEnabled,
+        hybridSparseWeightForCase,
+        hybridOverFetchForCase,
       );
       system = out.prompt;
+      // Step 18 v2 + Step 19 stacked test (NULL at Tier A): the
+      // canonical-verbatim wiring added briefly here did not move
+      // accuracy on canonical mode. Reverted to keep Phase B v2
+      // confirmation exact to the variant that hit 78.4% Phase A.
+      // (Step 18 v2's verbatim rule fires only via the OM reader
+      // path, gated by routerCategory inside buildOmReaderSystemPrompt.)
       runMetadata.replayStats = out.replayStats;
       runMetadata.recalledTraces = out.recallCount;
       runMetadata.workingMemorySlots = out.workingMemorySlots;
@@ -1206,6 +1272,13 @@ export async function runFullCognitiveCase(
   observerReflectorReplaceEnabled?: boolean,
   factGraphIngestEnabled?: boolean,
   graphActivationEnabled?: boolean,
+  // Step 19B/C: per-case retriever overrides for the HybridRetriever
+  // pipeline. Applied at the `hybridRetriever.retrieve()` call site
+  // when set. Caller (runCase) decides whether to populate these based
+  // on the v10 router category. HybridRetriever already supports these
+  // as per-call options; bench just plumbs them through.
+  hybridSparseWeightOverride?: number,
+  hybridOverFetchMultiplierOverride?: number,
 ): Promise<FullCognitiveOutput> {
   // Step 3 mutex: combined hybrid + session-level retrieval is Step 7
   // territory; MVP rejects the combination explicitly.
@@ -1395,11 +1468,27 @@ export async function runFullCognitiveCase(
     // unchanged.
     let retrieval: import('@framers/agentos').CognitiveRetrievalResult;
     if (hybridRetriever) {
+      // Step 19B/C: when caller passes per-case overrides, derive the
+      // HybridRetrieve options. sparseWeight maps directly; denseWeight
+      // is the complement (sums to 1.0 for a normalized RRF blend).
+      const hybridOptions: {
+        recallTopK: number;
+        sparseWeight?: number;
+        denseWeight?: number;
+        overFetchMultiplier?: number;
+      } = { recallTopK: retrievalTopK };
+      if (typeof hybridSparseWeightOverride === 'number') {
+        hybridOptions.sparseWeight = hybridSparseWeightOverride;
+        hybridOptions.denseWeight = 1 - hybridSparseWeightOverride;
+      }
+      if (typeof hybridOverFetchMultiplierOverride === 'number') {
+        hybridOptions.overFetchMultiplier = hybridOverFetchMultiplierOverride;
+      }
       retrieval = await hybridRetriever.retrieve(
         c.question,
         { valence: 0, arousal: 0, dominance: 0 },
         { scope: 'user', scopeId: 'bench' },
-        { recallTopK: retrievalTopK },
+        hybridOptions,
       );
     } else if (sessionSummaryStore && embedder) {
       const { SessionRetriever } = await import('@framers/agentos/memory');
