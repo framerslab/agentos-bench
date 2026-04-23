@@ -52,6 +52,7 @@ import {
   computeLatencyBreakdown,
   computeStratifiedAccuracy,
   computeTokenEfficiency,
+  computeTokenRetention,
   LONGMEMEVAL_S_PRIORS,
   type MemoryFootprint,
 } from '../../core/metrics/index.js';
@@ -256,6 +257,11 @@ export class LongMemEvalS implements IBenchmark {
       memoryMode: mode,
       replayMode: ctx.config.replayMode,
       caseType: c.type,
+      // Step 18: carry gold answer + canonical-name category for the
+      // token-retention metric. The aggregator reads these without
+      // needing the original BenchmarkCase object.
+      expected: c.expected,
+      type: c.type,
     };
 
     // Step 16c v2: per-question dynamic router. When --om-dynamic-router
@@ -511,6 +517,12 @@ export class LongMemEvalS implements IBenchmark {
       system = buildOmReaderSystemPrompt(ingest.finalLog, {
         includeScaffold: effectiveScaffold,
         retrievedPassages,
+        // Step 18 v2: pass per-question router category so the OM
+        // reader prompt conditionally appends the verbatim-citation
+        // rule for KU/SSU questions only. When the router is off
+        // (routerCategory stays null), the prompt is unchanged from
+        // the baseline.
+        routerCategory: routerCategory ?? undefined,
       });
       runMetadata.omBatchTokenTarget = ctx.config.omBatchTokenTarget ?? 24_000;
       runMetadata.omMode = ctx.config.omMode ?? 'dual-path';
@@ -524,6 +536,8 @@ export class LongMemEvalS implements IBenchmark {
       runMetadata.omBatchedBatches = ingest.batchedBatches.length;
       runMetadata.omReflectionsFired = ingest.reflections.length;
       runMetadata.omFinalLogChars = ingest.finalLog.length;
+      // Step 18: capture full text for the token-retention metric.
+      runMetadata.omFinalLog = ingest.finalLog;
       runMetadata.omObserverTokensIn = ingest.observerTokensIn;
       runMetadata.omObserverTokensOut = ingest.observerTokensOut;
       runMetadata.omReflectorTokensIn = ingest.reflectorTokensIn;
@@ -978,6 +992,16 @@ export class LongMemEvalS implements IBenchmark {
 
     const tokensPerCorrect = computeTokenEfficiency(ctx.costTracker, passed);
 
+    // Step 18: per-stage token retention. Pure aggregation over case
+    // metadata (omFinalLog, retrievedEvidence, expected, type/caseType).
+    // Reuses the bench's bootstrap-resamples + seed for CI consistency
+    // with accuracyCI / weightedAccuracyCI.
+    const tokenRetention = computeTokenRetention({
+      cases: results,
+      bootstrapResamples: ctx.config.bootstrapResamples ?? 10_000,
+      seed: ctx.config.seed ?? 42,
+    });
+
     return {
       benchmarkId: this.id,
       benchmarkVersion: this.version,
@@ -1002,6 +1026,7 @@ export class LongMemEvalS implements IBenchmark {
       stratifiedAccuracy,
       memoryFootprint: aggregateMemoryFootprint,
       tokensPerCorrect,
+      tokenRetention,
       cases: results,
     };
   }

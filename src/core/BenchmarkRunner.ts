@@ -171,6 +171,13 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     // Step-17: number of candidate sessions to keep. Smaller K narrows
     // scope (less pollution) but risks missing the gold session.
     omGuidedRetrievalK: cfg.omGuidedRetrievalK,
+    // Step-19A/B/C: per-case retriever overrides for MS-classified
+    // cases (only applied when omDynamicRouter is on AND the v10
+    // classifier predicts 'multi-session'). Each variant cache-keys
+    // independently so all three can fire at Tier A in parallel.
+    omRetrieverMsKOverride: cfg.omRetrieverMsKOverride,
+    omRetrieverMsBm25Weight: cfg.omRetrieverMsBm25Weight,
+    omRetrieverMsOverFetchMultiplier: cfg.omRetrieverMsOverFetchMultiplier,
   };
 }
 
@@ -519,6 +526,37 @@ export function computeCaseRunKeyParts(
         resultKeyParts.push(kTag);
       }
     }
+  }
+
+  // Step 18: token-retention instrumentation. One-time fingerprint
+  // bump so all runs after this change write fresh case-run entries
+  // with metadata.omFinalLog + metadata.expected + metadata.type
+  // captured. Subsequent runs reuse the new case-run cache normally.
+  // Bumped on BOTH runKey and resultKey so cached scored results are
+  // also re-judged once.
+  const retentionTag = 'retention-instrumentation:v1';
+  runKeyParts.push(retentionTag);
+  resultKeyParts.push(retentionTag);
+
+  // Step 19A: K-override for MS-classified cases. Cache fingerprint
+  // appended only when the override is set. Three Step 19 variants
+  // (A/B/C) cache independently so they can fire at Tier A in parallel.
+  if (typeof config.omRetrieverMsKOverride === 'number') {
+    const tag = `step-19a-ms-k:${config.omRetrieverMsKOverride}`;
+    runKeyParts.push(tag);
+    resultKeyParts.push(tag);
+  }
+  // Step 19B: BM25-heavy RRF for MS-classified cases.
+  if (typeof config.omRetrieverMsBm25Weight === 'number') {
+    const tag = `step-19b-ms-bm25:${config.omRetrieverMsBm25Weight.toFixed(2)}`;
+    runKeyParts.push(tag);
+    resultKeyParts.push(tag);
+  }
+  // Step 19C: over-fetch multiplier for MS-classified cases.
+  if (typeof config.omRetrieverMsOverFetchMultiplier === 'number') {
+    const tag = `step-19c-ms-overfetch:${config.omRetrieverMsOverFetchMultiplier.toFixed(1)}`;
+    runKeyParts.push(tag);
+    resultKeyParts.push(tag);
   }
 
   return { runKeyParts, resultKeyParts };

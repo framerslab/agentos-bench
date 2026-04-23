@@ -13,6 +13,103 @@ import {
 import { OM_PROMPT_HASH } from '../src/observational-memory/prompts.js';
 import type { RunConfig } from '../src/core/IBenchmark.js';
 
+describe('Step 19 conditional retriever tuning fingerprints', () => {
+  const baseConfig: RunConfig = {
+    reader: 'gpt-4o',
+    memoryMode: 'full-cognitive',
+    replayMode: 'ingest',
+    rerank: { provider: 'cohere' },
+    contextSummary: 'gpt-5-mini',
+    hybridRetrieval: true,
+    readerTopK: 10,
+  } as RunConfig;
+
+  it('appends step-19a-ms-k:{n} when omRetrieverMsKOverride is set', () => {
+    const { runKeyParts, resultKeyParts } = computeCaseRunKeyParts(
+      { ...baseConfig, omRetrieverMsKOverride: 30 } as RunConfig,
+      'case-1',
+    );
+    expect(runKeyParts).toContain('step-19a-ms-k:30');
+    expect(resultKeyParts).toContain('step-19a-ms-k:30');
+  });
+
+  it('appends step-19b-ms-bm25:{w} when omRetrieverMsBm25Weight is set', () => {
+    const { runKeyParts, resultKeyParts } = computeCaseRunKeyParts(
+      { ...baseConfig, omRetrieverMsBm25Weight: 0.7 } as RunConfig,
+      'case-1',
+    );
+    expect(runKeyParts).toContain('step-19b-ms-bm25:0.70');
+    expect(resultKeyParts).toContain('step-19b-ms-bm25:0.70');
+  });
+
+  it('appends step-19c-ms-overfetch:{m} when omRetrieverMsOverFetchMultiplier is set', () => {
+    const { runKeyParts, resultKeyParts } = computeCaseRunKeyParts(
+      { ...baseConfig, omRetrieverMsOverFetchMultiplier: 6.0 } as RunConfig,
+      'case-1',
+    );
+    expect(runKeyParts).toContain('step-19c-ms-overfetch:6.0');
+    expect(resultKeyParts).toContain('step-19c-ms-overfetch:6.0');
+  });
+
+  it('omits all Step 19 tags when none set (baseline preserved)', () => {
+    const { runKeyParts } = computeCaseRunKeyParts(baseConfig, 'case-1');
+    expect(runKeyParts.some((p) => typeof p === 'string' && p.startsWith('step-19'))).toBe(false);
+  });
+
+  it('combines all three Step 19 tags when all are set', () => {
+    const { runKeyParts } = computeCaseRunKeyParts(
+      {
+        ...baseConfig,
+        omRetrieverMsKOverride: 30,
+        omRetrieverMsBm25Weight: 0.7,
+        omRetrieverMsOverFetchMultiplier: 6.0,
+      } as RunConfig,
+      'case-1',
+    );
+    expect(runKeyParts).toContain('step-19a-ms-k:30');
+    expect(runKeyParts).toContain('step-19b-ms-bm25:0.70');
+    expect(runKeyParts).toContain('step-19c-ms-overfetch:6.0');
+  });
+});
+
+describe('Step 18 retention-instrumentation cache fingerprint', () => {
+  it('appends retention-instrumentation:v1 to both keys for canonical config', () => {
+    const cfg: RunConfig = {
+      reader: 'gpt-4o',
+      memoryMode: 'full-cognitive',
+      replayMode: 'ingest',
+      rerank: { provider: 'cohere' },
+      contextSummary: 'gpt-5-mini',
+      hybridRetrieval: true,
+      readerTopK: 10,
+    } as RunConfig;
+    const { runKeyParts, resultKeyParts } = computeCaseRunKeyParts(cfg, 'case-1');
+    expect(runKeyParts).toContain('retention-instrumentation:v1');
+    expect(resultKeyParts).toContain('retention-instrumentation:v1');
+  });
+
+  it('appends retention-instrumentation:v1 to both keys for v10 router config', () => {
+    const cfg: RunConfig = {
+      reader: 'gpt-4o',
+      memoryMode: 'full-cognitive',
+      replayMode: 'ingest',
+      rerank: { provider: 'cohere' },
+      contextSummary: 'gpt-5-mini',
+      hybridRetrieval: true,
+      readerTopK: 10,
+      observationalMemory: true,
+      omMode: 'dual-path',
+      omReaderScaffold: true,
+      omObserverModel: 'gpt-4o',
+      omDynamicRouter: true,
+      omClassifierFewshot: true,
+    } as RunConfig;
+    const { runKeyParts, resultKeyParts } = computeCaseRunKeyParts(cfg, 'case-1');
+    expect(runKeyParts).toContain('retention-instrumentation:v1');
+    expect(resultKeyParts).toContain('retention-instrumentation:v1');
+  });
+});
+
 describe('Step 15 cache fingerprint', () => {
   const baseConfig: RunConfig = {
     reader: 'gpt-4o',

@@ -601,6 +601,21 @@ export function buildCli(): Command {
       parsePositiveInteger,
     )
     .option(
+      '--om-retriever-ms-k <n>',
+      'Step 19A: per-case readerTopK override for MS-classified cases (v10 router only). Default 10. Set to 30 for K=30 retrieval on multi-session questions; preserves baseline K for all other categories.',
+      parsePositiveInteger,
+    )
+    .option(
+      '--om-retriever-ms-bm25-weight <w>',
+      'Step 19B: per-case BM25 weight in RRF for MS-classified cases (v10 router only). Default RRF dense=0.7/sparse=0.3. Set to 0.7 for BM25-heavy fusion (dense=0.3/sparse=0.7) on multi-session questions only; preserves baseline weights for all other categories.',
+      parseFloatArg,
+    )
+    .option(
+      '--om-retriever-ms-overfetch <m>',
+      'Step 19C: per-case over-fetch multiplier for MS-classified cases (v10 router only). Default 3 (over-fetch K = recallTopK * 3). Set to 6 for K=60 over-fetch on multi-session questions only; preserves baseline over-fetch for all other categories.',
+      parseFloatArg,
+    )
+    .option(
       '--om-reader-scaffold',
       'Step 15 v4a: append a cross-session reasoning scaffold to the OM reader system prompt. The scaffold walks the reader through multi-step synthesis (scan all date-grouped sections, extract per-session facts, order chronologically, synthesize). Targets the v3 failure mode where the reader fixates on the most-recent-date observation block and misses cross-session synthesis. Only effective with --observational-memory. Default off.',
     )
@@ -725,6 +740,9 @@ export function buildCli(): Command {
         omClassifierFewshot: Boolean(opts.omClassifierFewshot),
         omGuidedRetrieval: Boolean(opts.omGuidedRetrieval),
         omGuidedRetrievalK: opts.omGuidedRetrievalK,
+        omRetrieverMsKOverride: opts.omRetrieverMsK,
+        omRetrieverMsBm25Weight: opts.omRetrieverMsBm25Weight,
+        omRetrieverMsOverFetchMultiplier: opts.omRetrieverMsOverfetch,
       };
 
       // Cost preflight — coarse but enough to catch "oh no I just
