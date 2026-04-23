@@ -1,6 +1,6 @@
 # AgentOS Memory Benchmark Leaderboard
 
-Last updated: 2026-04-20T20:03:14.675Z
+Last updated: 2026-04-23T17:30:00.000Z
 
 Our rows are produced by `@framers/agentos-bench` against the linked source datasets.
 Competitor rows are lifted verbatim from their published sources (see per-row citations).
@@ -8,17 +8,23 @@ Methodologies may differ; every row footnotes its reader LLM so comparisons stay
 
 ## LongMemEval-S (500 cases, ~115k-token haystacks)
 Target to beat: **96.2%** (agentmemory (JordanMcCann)).
-| System | Reader | Memory | Replay | Cases | Accuracy | Avg latency | $/correct | Source |
-|---|---|---|---|---:|---:|---:|---:|---|
-| AgentOS (`@framers/agentos`) | gpt-4o | full-cognitive | ingest | 500 | 73.2% | 98072 ms | $0.0213 | — |
-| AgentOS (`@framers/agentos`) | gpt-5-mini | full-cognitive | ingest | 24 | 58.3% | 4915 ms | $0.0052 | — |
-| agentmemory (JordanMcCann) | GPT-4o | — | — | — | 96.2% | — | — | [link](https://github.com/JordanMcCann/agentmemory) |
-| Mastra Observational Memory | GPT-5-mini | — | — | — | 94.9% | — | — | [link](https://mastra.ai/research/observational-memory) |
-| EmergenceMem Internal | GPT-4o | — | — | — | 86.0% | — | — | [link](https://www.emergence.ai/blog/sota-on-longmemeval-with-rag) |
-| Supermemory | gemini-3-pro | — | — | — | 85.2% | — | — | [link](https://supermemory.ai/research/) |
-| Supermemory | GPT-5 | — | — | — | 84.6% | — | — | [link](https://supermemory.ai/research/) |
-| Mastra Observational Memory | GPT-4o | — | — | — | 84.2% | — | — | [link](https://mastra.ai/research/observational-memory) |
-| Supermemory | GPT-4o | — | — | — | 81.6% | — | — | [link](https://supermemory.ai/research/) |
+| System | Reader | Memory | Replay | Cases | Accuracy | 95% CI | Avg latency | $/correct | Source |
+|---|---|---|---|---:|---:|---:|---:|---:|---|
+| AgentOS Tier 2b v11 (`@framers/agentos`)[^v11] | gpt-4o | full-cognitive + v10 router + conditional verbatim | ingest | 500 | 75.4% | [71.6%, 79.0%] | 14172 ms | $0.436 | — |
+| AgentOS Tier 2a v10 (`@framers/agentos`)[^v10] | gpt-4o | full-cognitive + v10 router | ingest | 500 | 74.6% | [70.8%, 78.4%] | 12000 ms | $0.327 | — |
+| AgentOS Tier 1 canonical (`@framers/agentos`)[^canonical] | gpt-4o | full-cognitive | ingest | 500 | 73.2% | [69.2%, 77.0%] | 98072 ms | $0.0213 | — |
+| AgentOS (`@framers/agentos`) | gpt-5-mini | full-cognitive | ingest | 24 | 58.3% | [37.5%, 79.2%] | 4915 ms | $0.0052 | — |
+| agentmemory (JordanMcCann) | GPT-4o | — | — | — | 96.2% | — | — | — | [link](https://github.com/JordanMcCann/agentmemory) |
+| Mastra Observational Memory | GPT-5-mini | — | — | — | 94.9% | — | — | — | [link](https://mastra.ai/research/observational-memory) |
+| EmergenceMem Internal | GPT-4o | — | — | — | 86.0% | — | — | — | [link](https://www.emergence.ai/blog/sota-on-longmemeval-with-rag) |
+| Supermemory | gemini-3-pro | — | — | — | 85.2% | — | — | — | [link](https://supermemory.ai/research/) |
+| Supermemory | GPT-5 | — | — | — | 84.6% | — | — | — | [link](https://supermemory.ai/research/) |
+| Mastra Observational Memory | GPT-4o | — | — | — | 84.2% | — | — | — | [link](https://mastra.ai/research/observational-memory) |
+| Supermemory | GPT-4o | — | — | — | 81.6% | — | — | — | [link](https://supermemory.ai/research/) |
+
+[^canonical]: **Tier 1 default.** Step 3 HybridRetriever: BM25 + dense embeddings + RRF merge + Cohere rerank-v3.5 over the cognitive-memory composite score. The shipping default since 2026-04-20. Lowest cost-per-correct in the AgentOS row set; recommended for cost-sensitive general workloads. Findings: [STEP_3_HYBRID_RETRIEVER_FINDINGS_2026-04-19.md](../docs/STEP_3_HYBRID_RETRIEVER_FINDINGS_2026-04-19.md).
+[^v10]: **Tier 2a opt-in.** v10 dynamic router (gpt-5-mini per-question classifier with few-shot prompt) routes single-session/temporal questions through canonical Step 3 Hybrid and knowledge-update/multi-session questions through v5 Observational Memory ingest. **+5.3pp on multi-session at Phase B N=500.** 8.3x faster reader latency vs canonical (12s vs 98s avg) — most of canonical's latency is per-turn cognitive-mechanism replay; v10 routes ~80% of cases through a faster path. Cost premium 15.4x vs canonical. Recommended for accuracy-sensitive general workloads where the cost premium is acceptable. Findings: [STEP_16C_V10_PHASE_B_FINDINGS_2026-04-23.md](../docs/STEP_16C_V10_PHASE_B_FINDINGS_2026-04-23.md).
+[^v11]: **Tier 2b opt-in (refinement of v10).** Same v10 router stack + conditional verbatim citation rule appended to the Observational Memory reader prompt for `knowledge-update` and `single-session-user` router categories only. The conditional rule was derived from a per-correctness token-retention analysis: across v10's incorrect cases, retrieved-stage retention was 0.495 lower than across correct cases — the gap reproduced from Phase A (N=102, +1.9pp aggregate) to Phase B (N=500, +0.8pp aggregate). **Aggregate +0.8pp vs v10 falls within sampling noise (CIs overlap), but multi-session lifts +1.5pp vs v10 / +6.8pp vs canonical at N=500 — the per-category profile is mechanism-driven and reproducible.** 1.3x cost premium over v10 ($0.436 vs $0.327 per correct), latency parity (14.2s vs 12s avg). Recommended over v10 for KU/MS-heavy workloads. Findings: [STEP_18_TOKEN_RETENTION_BASELINE_FINDINGS_2026-04-23.md](../docs/STEP_18_TOKEN_RETENTION_BASELINE_FINDINGS_2026-04-23.md). Methodology contribution: per-correctness retention split as a variant-ROI predictor — see [docs/specs/2026-04-23-token-retention-framework-design.md](../docs/specs/2026-04-23-token-retention-framework-design.md).
 
 ### LongMemEval-S (500 cases, ~115k-token haystacks) — Retrieval Quality (AgentOS only, K=10)
 

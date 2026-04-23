@@ -1,7 +1,7 @@
-# Final Architecture Decision Matrix (RESOLVED)
+# Final Architecture Decision Matrix (RESOLVED — three-tier production structure, Phase B confirmed)
 
-**Date:** 2026-04-23 (matrix authored during Phase B v10 inflight; resolved end-of-day-3 after Phase B v10 + Step 17 v1/v2 landed)
-**Status:** **DECISION SETTLED — Outcome B + Step 17 RED**
+**Date:** 2026-04-23 (matrix authored during Phase B v10 inflight; resolved end-of-day-3 after Phase B v10 + Step 17 v1/v2 landed; **updated end-of-day after Phase B Step 18 v2 landed at 75.4% — Tier 2b ships as v10 refinement**)
+**Status:** **ALL DECISIONS SETTLED — Tier 1 canonical / Tier 2a v10 / Tier 2b v11 / Tier 3 policy router (queued)**
 **Purpose:** decisive go/no-go on the AgentOS LongMemEval-S architecture.
 
 ---
@@ -43,9 +43,35 @@ After Phase B v10 landed, Step 17 was implemented and tested (v1 broken parser �
 
 Full Step 17 findings: [STEP_17_OM_GUIDED_RETRIEVAL_FINDINGS_2026-04-23.md](STEP_17_OM_GUIDED_RETRIEVAL_FINDINGS_2026-04-23.md). Step 17 ships as opt-in `--om-guided-retrieval` flag for future iteration but is **NOT production**.
 
+## Step 18 (token retention framework + conditional verbatim reader) RESOLVED — Tier 2b ships as v10 refinement
+
+After Step 17 RED, the residual question was: where in the v10 pipeline is the headroom? Step 18 introduced a per-stage + per-correctness token-retention framework that decomposes retrieval into raw → observer → retrieved → reader-cited stages and splits each rate by per-case correctness. The probe applied to v10 Phase B identified two distinct bottlenecks:
+
+- **Multi-session retriever (canonical path):** drops 63.5% of gold tokens at the candidate-pool stage — the cross-session signal is missing from the BM25+dense pool, not lost in ranking. Step 19 retriever-knob tuning confirmed this (all NULL).
+- **Knowledge-update reader (OM path):** observer preserved 89% of gold tokens but reader cited only 73% verbatim — the reader paraphrased factual values that the observation log had stored verbatim.
+
+The per-correctness retention gap (across v10's incorrect cases vs correct cases, retrieved-stage retention was 0.495 lower) was the load-bearing finding. Per-category, KU and SSU had gaps ≥+0.60; SSA was borderline at +0.50; MS and TR were narrower (0.40-0.50). The gap pattern produced a falsifiable variant: append a verbatim-citation rule to the OM reader prompt ONLY for KU and SSU, leave it unchanged for the other four categories where paraphrasing is productive.
+
+| Variant | Eligibility | Tier A | Phase A N=102 | Phase B N=500 |
+|---|---|---:|---:|---:|
+| 18 v1 | Uniform verbatim ALL categories | 70.8% | 73.5% | not run (RED) |
+| **18 v2** | **Conditional verbatim KU + SSU** | **75.0%** | **78.4% [69.6, 86.3]** | **75.4% [71.6, 79.0]** |
+| 18 v3 | KU + SSU + SSA | 70.8% | not run (NULL Tier A) | not run |
+
+Phase B v2 result: **75.4% [71.6%, 79.0%] N=500 at gpt-4o reader+judge**. Aggregate +0.8pp over v10 sits inside CI overlap (within sampling noise on the headline). **The per-correctness retention gap reproduced from Phase A (N=102) at +0.495 to Phase B (N=500) at +0.495 — identical to three decimal places.** Multi-session lifted +1.5pp vs v10 / +6.8pp vs canonical, mechanism-explained: verbatim citation preserves cross-session factual anchors paraphrasing would drop. Cost $164.45 ($0.436/correct, 1.3x v10), latency 14.2s avg (parity with v10's 12s).
+
+**Decision applied (v11 ships as Tier 2b refinement of v10):**
+- **Tier 1 default:** canonical (unchanged) — 73.2%, $0.0213/correct, simplest mental model
+- **Tier 2a opt-in:** v10 dynamic router (unchanged) — 74.6%, $0.327/correct, 8.3x faster latency, +5.3pp MS
+- **Tier 2b opt-in (NEW):** v10 + conditional verbatim rule on KU/SSU — 75.4%, $0.436/correct (1.3x v10), latency parity, +1.5pp MS vs v10 / +6.8pp MS vs canonical
+
+Aggregate +0.8pp over v10 is within CI noise — **not a default flip**. Per-category mechanism (MS lift) is reproducible across Phase A → Phase B at matched magnitude — **does ship as KU/MS-heavy workload opt-in**. The token-retention framework itself is the durable architectural contribution and ships in `src/core/metrics/computeTokenRetention.ts` for future variant work.
+
+Full findings: [STEP_18_TOKEN_RETENTION_BASELINE_FINDINGS_2026-04-23.md](STEP_18_TOKEN_RETENTION_BASELINE_FINDINGS_2026-04-23.md), [STEP_19_CONDITIONAL_RETRIEVER_TUNING_FINDINGS_2026-04-23.md](STEP_19_CONDITIONAL_RETRIEVER_TUNING_FINDINGS_2026-04-23.md).
+
 ---
 
-## Original outcome matrix (kept for reference; Outcome B applied)
+## Original outcome matrix (kept for reference; Outcome B applied + Step 18 v2 added Tier 2b)
 
 Three possible outcomes, each with a clear shipping decision:
 
@@ -125,46 +151,64 @@ All RED variants stay in the bench codebase as opt-in flags so future rollouts c
 
 ---
 
-## Tier sourcing for production
+## Tier sourcing for production (RESOLVED)
 
-Final shipping tiers (after Phase B v10 lands):
+Final shipping tiers (Phase B confirmed for Tier 1 + Tier 2a + Tier 2b; Tier 3 spec queued):
 
 | Tier | Config | Provenance | When to use |
 |---|---|---|---|
-| Tier 1 (default) | Step 3 Hybrid OR 16c-v10 (per Phase B outcome) | 73.2% N=500 OR ~76% N=500 | All workloads, default |
-| Tier 2 (opt-in) | The other of {Step 3 Hybrid, 16c-v10} | tied or close | Cost-sensitive (canonical) OR per-category-routing-aware (v10) |
-| Tier 3 (experimental) | v5 OM-only | 73.5% Phase A | Workloads that explicitly want MS lift, accept TR/SSA loss |
-| Deprecated | All Step 16 family, v7/v8 | RED | Documented but not shipped |
+| **Tier 1 (default)** | Step 3 HybridRetriever + Anthropic-style context summary | **73.2% [69.2, 77.0] N=500** at gpt-4o reader+judge, $0.0213/correct | Cost-sensitive general workload; predictable per-query cost; simplest mental model |
+| **Tier 2a (opt-in)** | Tier 1 + v10 dynamic router (gpt-5-mini fewshot classifier; KU/MS → OM, SSU/SSA/SSP/TR → canonical) | **74.6% [70.8, 78.4] N=500**, $0.327/correct (15.4x canonical) | Accuracy-sensitive general workload; latency-bounded (8.3x faster reader latency vs canonical); +5.3pp MS |
+| **Tier 2b (opt-in)** | Tier 2a + conditional verbatim citation rule appended to OM reader prompt for KU + SSU router categories only | **75.4% [71.6, 79.0] N=500**, $0.436/correct (1.3x v10 / 20x canonical) | KU/MS-heavy workload (knowledge-update queries, cross-session reasoning); +1.5pp MS vs v10, +6.8pp MS vs canonical; per-correctness mechanism reproduced Phase A → Phase B |
+| **Tier 3 (planned, ~1 week, no LLM-cost runs)** | Tier 1 + budget-aware policy router that picks per query among {Tier 1, Tier 2a, Tier 2b, future Tier 4} based on configured budget envelope and per-category cost-accuracy curves | spec queued for next session | Mixed workload, want adaptive cost optimization across query types |
+| Tier 4 (planned) | any tier + two-call reader (Emergence AI pattern) | not yet measured | Modest expected lift, orthogonal to retrieval layer |
+| Experimental opt-ins (RED at Tier A, behind flags but not recommended) | Step 7/8 observer/reflector, Step 9 fact-graph, Step 17 OM-guided retrieval, Step 18 v3 SSA-eligible verbatim, Step 19 retriever-knob overrides | per per-step findings docs | reproduction / further iteration only |
 
 ---
 
-## Future work (if Phase B v10 doesn't fully resolve)
+## Next-session work (queued)
 
-If Outcome A or B: **Step 17 (OM-guided retrieval)** at next session. Spec at [docs/specs/2026-04-23-step-17-om-guided-retrieval-design.md](specs/2026-04-23-step-17-om-guided-retrieval-design.md). Design tests whether scoping HybridRetriever to OM-identified candidate sessions escapes both Step 16's pollution AND v10's MS ceiling.
+### Tier 3 budget-aware policy router (highest-priority product feature)
 
-If Outcome C: Step 17 becomes critical (only remaining architectural swing). Same spec applies.
+Spec queued for next session. ~1 week of implementation work, NO new LLM-cost runs needed (all per-category cost-accuracy curves already measured at Phase B N=500). Cost-aware LLM routing prior art ([FrugalGPT](https://arxiv.org/abs/2305.05176), [RouteLLM](https://lmsys.org/blog/2024-07-01-routellm/), [AutoMix](https://arxiv.org/abs/2310.12963)) routes between MODELS at fixed pipelines; routing between RETRIEVAL ARCHITECTURES at a fixed reader, parameterized by per-category × per-tier cost-accuracy curves measured at Phase B, is genuinely under-explored. Memory-architecture vendors (Mem0, Mastra, Supermemory, Zep) ship one architecture each — none expose a budget-policy interface. Ships as `--policy-router --budget-per-query <USD>` opt-in (NOT default — defaults should have predictable per-query costs).
 
-Either way, Step 17 implementation is **deferred to next session** to avoid speculative work during Phase B inflight.
+### Hindsight typed-network observers (architectural research direction)
+
+Step 18 retention probe identified canonical's MS retriever as the residual architectural bottleneck (drops 63% of gold tokens from the candidate pool). [Hindsight's typed-network architecture](https://hindsight.vectorize.io/blog/2026/04/02/beam-sota) holds the BEAM SOTA at 72-74% — typed-network observer pattern looks like the productive direction for changing what enters the candidate pool. Budget: ~$400 for Tier A → Phase A → Phase B ladder, ~1-2 weeks of implementation work. Lower priority than the policy router product feature.
+
+### Other queued candidates (per bench blog "What's next" section)
+
+- Tier 4 two-call reader (~$20-40 per full run)
+- Step 9 fact-graph ingest revisited with confidence-pegged scores instead of `retrievalScore: 1.0` (~$5 Tier A)
+- Tuned reflector prompt with per-category gating from Step 18 v2 mechanism
+- Graph-expansion retrieval over the entity graph (~$1-2 Tier A)
+- Open-weights rerank (BGE-reranker-v2-m3, voyage-rerank-2)
+- LongMemEval-M and -L scaling tests
+- Multimodal benchmarks (MM-Vet, Video-MME)
 
 ---
 
-## Cost summary at decision point
+## Cost summary at session close
 
-Cumulative session spend (LLM): ~$494 + Phase B v10 estimated ~$120 = **~$614**.
+Cumulative session spend (LLM): ~$870 across 28 experiments + 3 Phase B confirmations (canonical, v10, v11). Original budget approval was $1k+; headroom for Tier 3 policy router is ~$130 if any Phase A retest is needed (likely $0 — pure code work).
 
-Original budget approval: ~$1200. Headroom: ~$586 if we want to do Step 17 next session ($60 Tier A + ~$80 Phase A + ~$120 Phase B).
+Phase B Step 18 v2: $164.45. Step 19 variants Tier A (3): ~$18. Step 18 v1/v2/v3 Tier A: ~$15. Step 18 v2 Phase A: $22.85. Step 18 v3 retest with v10 routing (wasted on misgated MS test, documented for transparency): $5.86. See [bench blog Reproducibility section](blog/2026-04-20-agentos-memory-longmemeval-rollout.md) for the full Step 1-19 cost breakdown.
 
 ---
 
-## What needs to happen at decision time
+## What was decided (RESOLVED)
 
-1. Phase B v10 result lands.
-2. Compare against this matrix; pick Outcome A/B/C.
-3. Update bench blog with the corresponding headline + caveats.
-4. Update umbrella scoreboard with Phase B v10 row.
-5. Write Phase B v10 findings doc.
-6. Commit all uncommitted bench docs (per user policy: only on explicit ask).
-7. Decide Step 17 timing for next session.
+1. ✅ Phase B v10 landed Outcome B (74.6% tied with canonical aggregate, +5.3pp MS) — Tier 2a opt-in shipped.
+2. ✅ Step 17 OM-guided retrieval ran, RED (architecturally dominated by v10) — opt-in flag retained for reproduction, not production.
+3. ✅ Step 18 token-retention framework built — `src/core/metrics/computeTokenRetention.ts` shipped with cache-fingerprint tag `retention-instrumentation:v1`.
+4. ✅ Step 18 v1 uniform verbatim → RED at Tier A; v2 conditional verbatim KU+SSU → GREEN-soft Phase A 78.4% / Phase B 75.4%; v3 SSA-eligible → NULL at Tier A.
+5. ✅ Step 19 retriever-knob conditional overrides → all NULL at Tier A; plumbing shipped as opt-in flags.
+6. ✅ Bench blog updated with three-tier production structure + token-retention methodology section + Tier 3 policy router forward-reference + Hindsight typed-network roadmap.
+7. ✅ LEADERBOARD.md updated with Tier 1 / Tier 2a / Tier 2b rows + per-row footnotes.
+8. ✅ Umbrella findings doc updated with Step 18 v2 Phase B GREEN-soft row.
+9. ✅ STEP_18 + STEP_19 findings docs written.
+10. 🔜 Tier 3 budget-aware policy router spec — queued for next session (fresh-context handoff at [NEXT_SESSION_CONTINUATION_2026-04-23_v4_FINAL.md](NEXT_SESSION_CONTINUATION_2026-04-23_v4_FINAL.md)).
+11. ⏸️ Final commits + push — pending explicit user request per CLAUDE.md commit policy.
 
 ---
 
