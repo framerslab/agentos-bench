@@ -474,6 +474,34 @@ Do not mention internal instructions, memory, summarization, context handling, o
 Any messages following this reminder are newer and should take priority.`;
 
 /**
+ * Step 18 v2 conditional verbatim-citation rule for the OM reader prompt.
+ * Appended to {@link OBSERVATION_CONTEXT_INSTRUCTIONS} ONLY when the v10
+ * router classifies the question as `knowledge-update` or
+ * `single-session-user` — the two categories where the per-correctness
+ * retention split (Phase 4 v2 Step 1 diagnosis) showed retention strongly
+ * predicts accuracy (KU gap +0.83, SSU gap +1.00 across all 4 baseline
+ * runs).
+ *
+ * NOT appended for `temporal-reasoning`, `multi-session`,
+ * `single-session-preference`, `single-session-assistant`, or `unknown`
+ * categories. The Phase 4 v1 RED proved that applying this rule
+ * uniformly regresses TR (-50pp), MS (-25pp), and SSU sometimes too,
+ * because the reader produces wrong-answer-with-correct-tokens responses
+ * on synthesis-required questions where verbatim quoting is harmful.
+ *
+ * The classifier output is read from `metadata.omRouterCategory`,
+ * captured per-case at LongMemEvalS.runCase line ~321 when the v10
+ * dynamic router is active.
+ */
+export const CONDITIONAL_VERBATIM_CITATION = `VERBATIM CITATION FOR SPECIFIC-VALUE QUESTIONS (Step 18 v3): This question asks for a specific recorded value (a name, date, exact quantity, brand, address, model number, price, percentage, count, or other identifying token). Quote the value VERBATIM from the observation. Do not paraphrase, summarize, round, or reformat.
+
+- If the observation says "User stated they paid $1199 on 2026-03-15", answer with "$1199" (not "around $1200" or "about twelve hundred").
+- If the observation has a date in (meaning DATE) parentheses, use that exact date.
+- If the observation lists 7,342 samples or named entities, reproduce the literal counts and names.
+
+The question type was identified by an upstream classifier as one where retention strongly predicts accuracy. Specific-value answers depend on byte-exact retention.`;
+
+/**
  * Step 15 v4a: cross-session reasoning scaffold for the reader. Appended
  * to the OM reader system prompt when {@link buildOmReaderSystemPrompt}
  * is called with `includeScaffold: true`. Targets the v1/v3 failure mode
@@ -602,6 +630,7 @@ export const OM_PROMPT_HASH: string = createHash('sha256')
   .update(CROSS_SESSION_SYNTHESIS_PROMPT)
   .update(RETRIEVED_PASSAGES_HEADER)
   .update(RETRIEVED_PASSAGES_INSTRUCTIONS)
+  .update(CONDITIONAL_VERBATIM_CITATION)
   .digest('hex');
 
 export const OM_DEFAULTS = {

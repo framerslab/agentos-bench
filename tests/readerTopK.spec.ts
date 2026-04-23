@@ -78,10 +78,12 @@ describe('readerTopK propagation + cache-key invariants', () => {
     expect(joinedResult).not.toContain('topk:');
 
     // Length pin: the pre-change cache-key layout had exactly 12
-    // parts for runKeyParts and 14 for resultKeyParts. If a future
-    // refactor switches to always-append-even-when-undefined, this
-    // expectation fails and catches the regression.
-    expect(runKeyParts).toHaveLength(12);
-    expect(resultKeyParts).toHaveLength(14);
+    // parts for runKeyParts and 14 for resultKeyParts. Step 18 added
+    // one always-on `retention-instrumentation:v1` tag to BOTH key
+    // sets (so future refactors that switch to always-append-even-
+    // when-undefined will bump these counters and surface as a
+    // regression here, exactly the original guard's intent).
+    expect(runKeyParts).toHaveLength(13);
+    expect(resultKeyParts).toHaveLength(15);
   });
 });

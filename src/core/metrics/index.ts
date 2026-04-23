@@ -65,3 +65,18 @@ export type {
   StageRankedIds,
   StageMetric,
 } from './computeRetrievalStageMetrics.js';
+
+export { ENGLISH_STOPWORDS, isStopword } from './stopwords.js';
+
+export { extractHighIdfTokens } from './extractHighIdfTokens.js';
+
+export { scoreStageRetention } from './scoreStageRetention.js';
+
+export { computeTokenRetention } from './computeTokenRetention.js';
+export type {
+  TokenRetentionResult,
+  TokenRetentionPerCategory,
+  TokenRetentionPerCorrectness,
+  TokenRetentionStageRates,
+  TokenRetentionExclusion,
+} from './computeTokenRetention.js';

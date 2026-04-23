@@ -26,6 +26,7 @@
 
 import type { IReader } from '../readers/IReader.js';
 import {
+  CONDITIONAL_VERBATIM_CITATION,
   CROSS_SESSION_READER_SCAFFOLD,
   CROSS_SESSION_SYNTHESIS_HEADER,
   CROSS_SESSION_SYNTHESIS_PROMPT,
@@ -653,14 +654,44 @@ export interface OmReaderRetrievedPassage {
  * retrieved passages (quotes + specifics) + instructions + scaffold +
  * continuation hint.
  */
+/**
+ * Categories where the per-correctness retention split (Phase 4 v2
+ * Step 1 diagnosis) showed retention strongly predicts accuracy.
+ * Reading from `metadata.omRouterCategory` (captured in
+ * LongMemEvalS.runCase when the v10 router is on); when the
+ * classifier predicts one of these categories, the OM reader prompt
+ * appends {@link CONDITIONAL_VERBATIM_CITATION}. Other categories
+ * (TR, MS, SSP, SSA, unknown) get the baseline reader prompt without
+ * the verbatim rule, because the Phase 4 v1 RED proved a uniform
+ * always-quote rule regresses synthesis-required categories.
+ */
+const VERBATIM_CITATION_ELIGIBLE_CATEGORIES: ReadonlySet<string> = new Set([
+  'knowledge-update',
+  'single-session-user',
+  // Step 18 v3: SSA added based on Phase A finding that SSA dipped to
+  // 82.4% (vs canonical's 89.3% baseline) under v2's KU+SSU-only rule.
+  // Per-correctness gap on SSA was +0.50 in baseline data — borderline
+  // but positive predictor. Test whether adding SSA to the eligible
+  // list recovers SSA accuracy without regressing other categories.
+  'single-session-assistant',
+]);
+
 export function buildOmReaderSystemPrompt(
   observationLog: string,
   opts: {
     includeScaffold?: boolean;
     retrievedPassages?: readonly OmReaderRetrievedPassage[];
+    /**
+     * Step 18 v2: per-question router category from
+     * `metadata.omRouterCategory`. When `'knowledge-update'` or
+     * `'single-session-user'`, appends {@link CONDITIONAL_VERBATIM_CITATION}
+     * after {@link OBSERVATION_CONTEXT_INSTRUCTIONS}. Omit (or pass
+     * any other value) to use the baseline reader prompt.
+     */
+    routerCategory?: string;
   } = {},
 ): string {
-  const { includeScaffold = false, retrievedPassages } = opts;
+  const { includeScaffold = false, retrievedPassages, routerCategory } = opts;
   const scaffoldBlock = includeScaffold ? `\n\n${CROSS_SESSION_READER_SCAFFOLD}` : '';
   const hasPassages = Array.isArray(retrievedPassages) && retrievedPassages.length > 0;
   const passagesBlock = hasPassages
@@ -668,13 +699,18 @@ export function buildOmReaderSystemPrompt(
         .map((p) => `[${p.id}] ${p.content}`)
         .join('\n\n---\n\n')}\n\n${RETRIEVED_PASSAGES_INSTRUCTIONS}`
     : '';
+  const verbatimBlock =
+    typeof routerCategory === 'string' &&
+    VERBATIM_CITATION_ELIGIBLE_CATEGORIES.has(routerCategory)
+      ? `\n\n${CONDITIONAL_VERBATIM_CITATION}`
+      : '';
   return `${OBSERVATION_CONTEXT_PROMPT}
 
 <observations>
 ${observationLog.trim()}
 </observations>${passagesBlock}
 
-${OBSERVATION_CONTEXT_INSTRUCTIONS}${scaffoldBlock}
+${OBSERVATION_CONTEXT_INSTRUCTIONS}${verbatimBlock}${scaffoldBlock}
 
 ${OBSERVATION_CONTINUATION_HINT}`;
 }

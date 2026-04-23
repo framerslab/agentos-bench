@@ -536,6 +536,33 @@ export interface RunConfig {
   omClassifierFewshot?: boolean;
 
   /**
+   * Step 19A: per-case readerTopK override applied when the v10 router
+   * classifies a question as `multi-session`. Default behavior (when
+   * undefined) keeps the run-level `readerTopK` for all cases. When set,
+   * MS-classified canonical-route cases use this K instead, while all
+   * other categories preserve baseline behavior. Cache fingerprint:
+   * `step-19a-ms-k:{n}`.
+   */
+  omRetrieverMsKOverride?: number;
+
+  /**
+   * Step 19B: per-case BM25 weight in RRF applied when the v10 router
+   * classifies a question as `multi-session`. Default RRF is dense=0.7 /
+   * sparse=0.3. Setting this to e.g. 0.7 flips to dense=0.3 / sparse=0.7
+   * for MS-classified cases (BM25-heavy fusion). Cache fingerprint:
+   * `step-19b-ms-bm25:{w}`.
+   */
+  omRetrieverMsBm25Weight?: number;
+
+  /**
+   * Step 19C: per-case over-fetch multiplier applied when the v10 router
+   * classifies a question as `multi-session`. Default is 3 (over-fetch
+   * K = recallTopK * 3). Set to 6 for K=60 over-fetch on MS cases.
+   * Cache fingerprint: `step-19c-ms-overfetch:{m}`.
+   */
+  omRetrieverMsOverFetchMultiplier?: number;
+
+  /**
    * Step 17: when true, score each session's per-session OM observation
    * block against the question, pick top-K candidate sessions, then
    * scope HybridRetriever evidence to only those sessions (post-hoc
@@ -912,6 +939,17 @@ export interface BenchResult {
    * final. Absent when no case surfaced stage-level metrics.
    */
   retrievalStageMetrics?: import('./metrics/index.js').RetrievalStageMetrics;
+
+  /**
+   * Per-stage token retention aggregator (Step 18). Reports the
+   * fraction of high-IDF gold-answer tokens preserved at each
+   * pipeline stage (raw -> observer / retrieved -> reader). Reads
+   * `metadata.omFinalLog` (NEW key, populated by `LongMemEvalS.runCase`
+   * in the OM branch) and `metadata.retrievedEvidence` (existing
+   * structured capture). Absent on legacy runs and on benchmarks
+   * that don't surface either key.
+   */
+  tokenRetention?: import('./metrics/index.js').TokenRetentionResult;
 
   /** Per-case results. */
   cases: CaseResult[];
