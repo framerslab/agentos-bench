@@ -495,6 +495,69 @@ export interface RunConfig {
    * Only effective when `observationalMemory` is true.
    */
   omWithRetrieval?: boolean;
+
+  /**
+   * Step 16c v2: when true, classify each question via a cheap
+   * gpt-5-mini call ({@link classifyQuestion}) and route to either
+   * canonical (Step 3 HybridRetriever, no OM) or v5 OM (gpt-4o
+   * observer + scaffold + dual-path) based on the per-category
+   * Phase A best. Routing table is grounded in v5 Phase A N=102
+   * (2026-04-22): SSU/SSA/SSP/TR → canonical; KU/MS → v5 OM.
+   *
+   * When on, overrides `omReaderScaffold` and `omWithRetrieval`
+   * per-case based on classification. Only effective when
+   * `observationalMemory` is true.
+   *
+   * See `src/observational-memory/questionRouter.ts` and
+   * `docs/specs/2026-04-22-step-16c-llm-judge-router-design.md`.
+   */
+  omDynamicRouter?: boolean;
+
+  /**
+   * Step 16c v2: classifier LLM model used by the dynamic router. Default
+   * `'gpt-5-mini'` (cheap and fast). Override to `'gpt-4o'` if the
+   * gpt-5-mini classifier misroutes too often (initial Tier A measured
+   * 37.5% category accuracy at gpt-5-mini); gpt-4o is more reliable at
+   * following the bare-token output instruction.
+   *
+   * Only effective when `omDynamicRouter` is true.
+   */
+  omClassifierModel?: string;
+
+  /**
+   * Step 16c v10: when true, use the few-shot variant of the classifier
+   * prompt ({@link CLASSIFIER_SYSTEM_PROMPT_FEWSHOT}) instead of the
+   * basic prompt. Adds explicit Question/Category pairs targeting the
+   * SSU-vs-SSA, SSP-vs-SSA, and MS-vs-KU confusion patterns observed at
+   * gpt-5-mini classifier in the v9-baseline 16c Tier A run.
+   *
+   * Only effective when `omDynamicRouter` is true. Default false.
+   */
+  omClassifierFewshot?: boolean;
+
+  /**
+   * Step 17: when true, score each session's per-session OM observation
+   * block against the question, pick top-K candidate sessions, then
+   * scope HybridRetriever evidence to only those sessions (post-hoc
+   * filter on retrieved evidence). Reader sees the OM observation log
+   * AND the scoped retrieved passages, like Step 16, but the passages
+   * are guaranteed to come from sessions OM identified as relevant.
+   *
+   * Architectural alternative to Step 16c routing: instead of choosing
+   * canonical-or-OM per question, always run BOTH but scope retrieval
+   * by OM-identified relevance.
+   *
+   * Only effective when `observationalMemory` is true and the bench
+   * adapter has an embedder configured. Default false.
+   */
+  omGuidedRetrieval?: boolean;
+
+  /**
+   * Step 17: number of candidate sessions to keep when
+   * `omGuidedRetrieval` is on. Default 5. Smaller K narrows scope
+   * (less pollution) but risks missing the gold session.
+   */
+  omGuidedRetrievalK?: number;
 }
 
 /**
@@ -556,6 +619,11 @@ export interface BenchContext {
       | 'omSynthesisModel'
       | 'omObserverModel'
       | 'omWithRetrieval'
+      | 'omDynamicRouter'
+      | 'omClassifierModel'
+      | 'omClassifierFewshot'
+      | 'omGuidedRetrieval'
+      | 'omGuidedRetrievalK'
     >
   > &
     Pick<
@@ -598,6 +666,11 @@ export interface BenchContext {
       | 'omSynthesisModel'
       | 'omObserverModel'
       | 'omWithRetrieval'
+      | 'omDynamicRouter'
+      | 'omClassifierModel'
+      | 'omClassifierFewshot'
+      | 'omGuidedRetrieval'
+      | 'omGuidedRetrievalK'
     >;
   /** LLM-as-judge for external benchmarks. Micro-benchmarks ignore. */
   judge: IJudge;

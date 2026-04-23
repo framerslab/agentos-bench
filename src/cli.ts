@@ -580,6 +580,27 @@ export function buildCli(): Command {
       'Step 16: combine OM observation log with HybridRetriever top-K passages (BM25 + dense + RRF + Cohere rerank) in a single reader context. The reader sees both the dense cross-session synthesis (from OM) AND the per-chunk verbatim specifics (from retrieval), addressing multi-session gaps that neither layer solves alone. Runs both ingest pipelines. Only effective with --observational-memory.',
     )
     .option(
+      '--om-dynamic-router',
+      'Step 16c v2: classify each question via gpt-5-mini, then route to either canonical Step 3 HybridRetriever (no OM) or v5 OM (gpt-4o observer + scaffold + dual-path) based on the per-category Phase A best (SSU/SSA/SSP/TR \u2192 canonical; KU/MS \u2192 v5 OM). Overrides --om-reader-scaffold and --om-with-retrieval per-case based on classification. Only effective with --observational-memory.',
+    )
+    .option(
+      '--om-classifier-model <model>',
+      'Step 16c v2: model identifier for the dynamic router\'s classification call. Default `gpt-5-mini` (cheap, fast). Set to `gpt-4o` when classifier accuracy at gpt-5-mini is too low (initial Tier A measured 37.5%). Only effective with --om-dynamic-router.',
+    )
+    .option(
+      '--om-classifier-fewshot',
+      'Step 16c v10: use the few-shot variant of the classifier prompt. Adds explicit Question/Category pairs after category definitions to disambiguate SSU-vs-SSA, SSP-vs-SSA, MS-vs-KU confusion patterns. Only effective with --om-dynamic-router.',
+    )
+    .option(
+      '--om-guided-retrieval',
+      'Step 17: scope HybridRetriever to OM-identified candidate sessions. The OM observation log is used to score each session by query-relevance, then post-hoc filter retrieved evidence to top-K candidates. Reader sees OM log + scoped passages. Architectural alternative to Step 16c routing. Only effective with --observational-memory.',
+    )
+    .option(
+      '--om-guided-retrieval-k <n>',
+      'Step 17: number of candidate sessions to keep when --om-guided-retrieval is on. Default 5. Smaller K narrows scope (less pollution) but risks missing the gold session.',
+      parsePositiveInteger,
+    )
+    .option(
       '--om-reader-scaffold',
       'Step 15 v4a: append a cross-session reasoning scaffold to the OM reader system prompt. The scaffold walks the reader through multi-step synthesis (scan all date-grouped sections, extract per-session facts, order chronologically, synthesize). Targets the v3 failure mode where the reader fixates on the most-recent-date observation block and misses cross-session synthesis. Only effective with --observational-memory. Default off.',
     )
@@ -699,6 +720,11 @@ export function buildCli(): Command {
         omSynthesisModel: opts.omSynthesisModel,
         omObserverModel: opts.omObserverModel,
         omWithRetrieval: Boolean(opts.omWithRetrieval),
+        omDynamicRouter: Boolean(opts.omDynamicRouter),
+        omClassifierModel: opts.omClassifierModel,
+        omClassifierFewshot: Boolean(opts.omClassifierFewshot),
+        omGuidedRetrieval: Boolean(opts.omGuidedRetrieval),
+        omGuidedRetrievalK: opts.omGuidedRetrievalK,
       };
 
       // Cost preflight — coarse but enough to catch "oh no I just

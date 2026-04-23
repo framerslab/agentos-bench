@@ -63,7 +63,15 @@ import { twoCallRead, type RetrievedPassage } from '../../readers/twoCallReader.
 import {
   ingestSessions,
   buildOmReaderSystemPrompt,
+  classifyQuestion,
+  routeQuestion,
+  DEFAULT_ROUTE,
+  extractPerSessionBlocks,
+  scoreSessionsByQueryRelevance,
+  pickCandidateSessions,
   type OmSession,
+  type QuestionCategory,
+  type RouterConfig,
 } from '../../observational-memory/index.js';
 import { createCognitiveManager } from '../../cognitive/createCognitiveManager.js';
 import { loadLongMemEvalDataset, type LongMemEvalVariant } from './dataset.js';
@@ -250,10 +258,87 @@ export class LongMemEvalS implements IBenchmark {
       caseType: c.type,
     };
 
+    // Step 16c v2: per-question dynamic router. When --om-dynamic-router
+    // is on (and --observational-memory is on), classify the question
+    // first and route to either canonical Step 3 HybridRetriever (no OM)
+    // or v5 OM (gpt-4o observer + scaffold + dual-path) based on the
+    // per-category Phase A best. Routing table is grounded in v5 Phase
+    // A N=102 results: SSU/SSA/SSP/TR → canonical; KU/MS → v5 OM.
+    //
+    // ARCHITECTURE ASSUMPTION (router caller's responsibility):
+    //   For 16c v2 to reproduce its theoretical 79.2% Phase A ceiling,
+    //   the run command MUST include the v5/canonical-compatible flags:
+    //     --memory full-cognitive --replay ingest
+    //     --om-mode dual-path --om-batch-tokens 24000
+    //     --om-observer-model gpt-4o
+    //     --rerank cohere --context-summary gpt-5-mini --hybrid-retrieval
+    //   The router does NOT validate these flags. Running with non-Phase-A
+    //   settings (e.g., --om-mode batched, --om-observer-model gpt-5-mini,
+    //   missing --hybrid-retrieval) means the OM and canonical routes
+    //   reflect those alternative configurations, NOT the empirical
+    //   Phase-A-grounded routing table this design encodes.
+    //   See docs/specs/2026-04-22-step-16c-llm-judge-router-design.md §8
+    //   for the canonical Tier A and Phase A commands.
+    let routerCategory: QuestionCategory | null = null;
+    let routerDecision: RouterConfig | null = null;
+    const dynamicRouterOn = Boolean(
+      this.opts.observationalMemoryEnabled && ctx.config.omDynamicRouter,
+    );
+    if (dynamicRouterOn) {
+      const classifierModelName = (ctx.config.omClassifierModel ?? 'gpt-5-mini') as ReaderModel;
+      const classifierReader = createReader(classifierModelName);
+      let classifierTokensIn = 0;
+      let classifierTokensOut = 0;
+      let classifierModel: string = 'gpt-5-mini';
+      try {
+        const result = await classifyQuestion({
+          reader: classifierReader,
+          question: c.question,
+          useFewshotPrompt: Boolean(ctx.config.omClassifierFewshot),
+        });
+        routerCategory = result.category;
+        routerDecision = routeQuestion(routerCategory);
+        classifierTokensIn = result.tokensIn;
+        classifierTokensOut = result.tokensOut;
+        classifierModel = result.model;
+      } catch {
+        routerCategory = 'multi-session';
+        routerDecision = DEFAULT_ROUTE;
+        // Classifier errored: skip cost record. No tokens were consumed
+        // by us (the error came from the reader), so recording zeros is
+        // the honest accounting.
+      }
+      if (classifierTokensIn > 0 || classifierTokensOut > 0) {
+        ctx.costTracker.record({
+          category: 'reader',
+          model: classifierModel,
+          tokensIn: classifierTokensIn,
+          tokensOut: classifierTokensOut,
+          tag: `${c.id}:om-classifier`,
+        });
+      }
+      runMetadata.omDynamicRouter = true;
+      runMetadata.omRouterCategory = routerCategory;
+      runMetadata.omRouterRunOM = routerDecision.runOM;
+      runMetadata.omRouterScaffold = routerDecision.useScaffold;
+      runMetadata.omRouterRetrieval = routerDecision.runRetrieval;
+    }
+
+    // Effective branch decision:
+    // - If router is on AND it picked canonical (runOM=false), fall
+    //   through to the canonical full-cognitive branch (skip OM).
+    // - If router is on AND it picked OM (runOM=true), enter OM branch
+    //   below; the router's useScaffold/runRetrieval override the
+    //   --om-reader-scaffold / --om-with-retrieval CLI flags per-case.
+    // - If router is off, follow the existing static-config logic.
+    const useOmBranch = dynamicRouterOn
+      ? routerDecision!.runOM
+      : Boolean(this.opts.observationalMemoryEnabled);
+
     // Step 15: Observational Memory bypasses ALL retrieval. When the flag
     // is on we ignore `mode` and run a dedicated OM ingest + single-call
     // reader path. Mastra's published 84.23% at gpt-4o uses this shape.
-    if (this.opts.observationalMemoryEnabled) {
+    if (useOmBranch) {
       // Step 15 v5: Observer/Reflector model selectable. Default
       // gpt-5-mini (consistent with v1-v4); --om-observer-model upgrades
       // to a stronger model (e.g. gpt-4o) when the caller wants to test
@@ -309,9 +394,30 @@ export class LongMemEvalS implements IBenchmark {
       // passages, then fuse into the reader's system prompt alongside
       // OM's observation log. Both ingest pipelines run; reader sees
       // dense cross-session synthesis + per-chunk verbatim specifics.
+      //
+      // Step 17: when --om-guided-retrieval is on, also run Step-16-
+      // shaped retrieval but POST-HOC FILTER the evidence to candidate
+      // sessions identified by OM-vs-question relevance scoring. This
+      // is the architectural alternative to Step 16c routing: instead
+      // of choosing canonical-or-OM per question, always run BOTH but
+      // scope retrieval by OM relevance.
+      //
+      // When the Step 16c v2 router is on AND it routed to OM (we're
+      // here), retrieval is FORCED OFF: v2 router's KU/MS routes go
+      // through OM-only because Step 16 family was RED. Step 16 logic
+      // is preserved for non-router runs (--om-with-retrieval flag).
+      const effectiveRetrieval = dynamicRouterOn
+        ? false
+        : Boolean(ctx.config.omWithRetrieval);
+      const guidedRetrievalOn =
+        !dynamicRouterOn && Boolean(ctx.config.omGuidedRetrieval);
       let retrievedPassages: { id: string; content: string }[] | undefined;
-      if (ctx.config.omWithRetrieval) {
-        const retrievalRecallTopK = ctx.config.readerTopK ?? this.opts.recallTopK ?? 10;
+      if (effectiveRetrieval || guidedRetrievalOn) {
+        const finalK = ctx.config.readerTopK ?? this.opts.recallTopK ?? 10;
+        // Step 17: when guided retrieval is on, over-fetch by 6x so the
+        // post-hoc session filter has enough headroom to find candidate-
+        // session traces. Step 16 path uses finalK directly.
+        const retrievalRecallTopK = guidedRetrievalOn ? finalK * 6 : finalK;
         const fullCog = await runFullCognitiveCase(
           c,
           ctx,
@@ -333,24 +439,84 @@ export class LongMemEvalS implements IBenchmark {
           this.opts.factGraphIngestEnabled,
           this.opts.graphActivationEnabled,
         );
-        retrievedPassages = (fullCog.retrievedEvidence ?? []).map((ev, idx) => ({
+        let evidenceForReader = fullCog.retrievedEvidence ?? [];
+
+        // Step 17: score sessions by OM-vs-question relevance, pick
+        // top-K candidates, filter retrieved evidence to those sessions.
+        if (guidedRetrievalOn) {
+          const guidedK = ctx.config.omGuidedRetrievalK ?? 5;
+          if (this.opts.embedder) {
+            // Step 17 v2: pass perSessionBatches directly (each has
+            // {sessionId, rawOutput}). v1 parsed finalLog but the
+            // observation log uses date-based headers that don't include
+            // session IDs, so the parser returned empty for every case.
+            const perSessionBlocks = extractPerSessionBlocks(ingest.perSessionBatches);
+            if (perSessionBlocks.size > 0) {
+              const sessionScores = await scoreSessionsByQueryRelevance({
+                question: c.question,
+                perSessionBlocks,
+                embedder: this.opts.embedder,
+              });
+              const candidateSessionIds = pickCandidateSessions(sessionScores, guidedK);
+              const beforeFilter = evidenceForReader.length;
+              // Keep traces with NO sessionId (untagged corpus content);
+              // only EXCLUDE traces whose sessionId is known and not in
+              // the candidate set. This avoids dropping useful retrieved
+              // chunks that happen to lack session-tag metadata.
+              const filtered = evidenceForReader.filter((ev) =>
+                ev.sessionId ? candidateSessionIds.has(ev.sessionId) : true,
+              );
+              // Defensive fallback: if filter would return zero, fall
+              // back to unfiltered (top-K) to avoid catastrophic recall
+              // loss from session-scoping going wrong.
+              evidenceForReader = filtered.length > 0 ? filtered : evidenceForReader;
+              runMetadata.omGuidedCandidateSessionCount = candidateSessionIds.size;
+              runMetadata.omGuidedEvidenceFilteredFrom = beforeFilter;
+              runMetadata.omGuidedEvidenceFilteredTo = filtered.length;
+              runMetadata.omGuidedSessionScores = sessionScores
+                .slice(0, Math.min(guidedK, sessionScores.length))
+                .map((s) => ({ sessionId: s.sessionId, score: s.score }));
+            } else {
+              // No per-session blocks parseable; skip filter.
+              runMetadata.omGuidedCandidateSessionCount = 0;
+              runMetadata.omGuidedEvidenceFilteredFrom = evidenceForReader.length;
+              runMetadata.omGuidedEvidenceFilteredTo = evidenceForReader.length;
+            }
+          } else {
+            // No embedder configured; skip filter, behave like Step 16.
+            runMetadata.omGuidedCandidateSessionCount = 0;
+            runMetadata.omGuidedEvidenceFilteredFrom = evidenceForReader.length;
+            runMetadata.omGuidedEvidenceFilteredTo = evidenceForReader.length;
+          }
+          // Take final top-K of the filtered (or unfiltered fallback) set.
+          evidenceForReader = evidenceForReader.slice(0, finalK);
+        }
+
+        retrievedPassages = evidenceForReader.map((ev, idx) => ({
           id: ev.id ?? `P${idx}`,
           content: ev.content ?? '',
         }));
         runMetadata.omRetrievedPassagesCount = retrievedPassages?.length ?? 0;
         runMetadata.replayStats = fullCog.replayStats;
         runMetadata.recalledTraces = fullCog.recallCount;
+        runMetadata.omGuidedRetrieval = guidedRetrievalOn;
       }
 
+      // Effective scaffold: router decides per-case when on, else use
+      // the static --om-reader-scaffold flag.
+      const effectiveScaffold = dynamicRouterOn
+        ? routerDecision!.useScaffold
+        : Boolean(ctx.config.omReaderScaffold);
+
       system = buildOmReaderSystemPrompt(ingest.finalLog, {
-        includeScaffold: Boolean(ctx.config.omReaderScaffold),
+        includeScaffold: effectiveScaffold,
         retrievedPassages,
       });
       runMetadata.omBatchTokenTarget = ctx.config.omBatchTokenTarget ?? 24_000;
       runMetadata.omMode = ctx.config.omMode ?? 'dual-path';
-      runMetadata.omReaderScaffold = Boolean(ctx.config.omReaderScaffold);
+      runMetadata.omReaderScaffold = effectiveScaffold;
       runMetadata.omObserverModel = observerModel;
-      runMetadata.omWithRetrieval = Boolean(ctx.config.omWithRetrieval);
+      runMetadata.omWithRetrieval = effectiveRetrieval;
       runMetadata.omSynthesisModel = ingest.synthesisModel;
       runMetadata.omSynthesisFired = ingest.synthesisOutput !== null;
       runMetadata.omObservationBatches = ingest.observationBatches.length;

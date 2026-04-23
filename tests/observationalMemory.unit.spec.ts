@@ -20,6 +20,12 @@ import {
   OBSERVATION_CONTEXT_INSTRUCTIONS,
   OBSERVATION_CONTINUATION_HINT,
   OM_DEFAULTS,
+  classifyQuestion,
+  routeQuestion,
+  DEFAULT_ROUTE,
+  CLASSIFIER_SYSTEM_PROMPT,
+  type QuestionCategory,
+  type RouterConfig,
 } from '../src/observational-memory/index.js';
 
 function stubReader(responses: ReaderResponse[]): IReader & { calls: ReaderRequest[] } {
@@ -599,5 +605,325 @@ describe('ingestSessions — batched observer calls', () => {
     expect(result.observationBatches).toHaveLength(1);
     // The single batch call should contain content from all 5 sessions.
     expect(reader.calls[0].user).toMatch(/Date: 2024-01-01[\s\S]*\n\nDate: 2024-01-01/);
+  });
+});
+
+describe('classifyQuestion (Step 16c)', () => {
+  it('calls the reader once with the classifier system prompt and returns the category', async () => {
+    const reader = stubReader([
+      { text: 'multi-session', tokensIn: 120, tokensOut: 3, model: 'gpt-5-mini', latencyMs: 50 },
+    ]);
+    const result = await classifyQuestion({
+      reader,
+      question: 'Which languages have I said I am learning?',
+    });
+    expect(reader.calls).toHaveLength(1);
+    expect(reader.calls[0].system).toBe(CLASSIFIER_SYSTEM_PROMPT);
+    expect(reader.calls[0].user).toContain('Which languages have I said I am learning?');
+    expect(result.category).toBe('multi-session');
+  });
+
+  it('parses category from uppercase output with trailing whitespace', async () => {
+    const reader = stubReader([
+      { text: 'TEMPORAL-REASONING  \n', tokensIn: 100, tokensOut: 3, model: 'gpt-5-mini', latencyMs: 50 },
+    ]);
+    const result = await classifyQuestion({
+      reader,
+      question: 'In what order did I visit the three countries?',
+    });
+    expect(result.category).toBe('temporal-reasoning');
+  });
+
+  it('parses category when model appends trailing punctuation like a period', async () => {
+    const reader = stubReader([
+      { text: 'knowledge-update.', tokensIn: 100, tokensOut: 3, model: 'gpt-5-mini', latencyMs: 50 },
+    ]);
+    const result = await classifyQuestion({
+      reader,
+      question: 'What is my current job title?',
+    });
+    expect(result.category).toBe('knowledge-update');
+  });
+
+  it('parses category when model prefixes the response with "Category:"', async () => {
+    const reader = stubReader([
+      { text: 'Category: single-session-user', tokensIn: 100, tokensOut: 5, model: 'gpt-5-mini', latencyMs: 50 },
+    ]);
+    const result = await classifyQuestion({
+      reader,
+      question: 'Where did I say I moved last month?',
+    });
+    expect(result.category).toBe('single-session-user');
+  });
+
+  it('returns real token usage from the reader response (for cost tracking)', async () => {
+    const reader = stubReader([
+      { text: 'multi-session', tokensIn: 187, tokensOut: 3, model: 'gpt-5-mini', latencyMs: 50 },
+    ]);
+    const result = await classifyQuestion({
+      reader,
+      question: 'q',
+    });
+    expect(result.tokensIn).toBe(187);
+    expect(result.tokensOut).toBe(3);
+    expect(result.model).toBe('gpt-5-mini');
+  });
+
+  it('defaults to multi-session on unparseable model output', async () => {
+    const reader = stubReader([
+      { text: 'banana', tokensIn: 100, tokensOut: 3, model: 'gpt-5-mini', latencyMs: 50 },
+    ]);
+    const result = await classifyQuestion({
+      reader,
+      question: 'Who knows',
+    });
+    expect(result.category).toBe('multi-session');
+  });
+});
+
+describe('routeQuestion (Step 16c v2 — Phase A grounded)', () => {
+  it('routes SSU/SSA/SSP/TR to canonical (no OM, retrieval on, no scaffold)', () => {
+    const expected: RouterConfig = { runOM: false, runRetrieval: true, useScaffold: false };
+    for (const cat of [
+      'single-session-user',
+      'single-session-assistant',
+      'single-session-preference',
+      'temporal-reasoning',
+    ] as const satisfies readonly QuestionCategory[]) {
+      expect(routeQuestion(cat)).toEqual(expected);
+    }
+  });
+
+  it('routes KU + MS to v5 OM (OM on, retrieval off, scaffold on)', () => {
+    const expected: RouterConfig = { runOM: true, runRetrieval: false, useScaffold: true };
+    for (const cat of ['knowledge-update', 'multi-session'] as const satisfies readonly QuestionCategory[]) {
+      expect(routeQuestion(cat)).toEqual(expected);
+    }
+  });
+
+  it('exports DEFAULT_ROUTE matching the v5 OM (KU/MS) route shape', () => {
+    expect(DEFAULT_ROUTE).toEqual({ runOM: true, runRetrieval: false, useScaffold: true });
+  });
+});
+
+describe('CLASSIFIER_SYSTEM_PROMPT_FEWSHOT (Step 16c v10)', () => {
+  it('exports a distinct fewshot prompt with explicit Question/Category pairs', async () => {
+    const { CLASSIFIER_SYSTEM_PROMPT_FEWSHOT } = await import(
+      '../src/observational-memory/index.js'
+    );
+    expect(typeof CLASSIFIER_SYSTEM_PROMPT_FEWSHOT).toBe('string');
+    expect(CLASSIFIER_SYSTEM_PROMPT_FEWSHOT).not.toBe(CLASSIFIER_SYSTEM_PROMPT);
+    expect(CLASSIFIER_SYSTEM_PROMPT_FEWSHOT).toMatch(/Question:/);
+    expect(CLASSIFIER_SYSTEM_PROMPT_FEWSHOT).toMatch(/Category:\s+single-session-/);
+  });
+
+  it('fewshot prompt covers all 6 categories at least once', async () => {
+    const { CLASSIFIER_SYSTEM_PROMPT_FEWSHOT } = await import(
+      '../src/observational-memory/index.js'
+    );
+    for (const cat of [
+      'single-session-user',
+      'single-session-assistant',
+      'single-session-preference',
+      'knowledge-update',
+      'multi-session',
+      'temporal-reasoning',
+    ]) {
+      expect(CLASSIFIER_SYSTEM_PROMPT_FEWSHOT).toContain(cat);
+    }
+  });
+
+  it('fewshot prompt distinguishes single-session-user from single-session-assistant', async () => {
+    const { CLASSIFIER_SYSTEM_PROMPT_FEWSHOT } = await import(
+      '../src/observational-memory/index.js'
+    );
+    // Should contain at least one Q/A pair labelled SSU and one labelled SSA
+    // so the classifier learns the USER-said vs ASSISTANT-said distinction.
+    expect(CLASSIFIER_SYSTEM_PROMPT_FEWSHOT).toMatch(/Category:\s+single-session-user/);
+    expect(CLASSIFIER_SYSTEM_PROMPT_FEWSHOT).toMatch(/Category:\s+single-session-assistant/);
+  });
+});
+
+describe('classifyQuestion prompt variant', () => {
+  it('uses the fewshot prompt when args.useFewshotPrompt is true', async () => {
+    const { CLASSIFIER_SYSTEM_PROMPT_FEWSHOT } = await import(
+      '../src/observational-memory/index.js'
+    );
+    const reader = stubReader([
+      { text: 'multi-session', tokensIn: 250, tokensOut: 3, model: 'gpt-5-mini', latencyMs: 50 },
+    ]);
+    await classifyQuestion({
+      reader,
+      question: 'Test',
+      useFewshotPrompt: true,
+    });
+    expect(reader.calls[0].system).toBe(CLASSIFIER_SYSTEM_PROMPT_FEWSHOT);
+  });
+
+  it('uses the basic prompt by default', async () => {
+    const reader = stubReader([
+      { text: 'multi-session', tokensIn: 120, tokensOut: 3, model: 'gpt-5-mini', latencyMs: 50 },
+    ]);
+    await classifyQuestion({
+      reader,
+      question: 'Test',
+    });
+    expect(reader.calls[0].system).toBe(CLASSIFIER_SYSTEM_PROMPT);
+  });
+});
+
+describe('Step 17: extractPerSessionBlocks (uses perSessionBatches directly)', () => {
+  it('builds sessionId → observation map from per-session batches', async () => {
+    const { extractPerSessionBlocks } = await import(
+      '../src/observational-memory/index.js'
+    );
+    const batches = [
+      {
+        sessionId: 's1',
+        rawOutput: '<observations>\n* 🔴 User mentioned moving to Berlin\n</observations>\n<current-task>n/a</current-task>',
+        tokensIn: 0, tokensOut: 0, model: 'test',
+      },
+      {
+        sessionId: 's2',
+        rawOutput: '<observations>\n* 🔴 User started new job at Acme\n</observations>',
+        tokensIn: 0, tokensOut: 0, model: 'test',
+      },
+    ];
+    const blocks = extractPerSessionBlocks(batches);
+    expect(blocks.size).toBe(2);
+    expect(blocks.get('s1')).toContain('moving to Berlin');
+    expect(blocks.get('s1')).not.toContain('current-task'); // observations only
+    expect(blocks.get('s2')).toContain('Acme');
+  });
+
+  it('falls back to raw output when <observations> tags are absent', async () => {
+    const { extractPerSessionBlocks } = await import(
+      '../src/observational-memory/index.js'
+    );
+    const batches = [
+      {
+        sessionId: 's1',
+        rawOutput: 'plain text observation, no XML tags',
+        tokensIn: 0, tokensOut: 0, model: 'test',
+      },
+    ];
+    const blocks = extractPerSessionBlocks(batches);
+    expect(blocks.get('s1')).toContain('plain text observation');
+  });
+
+  it('returns empty map for empty input array', async () => {
+    const { extractPerSessionBlocks } = await import(
+      '../src/observational-memory/index.js'
+    );
+    const blocks = extractPerSessionBlocks([]);
+    expect(blocks.size).toBe(0);
+  });
+
+  it('skips batches with empty sessionId or observations', async () => {
+    const { extractPerSessionBlocks } = await import(
+      '../src/observational-memory/index.js'
+    );
+    const batches = [
+      { sessionId: '', rawOutput: '<observations>x</observations>', tokensIn: 0, tokensOut: 0, model: 'test' },
+      { sessionId: 's1', rawOutput: '', tokensIn: 0, tokensOut: 0, model: 'test' },
+      { sessionId: 's2', rawOutput: '<observations>real</observations>', tokensIn: 0, tokensOut: 0, model: 'test' },
+    ];
+    const blocks = extractPerSessionBlocks(batches);
+    expect(blocks.size).toBe(1);
+    expect(blocks.get('s2')).toContain('real');
+  });
+});
+
+describe('Step 17: pickCandidateSessions', () => {
+  it('picks top-K sessions by descending score', async () => {
+    const { pickCandidateSessions } = await import(
+      '../src/observational-memory/index.js'
+    );
+    const scores = [
+      { sessionId: 's1', score: 0.9, observationText: '' },
+      { sessionId: 's2', score: 0.5, observationText: '' },
+      { sessionId: 's3', score: 0.7, observationText: '' },
+      { sessionId: 's4', score: 0.3, observationText: '' },
+    ];
+    const picked = pickCandidateSessions(scores, 2);
+    expect(picked).toEqual(new Set(['s1', 's3']));
+  });
+
+  it('returns all sessions when K >= length', async () => {
+    const { pickCandidateSessions } = await import(
+      '../src/observational-memory/index.js'
+    );
+    const scores = [
+      { sessionId: 's1', score: 0.9, observationText: '' },
+      { sessionId: 's2', score: 0.5, observationText: '' },
+    ];
+    const picked = pickCandidateSessions(scores, 10);
+    expect(picked).toEqual(new Set(['s1', 's2']));
+  });
+
+  it('returns empty set when scores are empty', async () => {
+    const { pickCandidateSessions } = await import(
+      '../src/observational-memory/index.js'
+    );
+    expect(pickCandidateSessions([], 5)).toEqual(new Set());
+  });
+});
+
+describe('Step 17: scoreSessionsByQueryRelevance (cosine over OM blocks)', () => {
+  it('scores sessions by question-vs-block embedding cosine similarity', async () => {
+    const { scoreSessionsByQueryRelevance } = await import(
+      '../src/observational-memory/index.js'
+    );
+
+    // Stub embedder: returns a unit vector pointing toward the input's first letter
+    const stubEmbedder = {
+      async generateEmbeddings(req: { texts: string | string[] }) {
+        const texts = Array.isArray(req.texts) ? req.texts : [req.texts];
+        return {
+          embeddings: texts.map((t) => {
+            const c = t.charCodeAt(0);
+            return [Math.cos(c / 100), Math.sin(c / 100), 0];
+          }),
+          modelUsed: 'stub',
+        };
+      },
+    };
+
+    const perSessionBlocks = new Map([
+      ['s1', 'Berlin'],   // starts with B (66) — close to Berlin question
+      ['s2', 'Tokyo'],    // starts with T (84) — different
+      ['s3', 'Beijing'],  // starts with B (66) — close to Berlin
+    ]);
+
+    const scores = await scoreSessionsByQueryRelevance({
+      question: 'Berlin', // starts with B (66)
+      perSessionBlocks,
+      embedder: stubEmbedder as never,
+    });
+
+    expect(scores).toHaveLength(3);
+    // s1 and s3 both start with B — should rank above s2
+    const s1Score = scores.find((s) => s.sessionId === 's1')?.score ?? 0;
+    const s3Score = scores.find((s) => s.sessionId === 's3')?.score ?? 0;
+    const s2Score = scores.find((s) => s.sessionId === 's2')?.score ?? 0;
+    expect(s1Score).toBeGreaterThan(s2Score);
+    expect(s3Score).toBeGreaterThan(s2Score);
+  });
+
+  it('returns empty array when perSessionBlocks is empty', async () => {
+    const { scoreSessionsByQueryRelevance } = await import(
+      '../src/observational-memory/index.js'
+    );
+    const stubEmbedder = {
+      async generateEmbeddings(_req: unknown) {
+        return { embeddings: [[1, 0]], modelUsed: 'stub' };
+      },
+    };
+    const scores = await scoreSessionsByQueryRelevance({
+      question: 'q',
+      perSessionBlocks: new Map(),
+      embedder: stubEmbedder as never,
+    });
+    expect(scores).toEqual([]);
   });
 });

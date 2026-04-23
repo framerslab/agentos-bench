@@ -379,3 +379,179 @@ describe('Step 15 v3 cache fingerprint', () => {
     ).toBe(false);
   });
 });
+
+describe('Step 16c router: RunConfig + fingerprint v2', () => {
+  it('resolveRunConfig preserves omDynamicRouter: true when set', () => {
+    const cfg = resolveRunConfig({
+      reader: 'gpt-4o',
+      memoryMode: 'full-cognitive',
+      replayMode: 'ingest',
+      observationalMemory: true,
+      omDynamicRouter: true,
+    } as RunConfig);
+    expect(cfg.omDynamicRouter).toBe(true);
+  });
+
+  it('resolveRunConfig defaults omDynamicRouter to false when omitted', () => {
+    const cfg = resolveRunConfig({
+      reader: 'gpt-4o',
+      memoryMode: 'full-cognitive',
+      replayMode: 'ingest',
+      observationalMemory: true,
+    } as RunConfig);
+    expect(cfg.omDynamicRouter).toBe(false);
+  });
+
+  it('fingerprint includes step-16c-router:v2 when omDynamicRouter is on', () => {
+    const { runKeyParts, resultKeyParts } = computeCaseRunKeyParts(
+      {
+        reader: 'gpt-4o',
+        memoryMode: 'full-cognitive',
+        replayMode: 'ingest',
+        observationalMemory: true,
+        omDynamicRouter: true,
+      } as RunConfig,
+      'case-1',
+    );
+    expect(runKeyParts).toContain('step-16c-router:v2');
+    expect(resultKeyParts).toContain('step-16c-router:v2');
+  });
+
+  it('fingerprint omits the router tag when omDynamicRouter is off', () => {
+    const { runKeyParts } = computeCaseRunKeyParts(
+      {
+        reader: 'gpt-4o',
+        memoryMode: 'full-cognitive',
+        replayMode: 'ingest',
+        observationalMemory: true,
+        omDynamicRouter: false,
+      } as RunConfig,
+      'case-1',
+    );
+    expect(
+      runKeyParts.some((p) => typeof p === 'string' && p.startsWith('step-16c-router')),
+    ).toBe(false);
+  });
+
+  it('fingerprint omits the router tag when observationalMemory is off (even if router on)', () => {
+    const { runKeyParts } = computeCaseRunKeyParts(
+      {
+        reader: 'gpt-4o',
+        memoryMode: 'full-cognitive',
+        replayMode: 'ingest',
+        observationalMemory: false,
+        omDynamicRouter: true,
+      } as RunConfig,
+      'case-1',
+    );
+    expect(
+      runKeyParts.some((p) => typeof p === 'string' && p.startsWith('step-16c-router')),
+    ).toBe(false);
+  });
+
+  it('resolveRunConfig preserves omClassifierModel when set', () => {
+    const cfg = resolveRunConfig({
+      reader: 'gpt-4o',
+      memoryMode: 'full-cognitive',
+      replayMode: 'ingest',
+      observationalMemory: true,
+      omDynamicRouter: true,
+      omClassifierModel: 'gpt-4o',
+    } as RunConfig);
+    expect(cfg.omClassifierModel).toBe('gpt-4o');
+  });
+
+  it('fingerprint includes step-16c-classifier:{model} when classifier model is overridden', () => {
+    const { runKeyParts, resultKeyParts } = computeCaseRunKeyParts(
+      {
+        reader: 'gpt-4o',
+        memoryMode: 'full-cognitive',
+        replayMode: 'ingest',
+        observationalMemory: true,
+        omDynamicRouter: true,
+        omClassifierModel: 'gpt-4o',
+      } as RunConfig,
+      'case-1',
+    );
+    expect(runKeyParts).toContain('step-16c-classifier:gpt-4o');
+    expect(resultKeyParts).toContain('step-16c-classifier:gpt-4o');
+  });
+
+  it('fingerprint omits step-16c-classifier tag when classifier is the default gpt-5-mini', () => {
+    const { runKeyParts } = computeCaseRunKeyParts(
+      {
+        reader: 'gpt-4o',
+        memoryMode: 'full-cognitive',
+        replayMode: 'ingest',
+        observationalMemory: true,
+        omDynamicRouter: true,
+        // omClassifierModel omitted — default
+      } as RunConfig,
+      'case-1',
+    );
+    expect(
+      runKeyParts.some((p) => typeof p === 'string' && p.startsWith('step-16c-classifier')),
+    ).toBe(false);
+  });
+});
+
+describe('Step 17 OM-guided retrieval: RunConfig + fingerprint', () => {
+  it('resolveRunConfig preserves omGuidedRetrieval and omGuidedRetrievalK', () => {
+    const cfg = resolveRunConfig({
+      reader: 'gpt-4o',
+      memoryMode: 'full-cognitive',
+      replayMode: 'ingest',
+      observationalMemory: true,
+      omGuidedRetrieval: true,
+      omGuidedRetrievalK: 7,
+    } as RunConfig);
+    expect(cfg.omGuidedRetrieval).toBe(true);
+    expect(cfg.omGuidedRetrievalK).toBe(7);
+  });
+
+  it('fingerprint includes step-17-om-guided:v2 when omGuidedRetrieval is on', () => {
+    const { runKeyParts, resultKeyParts } = computeCaseRunKeyParts(
+      {
+        reader: 'gpt-4o',
+        memoryMode: 'full-cognitive',
+        replayMode: 'ingest',
+        observationalMemory: true,
+        omGuidedRetrieval: true,
+      } as RunConfig,
+      'case-1',
+    );
+    expect(runKeyParts).toContain('step-17-om-guided:v2');
+    expect(resultKeyParts).toContain('step-17-om-guided:v2');
+  });
+
+  it('fingerprint includes step-17-om-guided-k:{n} when K is overridden from default 5', () => {
+    const { runKeyParts } = computeCaseRunKeyParts(
+      {
+        reader: 'gpt-4o',
+        memoryMode: 'full-cognitive',
+        replayMode: 'ingest',
+        observationalMemory: true,
+        omGuidedRetrieval: true,
+        omGuidedRetrievalK: 7,
+      } as RunConfig,
+      'case-1',
+    );
+    expect(runKeyParts).toContain('step-17-om-guided-k:7');
+  });
+
+  it('fingerprint omits step-17 tags when omGuidedRetrieval is off', () => {
+    const { runKeyParts } = computeCaseRunKeyParts(
+      {
+        reader: 'gpt-4o',
+        memoryMode: 'full-cognitive',
+        replayMode: 'ingest',
+        observationalMemory: true,
+        omGuidedRetrieval: false,
+      } as RunConfig,
+      'case-1',
+    );
+    expect(
+      runKeyParts.some((p) => typeof p === 'string' && p.startsWith('step-17-om-guided')),
+    ).toBe(false);
+  });
+});

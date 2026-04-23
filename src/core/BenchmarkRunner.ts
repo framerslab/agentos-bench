@@ -151,6 +151,26 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     // Step-16: combine OM observation log with HybridRetriever top-K
     // passages in a single reader context.
     omWithRetrieval: cfg.omWithRetrieval,
+    // Step-16c v2: per-question dynamic router. When true, classify each
+    // question and route to canonical (Step 3 HybridRetriever) or v5 OM
+    // based on the per-category Phase A best. Empty/false means use
+    // whatever static config the rest of these flags describe.
+    omDynamicRouter: cfg.omDynamicRouter ?? false,
+    // Step-16c v2: classifier model. Default gpt-5-mini (cheap, fast).
+    // Set to gpt-4o for higher classification accuracy when gpt-5-mini
+    // misroutes too often (~37% category-accuracy observed at Tier A).
+    omClassifierModel: cfg.omClassifierModel,
+    // Step-16c v10: use the few-shot variant of the classifier prompt.
+    // Adds explicit Question/Category pairs after category definitions
+    // to disambiguate SSU-vs-SSA, SSP-vs-SSA, MS-vs-KU confusion patterns.
+    omClassifierFewshot: cfg.omClassifierFewshot ?? false,
+    // Step-17: scope HybridRetriever to OM-identified candidate sessions
+    // by post-hoc filter on retrieved evidence. Eliminates Step 16's
+    // pollution from non-gold-session passages.
+    omGuidedRetrieval: cfg.omGuidedRetrieval ?? false,
+    // Step-17: number of candidate sessions to keep. Smaller K narrows
+    // scope (less pollution) but risks missing the gold session.
+    omGuidedRetrievalK: cfg.omGuidedRetrievalK,
   };
 }
 
@@ -448,6 +468,56 @@ export function computeCaseRunKeyParts(
       const retrievalTag = 'step-16-om-retrieval:v1';
       runKeyParts.push(retrievalTag);
       resultKeyParts.push(retrievalTag);
+    }
+
+    // Step-16c v2: dynamic per-question router. When tagged, the case
+    // ran through `classifyQuestion` + `routeQuestion` (canonical vs
+    // v5 OM). Tag is `:v2` not `:v1` because v2 routing semantics
+    // differ from the original spec (v1 routed only between OM
+    // variants; v2 routes between canonical and OM). Only appended
+    // when both OM and the router flag are on.
+    if (config.omDynamicRouter) {
+      const routerTag = 'step-16c-router:v2';
+      runKeyParts.push(routerTag);
+      resultKeyParts.push(routerTag);
+
+      // Step-16c v2: classifier model. Only tagged when overridden from
+      // the default gpt-5-mini (so existing 16c cache buckets stay
+      // untouched). Different classifier models produce different routing
+      // decisions for the same question, so cache independently.
+      if (config.omClassifierModel && config.omClassifierModel !== 'gpt-5-mini') {
+        const classifierTag = `step-16c-classifier:${config.omClassifierModel}`;
+        runKeyParts.push(classifierTag);
+        resultKeyParts.push(classifierTag);
+      }
+
+      // Step-16c v10: few-shot classifier prompt variant. Only tagged
+      // when on so existing 16c cache buckets stay untouched. Different
+      // prompt produces different routing decisions for the same question.
+      if (config.omClassifierFewshot) {
+        const fewshotTag = 'step-16c-classifier-fewshot:v1';
+        runKeyParts.push(fewshotTag);
+        resultKeyParts.push(fewshotTag);
+      }
+    }
+
+    // Step-17: OM-guided retrieval. Independent of Step 16c router.
+    // When on, the OM observation log scopes HybridRetriever evidence
+    // to candidate sessions identified by OM-vs-question relevance.
+    if (config.omGuidedRetrieval) {
+      // v1 was a broken implementation (parsed finalLog for "(session sX)"
+      // markers that don't exist in the actual format — filter ran no-op).
+      // v2 uses perSessionBatches directly via extractPerSessionBlocks.
+      const guidedTag = 'step-17-om-guided:v2';
+      runKeyParts.push(guidedTag);
+      resultKeyParts.push(guidedTag);
+      // Tag K when overridden from default 5. Different K values produce
+      // different candidate-session sets, so cache independently.
+      if (typeof config.omGuidedRetrievalK === 'number' && config.omGuidedRetrievalK !== 5) {
+        const kTag = `step-17-om-guided-k:${config.omGuidedRetrievalK}`;
+        runKeyParts.push(kTag);
+        resultKeyParts.push(kTag);
+      }
     }
   }
 
