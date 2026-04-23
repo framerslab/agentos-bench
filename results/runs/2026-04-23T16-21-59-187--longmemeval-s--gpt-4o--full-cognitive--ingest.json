@@ -1,0 +1,522 @@
+{
+  "benchmarkId": "longmemeval-s",
+  "benchmarkVersion": "1.0.0",
+  "config": {
+    "reader": "gpt-4o",
+    "memoryMode": "full-cognitive",
+    "replayMode": "ingest",
+    "concurrency": 3,
+    "maxUsd": 30,
+    "retrievalProfile": "balanced",
+    "adaptiveRetrieval": true,
+    "retrievalK": 10,
+    "stratified": true,
+    "samplePerType": 4,
+    "trackFootprint": true,
+    "rerank": {
+      "provider": "cohere"
+    },
+    "contextSummaryModel": "gpt-5-mini",
+    "readerTopK": 10,
+    "judgeAdversarial": false,
+    "judgeAdversarialMaxProbes": 50,
+    "judgeAdversarialSynthModel": "gpt-5-mini",
+    "bootstrapResamples": 10000,
+    "seed": 42,
+    "sessionRetrieval": false,
+    "sessionRetrievalTopSessions": 5,
+    "sessionRetrievalChunksPerSession": 3,
+    "hybridRetrieval": true,
+    "hyde": false,
+    "factSupersession": false,
+    "observerReflector": false,
+    "observerReflectorReplace": false,
+    "factGraphIngest": false,
+    "graphActivation": false,
+    "twoCallReader": false,
+    "observationalMemory": true,
+    "omBatchTokenTarget": 24000,
+    "omMode": "dual-path",
+    "omReaderScaffold": true,
+    "omObserverModel": "gpt-4o",
+    "omWithRetrieval": false,
+    "omDynamicRouter": true,
+    "omClassifierFewshot": true,
+    "omGuidedRetrieval": false,
+    "omRetrieverMsOverFetchMultiplier": 6
+  },
+  "totalCases": 24,
+  "passedCases": 0,
+  "accuracy": 0,
+  "avgScore": 0,
+  "scoreStdDev": 0,
+  "byType": {
+    "unknown": {
+      "n": 24,
+      "accuracy": 0,
+      "avgScore": 0
+    }
+  },
+  "avgLatencyMs": 0,
+  "p50LatencyMs": 0,
+  "p95LatencyMs": 0,
+  "totalReaderTokens": 0,
+  "totalUsd": 0,
+  "costPerCorrect": null,
+  "startedAt": "2026-04-23T16:21:59.187Z",
+  "completedAt": "2026-04-23T16:22:09.189Z",
+  "stratifiedAccuracy": {
+    "byType": {
+      "unknown": {
+        "n": 24,
+        "accuracy": 0,
+        "prior": 1
+      }
+    },
+    "weightedOverall": 0,
+    "unweightedOverall": 0,
+    "missingTypes": [
+      "single-session-user",
+      "single-session-assistant",
+      "single-session-preference",
+      "multi-session",
+      "temporal-reasoning",
+      "knowledge-update"
+    ]
+  },
+  "tokensPerCorrect": {
+    "readerIn": 0,
+    "readerOut": 0,
+    "judgeIn": 0,
+    "judgeOut": 0,
+    "embeddingIn": 0,
+    "total": 0,
+    "zeroPassedFallback": true
+  },
+  "tokenRetention": {
+    "perCategory": {},
+    "overall": {
+      "e2eRetention": {
+        "n": 0,
+        "retention": {
+          "value": 0,
+          "ciLo": 0,
+          "ciHi": 0,
+          "resamples": 0,
+          "ci": 0.95
+        }
+      }
+    },
+    "excluded": [
+      {
+        "caseId": "6a1eabeb",
+        "category": "unknown",
+        "tokenCount": 0
+      },
+      {
+        "caseId": "6aeb4375",
+        "category": "unknown",
+        "tokenCount": 0
+      },
+      {
+        "caseId": "830ce83f",
+        "category": "unknown",
+        "tokenCount": 0
+      },
+      {
+        "caseId": "852ce960",
+        "category": "unknown",
+        "tokenCount": 0
+      },
+      {
+        "caseId": "0a995998",
+        "category": "unknown",
+        "tokenCount": 0
+      },
+      {
+        "caseId": "6d550036",
+        "category": "unknown",
+        "tokenCount": 0
+      },
+      {
+        "caseId": "gpt4_59c863d7",
+        "category": "unknown",
+        "tokenCount": 0
+      },
+      {
+        "caseId": "b5ef892d",
+        "category": "unknown",
+        "tokenCount": 0
+      },
+      {
+        "caseId": "7161e7e2",
+        "category": "unknown",
+        "tokenCount": 0
+      },
+      {
+        "caseId": "c4f10528",
+        "category": "unknown",
+        "tokenCount": 0
+      },
+      {
+        "caseId": "89527b6b",
+        "category": "unknown",
+        "tokenCount": 0
+      },
+      {
+        "caseId": "e9327a54",
+        "category": "unknown",
+        "tokenCount": 0
+      },
+      {
+        "caseId": "8a2466db",
+        "category": "unknown",
+        "tokenCount": 0
+      },
+      {
+        "caseId": "06878be2",
+        "category": "unknown",
+        "tokenCount": 0
+      },
+      {
+        "caseId": "75832dbd",
+        "category": "unknown",
+        "tokenCount": 0
+      },
+      {
+        "caseId": "0edc2aef",
+        "category": "unknown",
+        "tokenCount": 0
+      },
+      {
+        "caseId": "e47becba",
+        "category": "unknown",
+        "tokenCount": 0
+      },
+      {
+        "caseId": "118b2229",
+        "category": "unknown",
+        "tokenCount": 0
+      },
+      {
+        "caseId": "51a45a95",
+        "category": "unknown",
+        "tokenCount": 0
+      },
+      {
+        "caseId": "58bf7951",
+        "category": "unknown",
+        "tokenCount": 0
+      },
+      {
+        "caseId": "gpt4_59149c77",
+        "category": "unknown",
+        "tokenCount": 0
+      },
+      {
+        "caseId": "gpt4_f49edff3",
+        "category": "unknown",
+        "tokenCount": 0
+      },
+      {
+        "caseId": "71017276",
+        "category": "unknown",
+        "tokenCount": 0
+      },
+      {
+        "caseId": "b46e15ed",
+        "category": "unknown",
+        "tokenCount": 0
+      }
+    ]
+  },
+  "cases": [
+    {
+      "caseId": "6a1eabeb",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "OpenAI API error 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-proj-********************************************************************************************************************************************************8M8A. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "6aeb4375",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "OpenAI API error 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-proj-********************************************************************************************************************************************************8M8A. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "830ce83f",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "OpenAI API error 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-proj-********************************************************************************************************************************************************8M8A. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "852ce960",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "OpenAI API error 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-proj-********************************************************************************************************************************************************8M8A. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "0a995998",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "OpenAI API error 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-proj-********************************************************************************************************************************************************8M8A. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "6d550036",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "OpenAI API error 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-proj-********************************************************************************************************************************************************8M8A. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "gpt4_59c863d7",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "OpenAI API error 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-proj-********************************************************************************************************************************************************8M8A. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "b5ef892d",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "OpenAI API error 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-proj-********************************************************************************************************************************************************8M8A. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "7161e7e2",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "OpenAI API error 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-proj-********************************************************************************************************************************************************8M8A. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "c4f10528",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "OpenAI API error 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-proj-********************************************************************************************************************************************************8M8A. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "89527b6b",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "OpenAI API error 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-proj-********************************************************************************************************************************************************8M8A. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "e9327a54",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "OpenAI API error 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-proj-********************************************************************************************************************************************************8M8A. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "8a2466db",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "OpenAI API error 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-proj-********************************************************************************************************************************************************8M8A. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "06878be2",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "OpenAI API error 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-proj-********************************************************************************************************************************************************8M8A. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "75832dbd",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "OpenAI API error 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-proj-********************************************************************************************************************************************************8M8A. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "0edc2aef",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "OpenAI API error 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-proj-********************************************************************************************************************************************************8M8A. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "e47becba",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "OpenAI API error 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-proj-********************************************************************************************************************************************************8M8A. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "118b2229",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "OpenAI API error 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-proj-********************************************************************************************************************************************************8M8A. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "51a45a95",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "OpenAI API error 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-proj-********************************************************************************************************************************************************8M8A. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "58bf7951",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "OpenAI API error 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-proj-********************************************************************************************************************************************************8M8A. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "gpt4_59149c77",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "OpenAI API error 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-proj-********************************************************************************************************************************************************8M8A. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "gpt4_f49edff3",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "OpenAI API error 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-proj-********************************************************************************************************************************************************8M8A. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "71017276",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "OpenAI API error 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-proj-********************************************************************************************************************************************************8M8A. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "b46e15ed",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "OpenAI API error 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-proj-********************************************************************************************************************************************************8M8A. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "score": 0,
+      "passed": false
+    }
+  ],
+  "accuracyCI": {
+    "value": 0,
+    "ciLo": 0,
+    "ciHi": 0,
+    "resamples": 10000,
+    "ci": 0.95
+  },
+  "byTypeCI": {
+    "unknown": {
+      "value": 0,
+      "ciLo": 0,
+      "ciHi": 0,
+      "resamples": 10000,
+      "ci": 0.95
+    }
+  },
+  "weightedAccuracyCI": {
+    "value": 0,
+    "ciLo": 0,
+    "ciHi": 0,
+    "resamples": 10000,
+    "ci": 0.95
+  }
+}
