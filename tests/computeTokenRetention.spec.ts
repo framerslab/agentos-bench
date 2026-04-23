@@ -177,6 +177,122 @@ describe('computeTokenRetention', () => {
     expect(result.perCorrectness).toBeUndefined();
   });
 
+  it('whenWrong collapses to empty-bucket sentinel when all cases passed', () => {
+    // Per coderabbit M5: lock the documented empty-bucket contract for
+    // the per-correctness split. When ALL cases in a category are
+    // passed=true, the whenWrong bucket has no data; the aggregator
+    // returns an empty-bucket sentinel (n=0, e2e=0) rather than
+    // undefined or NaN, so consumers can index `.whenWrong.e2eRetention`
+    // without null checks.
+    const cases = [
+      makeCase({
+        caseId: 'pass-only-1',
+        type: 'knowledge-update',
+        expected: 'Berlin Acme 2024 engineer',
+        actualOutput: 'Berlin Acme 2024 engineer',
+        retrievedEvidence: [{ id: 'p1', content: 'Berlin Acme 2024 engineer' }],
+      }),
+      makeCase({
+        caseId: 'pass-only-2',
+        type: 'knowledge-update',
+        expected: 'Paris Bistro 2025 chef',
+        actualOutput: 'Paris Bistro 2025 chef',
+        retrievedEvidence: [{ id: 'p2', content: 'Paris Bistro 2025 chef' }],
+      }),
+    ];
+    const result = computeTokenRetention({ cases, bootstrapResamples: 100, seed: 42 });
+    expect(result.perCorrectness).toBeDefined();
+    const ku = result.perCorrectness!.perCategory['knowledge-update'];
+    expect(ku.whenCorrect.e2eRetention.n).toBe(2);
+    expect(ku.whenCorrect.e2eRetention.retention.value).toBe(1);
+    // Empty-bucket sentinel contract: n=0, retention.value=0, no per-stage rates.
+    expect(ku.whenWrong.e2eRetention.n).toBe(0);
+    expect(ku.whenWrong.e2eRetention.retention.value).toBe(0);
+    expect(ku.whenWrong.rawToObserver).toBeUndefined();
+    expect(ku.whenWrong.rawToRetrieved).toBeUndefined();
+    expect(ku.whenWrong.observerToReader).toBeUndefined();
+    expect(ku.whenWrong.retrievedToReader).toBeUndefined();
+    // Overall whenWrong should also be the empty-bucket sentinel.
+    expect(result.perCorrectness!.overall.whenWrong.e2eRetention.n).toBe(0);
+    expect(result.perCorrectness!.overall.whenCorrect.e2eRetention.n).toBe(2);
+  });
+
+  it('whenCorrect collapses to empty-bucket sentinel when all cases failed', () => {
+    // Mirror image of the all-passed test: when ALL cases are failures,
+    // whenCorrect bucket gets the sentinel and whenWrong has the data.
+    const cases = [
+      {
+        ...makeCase({
+          caseId: 'fail-only-1',
+          type: 'multi-session',
+          expected: 'Berlin Acme 2024 engineer',
+          actualOutput: 'completely unrelated answer',
+          retrievedEvidence: [{ id: 'p1', content: 'Berlin Acme 2024 engineer' }],
+        }),
+        passed: false,
+      },
+      {
+        ...makeCase({
+          caseId: 'fail-only-2',
+          type: 'multi-session',
+          expected: 'Paris Bistro 2025 chef',
+          actualOutput: 'another wrong answer',
+          retrievedEvidence: [{ id: 'p2', content: 'Paris Bistro 2025 chef' }],
+        }),
+        passed: false,
+      },
+    ];
+    const result = computeTokenRetention({ cases, bootstrapResamples: 100, seed: 42 });
+    expect(result.perCorrectness).toBeDefined();
+    const ms = result.perCorrectness!.perCategory['multi-session'];
+    expect(ms.whenWrong.e2eRetention.n).toBe(2);
+    // Wrong-case retention is 0 — the answer doesn't contain any gold tokens.
+    expect(ms.whenWrong.e2eRetention.retention.value).toBe(0);
+    // Empty-bucket sentinel for the absent whenCorrect bucket.
+    expect(ms.whenCorrect.e2eRetention.n).toBe(0);
+    expect(ms.whenCorrect.e2eRetention.retention.value).toBe(0);
+    expect(ms.whenCorrect.rawToRetrieved).toBeUndefined();
+    expect(result.perCorrectness!.overall.whenCorrect.e2eRetention.n).toBe(0);
+    expect(result.perCorrectness!.overall.whenWrong.e2eRetention.n).toBe(2);
+  });
+
+  it('per-category empty-bucket sentinel applies independently across categories', () => {
+    // One category has only correct cases; another has only wrong cases.
+    // Each category's per-correctness structure should reflect its own
+    // bucket population (not blended).
+    const cases = [
+      makeCase({
+        caseId: 'ku-pass',
+        type: 'knowledge-update',
+        expected: 'Berlin Acme 2024 engineer',
+        actualOutput: 'Berlin Acme 2024 engineer',
+        retrievedEvidence: [{ id: 'p1', content: 'Berlin Acme 2024 engineer' }],
+      }),
+      {
+        ...makeCase({
+          caseId: 'ms-fail',
+          type: 'multi-session',
+          expected: 'Paris Bistro 2025 chef',
+          actualOutput: 'wrong answer with no gold tokens',
+          retrievedEvidence: [{ id: 'p2', content: 'Paris Bistro 2025 chef' }],
+        }),
+        passed: false,
+      },
+    ];
+    const result = computeTokenRetention({ cases, bootstrapResamples: 100, seed: 42 });
+    const ku = result.perCorrectness!.perCategory['knowledge-update'];
+    const ms = result.perCorrectness!.perCategory['multi-session'];
+    // KU has only correct: whenWrong is empty sentinel.
+    expect(ku.whenCorrect.e2eRetention.n).toBe(1);
+    expect(ku.whenWrong.e2eRetention.n).toBe(0);
+    // MS has only wrong: whenCorrect is empty sentinel.
+    expect(ms.whenWrong.e2eRetention.n).toBe(1);
+    expect(ms.whenCorrect.e2eRetention.n).toBe(0);
+    // Overall: 1 correct (from KU), 1 wrong (from MS).
+    expect(result.perCorrectness!.overall.whenCorrect.e2eRetention.n).toBe(1);
+    expect(result.perCorrectness!.overall.whenWrong.e2eRetention.n).toBe(1);
+  });
+
   it('reads metadata.caseType when metadata.type is absent (legacy alias)', () => {
     // Earlier runs from the bench wrote `caseType` instead of `type` into
     // runMetadata. The aggregator must accept either so retention can be

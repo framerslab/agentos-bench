@@ -502,6 +502,26 @@ export const CONDITIONAL_VERBATIM_CITATION = `VERBATIM CITATION FOR SPECIFIC-VAL
 The question type was identified by an upstream classifier as one where retention strongly predicts accuracy. Specific-value answers depend on byte-exact retention.`;
 
 /**
+ * Step 18 v2 — router categories eligible for the
+ * {@link CONDITIONAL_VERBATIM_CITATION} reader-prompt suffix.
+ *
+ * Co-located with the constant itself so the eligibility set and the
+ * prompt content stay in lockstep. Per-correctness retention analysis at
+ * Phase A (N=102) and Phase B (N=500) showed retrieved-stage retention
+ * gap ≥ +0.60 between correct and incorrect cases for these two
+ * categories — the threshold above which adding a verbatim-citation rule
+ * predicts accuracy lift. KU + SSU cleared; SSA was borderline at +0.50
+ * and tested as Step 18 v3 → NULL at Tier A; the other categories (TR,
+ * MS, SSP) had narrower gaps where paraphrasing is productive
+ * (synthesis-required or context-aware preference handling).
+ *
+ * Frozen at module init so consumers can't mutate the eligibility surface.
+ */
+export const VERBATIM_CITATION_ELIGIBLE_CATEGORIES: ReadonlySet<string> = Object.freeze(
+  new Set<string>(['knowledge-update', 'single-session-user']),
+);
+
+/**
  * Step 15 v4a: cross-session reasoning scaffold for the reader. Appended
  * to the OM reader system prompt when {@link buildOmReaderSystemPrompt}
  * is called with `includeScaffold: true`. Targets the v1/v3 failure mode

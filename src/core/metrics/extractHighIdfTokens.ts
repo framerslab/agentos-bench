@@ -27,7 +27,7 @@ const MIN_TOKEN_LENGTH = 2;
  * the gold answer for a LongMemEval-S case).
  *
  * @param text - input text (gold answer, observer log, etc.)
- * @returns deduplicated array of lowercase tokens of length >= 4
+ * @returns deduplicated array of lowercase tokens of length >= MIN_TOKEN_LENGTH (=2)
  *          that are not in the stoplist
  */
 export function extractHighIdfTokens(text: string): string[] {
@@ -38,7 +38,12 @@ export function extractHighIdfTokens(text: string): string[] {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
 
-  const cleaned = normalized.replace(/[^a-z0-9\s]/g, ' ');
+  // Strip everything that isn't a Unicode letter, Unicode number, or
+  // whitespace. Using \p{L}\p{N} (with the `u` flag) instead of the
+  // ASCII-only [a-z0-9] keeps CJK and other non-Latin script tokens
+  // alive \u2014 important for LOCOMO and any future multilingual benchmark
+  // (LongMemEval-S itself is ASCII-dominant but the metric is shared).
+  const cleaned = normalized.replace(/[^\p{L}\p{N}\s]/gu, ' ');
 
   const rawTokens = cleaned.split(/\s+/).filter(Boolean);
 

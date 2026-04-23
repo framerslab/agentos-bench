@@ -283,6 +283,20 @@ function parseFloatArg(v: string): number {
   return n;
 }
 
+/**
+ * Parse a closed-interval [0, 1] weight. Used by RRF blend weights where
+ * `denseWeight = 1 - sparseWeight` must stay in [0, 1] to avoid producing
+ * negative ranks at fusion time. Both endpoints are accepted (0 = pure
+ * dense, 1 = pure sparse) but anything outside the unit interval errors.
+ */
+function parseUnitIntervalWeight(v: string): number {
+  const n = Number.parseFloat(v);
+  if (!Number.isFinite(n) || n < 0 || n > 1) {
+    throw new Error(`Expected weight in [0, 1], got ${v}`);
+  }
+  return n;
+}
+
 function parseRetrievalProfile(v: string): MemoryRetrievalProfile {
   if (v === 'fast' || v === 'balanced' || v === 'max-recall') return v;
   throw new Error(`Expected retrieval profile fast | balanced | max-recall, got ${v}`);
@@ -607,13 +621,17 @@ export function buildCli(): Command {
     )
     .option(
       '--om-retriever-ms-bm25-weight <w>',
-      'Step 19B: per-case BM25 weight in RRF for MS-classified cases (v10 router only). Default RRF dense=0.7/sparse=0.3. Set to 0.7 for BM25-heavy fusion (dense=0.3/sparse=0.7) on multi-session questions only; preserves baseline weights for all other categories.',
-      parseFloatArg,
+      'Step 19B: per-case BM25 sparse weight in RRF for MS-classified cases (v10 router only). Must be in [0, 1] (denseWeight = 1 - sparseWeight). Default RRF dense=0.7/sparse=0.3. Set to 0.7 for BM25-heavy fusion (dense=0.3/sparse=0.7) on multi-session questions only; preserves baseline weights for all other categories.',
+      parseUnitIntervalWeight,
     )
     .option(
       '--om-retriever-ms-overfetch <m>',
-      'Step 19C: per-case over-fetch multiplier for MS-classified cases (v10 router only). Default 3 (over-fetch K = recallTopK * 3). Set to 6 for K=60 over-fetch on multi-session questions only; preserves baseline over-fetch for all other categories.',
-      parseFloatArg,
+      'Step 19C: per-case over-fetch multiplier (positive integer) for MS-classified cases (v10 router only). Default 3 (over-fetch K = recallTopK * 3). Set to 6 for K=60 over-fetch on multi-session questions only; preserves baseline over-fetch for all other categories.',
+      parsePositiveInteger,
+    )
+    .option(
+      '--no-capture-retention-inputs',
+      'Step 18: opt OUT of capturing the post-Observer compressed observation log (omFinalLog) into per-case metadata. Default ON (the token-retention metric needs the log to compute per-stage rates). Disable when running benchmarks that do NOT consume the retention metric (saves ~10-20MB per cached run JSON at N=500).',
     )
     .option(
       '--om-reader-scaffold',
@@ -743,6 +761,9 @@ export function buildCli(): Command {
         omRetrieverMsKOverride: opts.omRetrieverMsK,
         omRetrieverMsBm25Weight: opts.omRetrieverMsBm25Weight,
         omRetrieverMsOverFetchMultiplier: opts.omRetrieverMsOverfetch,
+        // Commander.js negation: --no-capture-retention-inputs sets
+        // opts.captureRetentionInputs === false, default is true.
+        captureRetentionInputs: opts.captureRetentionInputs as boolean | undefined,
       };
 
       // Cost preflight — coarse but enough to catch "oh no I just

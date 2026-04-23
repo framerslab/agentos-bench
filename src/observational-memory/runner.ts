@@ -27,6 +27,7 @@
 import type { IReader } from '../readers/IReader.js';
 import {
   CONDITIONAL_VERBATIM_CITATION,
+  VERBATIM_CITATION_ELIGIBLE_CATEGORIES,
   CROSS_SESSION_READER_SCAFFOLD,
   CROSS_SESSION_SYNTHESIS_HEADER,
   CROSS_SESSION_SYNTHESIS_PROMPT,
@@ -654,27 +655,13 @@ export interface OmReaderRetrievedPassage {
  * retrieved passages (quotes + specifics) + instructions + scaffold +
  * continuation hint.
  */
-/**
- * Categories where the per-correctness retention split (Phase 4 v2
- * Step 1 diagnosis) showed retention strongly predicts accuracy.
- * Reading from `metadata.omRouterCategory` (captured in
- * LongMemEvalS.runCase when the v10 router is on); when the
- * classifier predicts one of these categories, the OM reader prompt
- * appends {@link CONDITIONAL_VERBATIM_CITATION}. Other categories
- * (TR, MS, SSP, SSA, unknown) get the baseline reader prompt without
- * the verbatim rule, because the Phase 4 v1 RED proved a uniform
- * always-quote rule regresses synthesis-required categories.
- */
-const VERBATIM_CITATION_ELIGIBLE_CATEGORIES: ReadonlySet<string> = new Set([
-  'knowledge-update',
-  'single-session-user',
-  // Step 18 v3: SSA added based on Phase A finding that SSA dipped to
-  // 82.4% (vs canonical's 89.3% baseline) under v2's KU+SSU-only rule.
-  // Per-correctness gap on SSA was +0.50 in baseline data — borderline
-  // but positive predictor. Test whether adding SSA to the eligible
-  // list recovers SSA accuracy without regressing other categories.
-  'single-session-assistant',
-]);
+// VERBATIM_CITATION_ELIGIBLE_CATEGORIES is co-located with
+// CONDITIONAL_VERBATIM_CITATION in `prompts.ts` so the rule content and the
+// eligibility set stay in lockstep. Step 18 v3 (added then reverted) tested
+// SSA based on its borderline +0.50 per-correctness gap; v3 Tier A tied v2
+// (no SSA accuracy lift), so the eligibility set was reverted to KU + SSU
+// only — the variant that hit Phase A 78.4% [69.6%, 86.3%] and Phase B
+// 75.4% [71.6%, 79.0%].
 
 export function buildOmReaderSystemPrompt(
   observationLog: string,
@@ -687,6 +674,16 @@ export function buildOmReaderSystemPrompt(
      * `'single-session-user'`, appends {@link CONDITIONAL_VERBATIM_CITATION}
      * after {@link OBSERVATION_CONTEXT_INSTRUCTIONS}. Omit (or pass
      * any other value) to use the baseline reader prompt.
+     *
+     * SECURITY NOTE: this value is treated as untrusted input even
+     * though `classifyQuestion` already narrows its return to
+     * {@link QuestionCategory}. We do a Set-membership check ONLY (no
+     * string interpolation into the prompt body) so that any future
+     * refactor that broadens the input source (e.g., user-supplied
+     * routing override) cannot escalate to prompt injection. If you
+     * later refactor `runner.ts` to interpolate `routerCategory` into
+     * the prompt body, harden the call site by validating against the
+     * `QuestionCategory` whitelist BEFORE interpolation.
      */
     routerCategory?: string;
   } = {},
@@ -699,6 +696,11 @@ export function buildOmReaderSystemPrompt(
         .map((p) => `[${p.id}] ${p.content}`)
         .join('\n\n---\n\n')}\n\n${RETRIEVED_PASSAGES_INSTRUCTIONS}`
     : '';
+  // Set-membership check only — no string interpolation of routerCategory
+  // into the prompt body. Even if `routerCategory` were a malicious string
+  // (e.g., a prompt-injection payload), the Set lookup either matches one
+  // of the two known-safe sentinel strings or it doesn't. The constant
+  // CONDITIONAL_VERBATIM_CITATION is the only thing that gets interpolated.
   const verbatimBlock =
     typeof routerCategory === 'string' &&
     VERBATIM_CITATION_ELIGIBLE_CATEGORIES.has(routerCategory)

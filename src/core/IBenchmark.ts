@@ -563,6 +563,27 @@ export interface RunConfig {
   omRetrieverMsOverFetchMultiplier?: number;
 
   /**
+   * Step 18: capture the post-Observer compressed observation log
+   * (`omFinalLog`) into per-case metadata so the token-retention metric
+   * can score the `raw → observer` stage post-hoc.
+   *
+   * Default `true` — the retention metric requires the observation log
+   * to compute per-stage rates, and the Phase B v11 confirmation pipeline
+   * runs the metric unconditionally. Disable with `--no-capture-retention-inputs`
+   * to opt out of the per-case storage cost (~10-20MB per cached run at
+   * N=500) when running benchmarks that don't consume the retention
+   * metric output (e.g., micro-benchmarks, judge-adversarial probes).
+   *
+   * Note: disabling this flag does NOT affect the metric's compute
+   * pipeline — `aggregate()` still calls `computeTokenRetention`, but the
+   * per-stage rates dependent on `omFinalLog` will degrade to e2e-only
+   * (reader-cited rate from the final answer). Cache fingerprint:
+   * `retention-instrumentation:v1` (unchanged; the flag controls capture
+   * behavior, not metric compute).
+   */
+  captureRetentionInputs?: boolean;
+
+  /**
    * Step 17: when true, score each session's per-session OM observation
    * block against the question, pick top-K candidate sessions, then
    * scope HybridRetriever evidence to only those sessions (post-hoc
@@ -603,102 +624,83 @@ export type OmIngestMode = 'per-session' | 'batched' | 'dual-path' | 'hierarchic
  * infrastructure (judge, cache, cost tracker, working directory) so each
  * benchmark implementation only has to declare its benchmark-specific logic.
  */
+/**
+ * Single source of truth for {@link RunConfig} keys that should remain
+ * optional inside {@link BenchContext.config} (rather than being made
+ * `Required<...>` after defaults are applied). Each key listed here will
+ * appear in BOTH the `Omit<...>` and `Pick<...>` halves of the
+ * `BenchContext.config` type below — so updating this single tuple keeps
+ * the two halves in lockstep automatically.
+ *
+ * Add a new key here when:
+ * - The CLI exposes a new optional flag whose default is "do not apply"
+ *   (typically a feature toggle or override knob)
+ * - The field semantically may be `undefined` after `resolveRunConfig`
+ *
+ * Do NOT add a key here when the runner produces a default value for the
+ * field at config-resolution time (those should remain in the `Required<>`
+ * half).
+ */
+const OPTIONAL_RUN_CONFIG_KEYS = [
+  'sampleN',
+  'tags',
+  'seed',
+  'maxUsd',
+  'retrievalProfile',
+  'adaptiveRetrieval',
+  'retrievalK',
+  'stratified',
+  'samplePerType',
+  'trackFootprint',
+  'ablateSignal',
+  'ablateMechanism',
+  'rerank',
+  'contextSummaryModel',
+  'readerTopK',
+  'judgeAdversarial',
+  'judgeAdversarialMaxProbes',
+  'judgeAdversarialSynthModel',
+  'bootstrapResamples',
+  'sessionRetrieval',
+  'sessionRetrievalTopSessions',
+  'sessionRetrievalChunksPerSession',
+  'hybridRetrieval',
+  'hyde',
+  'factSupersession',
+  'splitAmbiguous',
+  'observerReflector',
+  'observerReflectorReplace',
+  'factGraphIngest',
+  'graphActivation',
+  'twoCallReader',
+  'observationalMemory',
+  'omBatchTokenTarget',
+  'omMode',
+  'omReaderScaffold',
+  'omSynthesisModel',
+  'omObserverModel',
+  'omWithRetrieval',
+  'omDynamicRouter',
+  'omClassifierModel',
+  'omClassifierFewshot',
+  'omGuidedRetrieval',
+  'omGuidedRetrievalK',
+  'omRetrieverMsKOverride',
+  'omRetrieverMsBm25Weight',
+  'omRetrieverMsOverFetchMultiplier',
+  'captureRetentionInputs',
+] as const;
+/**
+ * Compile-time guard: ensure every entry in {@link OPTIONAL_RUN_CONFIG_KEYS}
+ * is actually a key of {@link RunConfig}. If a key is renamed in `RunConfig`
+ * but not updated here, this assignment errors at typecheck time.
+ */
+type OptionalRunConfigKey = (typeof OPTIONAL_RUN_CONFIG_KEYS)[number] & keyof RunConfig;
+
 export interface BenchContext {
   /** The run configuration (resolved defaults applied). */
-  config: Required<
-    Omit<
-      RunConfig,
-      | 'sampleN'
-      | 'tags'
-      | 'seed'
-      | 'maxUsd'
-      | 'retrievalProfile'
-      | 'adaptiveRetrieval'
-      | 'retrievalK'
-      | 'stratified'
-      | 'samplePerType'
-      | 'trackFootprint'
-      | 'ablateSignal'
-      | 'ablateMechanism'
-      | 'rerank'
-      | 'contextSummaryModel'
-      | 'readerTopK'
-      | 'judgeAdversarial'
-      | 'judgeAdversarialMaxProbes'
-      | 'judgeAdversarialSynthModel'
-      | 'bootstrapResamples'
-      | 'sessionRetrieval'
-      | 'sessionRetrievalTopSessions'
-      | 'sessionRetrievalChunksPerSession'
-      | 'hybridRetrieval'
-      | 'hyde'
-      | 'factSupersession'
-      | 'splitAmbiguous'
-      | 'observerReflector'
-      | 'observerReflectorReplace'
-      | 'factGraphIngest'
-      | 'graphActivation'
-      | 'twoCallReader'
-      | 'observationalMemory'
-      | 'omBatchTokenTarget'
-      | 'omMode'
-      | 'omReaderScaffold'
-      | 'omSynthesisModel'
-      | 'omObserverModel'
-      | 'omWithRetrieval'
-      | 'omDynamicRouter'
-      | 'omClassifierModel'
-      | 'omClassifierFewshot'
-      | 'omGuidedRetrieval'
-      | 'omGuidedRetrievalK'
-    >
-  > &
-    Pick<
-      RunConfig,
-      | 'sampleN'
-      | 'tags'
-      | 'seed'
-      | 'maxUsd'
-      | 'retrievalProfile'
-      | 'adaptiveRetrieval'
-      | 'retrievalK'
-      | 'stratified'
-      | 'samplePerType'
-      | 'trackFootprint'
-      | 'ablateSignal'
-      | 'ablateMechanism'
-      | 'rerank'
-      | 'contextSummaryModel'
-      | 'readerTopK'
-      | 'judgeAdversarial'
-      | 'judgeAdversarialMaxProbes'
-      | 'judgeAdversarialSynthModel'
-      | 'bootstrapResamples'
-      | 'sessionRetrieval'
-      | 'sessionRetrievalTopSessions'
-      | 'sessionRetrievalChunksPerSession'
-      | 'hybridRetrieval'
-      | 'hyde'
-      | 'factSupersession'
-      | 'splitAmbiguous'
-      | 'observerReflector'
-      | 'observerReflectorReplace'
-      | 'factGraphIngest'
-      | 'graphActivation'
-      | 'twoCallReader'
-      | 'observationalMemory'
-      | 'omBatchTokenTarget'
-      | 'omMode'
-      | 'omReaderScaffold'
-      | 'omSynthesisModel'
-      | 'omObserverModel'
-      | 'omWithRetrieval'
-      | 'omDynamicRouter'
-      | 'omClassifierModel'
-      | 'omClassifierFewshot'
-      | 'omGuidedRetrieval'
-      | 'omGuidedRetrievalK'
-    >;
+  config: Required<Omit<RunConfig, OptionalRunConfigKey>> &
+    Pick<RunConfig, OptionalRunConfigKey>;
   /** LLM-as-judge for external benchmarks. Micro-benchmarks ignore. */
   judge: IJudge;
   /** Content-hash-keyed cache for embeddings, reader responses, judgments. */

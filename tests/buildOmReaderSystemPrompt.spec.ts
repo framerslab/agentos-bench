@@ -56,15 +56,15 @@ describe('buildOmReaderSystemPrompt — Step 18 v2 conditional verbatim citation
     expect(prompt).not.toContain(CONDITIONAL_VERBATIM_CITATION);
   });
 
-  it('appends the verbatim-citation block for single-session-assistant (Step 18 v3)', () => {
-    // SSA was added to the eligible list in v3 after Phase A v2 showed
-    // SSA dipped to 82.4% (vs canonical's 89.3% baseline). SSA's
-    // per-correctness gap (+0.50) is borderline-positive; this variant
-    // tests whether including it recovers SSA accuracy.
+  it('omits the verbatim-citation block for single-session-assistant (Step 18 v3 reverted to v2 after NULL Tier A)', () => {
+    // SSA was briefly added to the eligible list in Step 18 v3 (KU+SSU+SSA)
+    // and tested at Tier A — tied v2 (66.7% — no SSA accuracy lift).
+    // Reverted to v2 (KU+SSU only) for Phase B confirmation since that's
+    // the variant that hit Phase A 78.4% [69.6%, 86.3%].
     const prompt = buildOmReaderSystemPrompt(SAMPLE_OBSERVATION_LOG, {
       routerCategory: 'single-session-assistant',
     });
-    expect(prompt).toContain(CONDITIONAL_VERBATIM_CITATION);
+    expect(prompt).not.toContain(CONDITIONAL_VERBATIM_CITATION);
   });
 
   it('omits the verbatim-citation block for unknown router category', () => {

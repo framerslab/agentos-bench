@@ -178,6 +178,7 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     omRetrieverMsKOverride: cfg.omRetrieverMsKOverride,
     omRetrieverMsBm25Weight: cfg.omRetrieverMsBm25Weight,
     omRetrieverMsOverFetchMultiplier: cfg.omRetrieverMsOverFetchMultiplier,
+    captureRetentionInputs: cfg.captureRetentionInputs,
   };
 }
 
@@ -534,6 +535,16 @@ export function computeCaseRunKeyParts(
   // captured. Subsequent runs reuse the new case-run cache normally.
   // Bumped on BOTH runKey and resultKey so cached scored results are
   // also re-judged once.
+  //
+  // INTENTIONALLY UNCONDITIONAL — unlike the Step 19 fingerprints
+  // below (which are gated on their respective config field being set),
+  // this tag is appended on every run so the schema version of
+  // `metadata.omFinalLog` / `metadata.expected` / `metadata.type` is
+  // always part of the cache key. If you ever need to bump the
+  // retention metadata schema (add a new captured field, change a
+  // serialization), DO NOT convert this to a conditional gate — bump
+  // the version suffix instead (`retention-instrumentation:v2`) so
+  // every cached entry invalidates atomically across all runs.
   const retentionTag = 'retention-instrumentation:v1';
   runKeyParts.push(retentionTag);
   resultKeyParts.push(retentionTag);

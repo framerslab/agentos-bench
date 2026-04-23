@@ -80,3 +80,61 @@ export type {
   TokenRetentionStageRates,
   TokenRetentionExclusion,
 } from './computeTokenRetention.js';
+
+/**
+ * Cross-benchmark contract for `computeTokenRetention` consumers.
+ *
+ * The aggregator reads structured keys off `CaseRun.metadata`. This interface
+ * documents the keys an adapter (LongMemEvalS, Locomo, Beam, future
+ * benchmarks) must populate for the per-stage retention metric to fire.
+ *
+ * The shape is intentionally permissive — the metric tolerates missing
+ * intermediate stages (e.g., a canonical-only run has no `omFinalLog`; an
+ * OM-only run has no `retrievedEvidence`). Cases missing the gold answer
+ * (`expected`) are silently excluded.
+ *
+ * Keys are non-enumerable in the runtime metadata bag (`Record<string, unknown>`)
+ * but treated as canonical when present:
+ *
+ * - `expected` (string, REQUIRED): the gold answer text. Used to extract
+ *   the high-IDF candidate-token set per case via {@link extractHighIdfTokens}.
+ * - `type` / `caseType` (string, OPTIONAL): question category for per-category
+ *   bucketing (e.g., `'multi-session'`, `'knowledge-update'`). Both keys
+ *   are read; `type` takes precedence. Cases without either are bucketed
+ *   under `'unknown'` in the per-category aggregate.
+ * - `omFinalLog` (string, OPTIONAL): the post-Observer compressed observation
+ *   log shown to the reader. Used to compute the `raw → observer` retention
+ *   rate. Absent on non-OM runs.
+ * - `retrievedEvidence` (RetentionRetrievedEvidence[], OPTIONAL): the ranked
+ *   retrieved-passage list from the retriever stage. Used to compute the
+ *   `raw → retrieved` retention rate. Absent on OM-only runs without
+ *   retrieval.
+ * - `expectedSessionIds` / `goldSessionIds` (string[], OPTIONAL — used by
+ *   other metrics, not retention itself).
+ *
+ * The `CaseRun.success` field (boolean) is used for the per-correctness
+ * split; the metric reads it directly off the case, not metadata.
+ */
+export interface RetentionInputs {
+  /** Gold answer text. REQUIRED for the case to participate in retention scoring. */
+  expected: string;
+  /** Question category (e.g., 'multi-session'). Used for per-category bucketing. */
+  type?: string;
+  /** Legacy alias for `type`. Read iff `type` is missing. */
+  caseType?: string;
+  /** Post-Observer compressed observation log shown to the reader (OM runs only). */
+  omFinalLog?: string;
+  /** Retrieved passages from the retriever stage (canonical / OM+retrieval runs). */
+  retrievedEvidence?: RetentionRetrievedEvidence[];
+}
+
+/**
+ * Minimal shape `computeTokenRetention` reads from each retrieved-evidence
+ * entry. The full `EvidenceTrace` interface in
+ * {@link EvidenceProvenance} carries more fields; only `content` is
+ * required for retention scoring.
+ */
+export interface RetentionRetrievedEvidence {
+  /** The retrieved passage's text. */
+  content: string;
+}
