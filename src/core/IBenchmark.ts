@@ -722,7 +722,7 @@ export type OmIngestMode = 'per-session' | 'batched' | 'dual-path' | 'hierarchic
  * field at config-resolution time (those should remain in the `Required<>`
  * half).
  */
-const OPTIONAL_RUN_CONFIG_KEYS = [
+export const OPTIONAL_RUN_CONFIG_KEYS = [
   'sampleN',
   'tags',
   'seed',
