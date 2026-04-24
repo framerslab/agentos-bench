@@ -606,6 +606,41 @@ export interface RunConfig {
    * (less pollution) but risks missing the gold session.
    */
   omGuidedRetrievalK?: number;
+
+  /**
+   * Tier 3: enable the policy router. When true, dispatches per-query to
+   * `tier_1_canonical` / `tier_2a_v10` / `tier_2b_v11` based on the v10
+   * classifier + the routing table specified by {@link policyRouterPreset}.
+   * Mutually exclusive with `omDynamicRouter` (throws on both set).
+   * Default: false. Opt-in behind `--policy-router` CLI flag.
+   *
+   * See [docs/specs/2026-04-24-tier-3-budget-aware-policy-router-design.md](../../docs/specs/2026-04-24-tier-3-budget-aware-policy-router-design.md).
+   */
+  policyRouter?: boolean;
+
+  /**
+   * Tier 3 policy router preset. Default: `'maximize-accuracy'`.
+   * - `maximize-accuracy`: picks highest-accuracy backend per category (Phase B realistic 75.3% / $0.357/correct / 1.22x cheaper vs Tier 2b flat)
+   * - `balanced`: trades cost for latency on latency-sensitive categories (74.5% / $0.205/correct / 2.12x cheaper)
+   * - `minimize-cost`: Pareto-dominant or cheapest per category (73.9% / $0.092/correct / 4.77x cheaper)
+   */
+  policyRouterPreset?: 'maximize-accuracy' | 'balanced' | 'minimize-cost';
+
+  /**
+   * Tier 3 per-query USD ceiling. When set, the policy router applies
+   * the budget check per {@link policyRouterBudgetMode}. Undefined (default)
+   * = unbounded — the routing-table pick is always used.
+   */
+  policyRouterBudgetPerQuery?: number;
+
+  /**
+   * Tier 3 budget mode: how the router behaves when the routing-table pick
+   * exceeds the per-query budget.
+   * - `hard` (default): throw `PolicyRouterBudgetExceededError`
+   * - `soft`: exceed only if picked $/correct <= cheapest-fits $/correct
+   * - `cheapest-fallback`: downgrade to cheapest-that-fits (or globally cheapest)
+   */
+  policyRouterBudgetMode?: 'hard' | 'soft' | 'cheapest-fallback';
 }
 
 /**
@@ -689,6 +724,10 @@ const OPTIONAL_RUN_CONFIG_KEYS = [
   'omRetrieverMsBm25Weight',
   'omRetrieverMsOverFetchMultiplier',
   'captureRetentionInputs',
+  'policyRouter',
+  'policyRouterPreset',
+  'policyRouterBudgetPerQuery',
+  'policyRouterBudgetMode',
 ] as const;
 /**
  * Compile-time guard: ensure every entry in {@link OPTIONAL_RUN_CONFIG_KEYS}
@@ -952,6 +991,16 @@ export interface BenchResult {
    * that don't surface either key.
    */
   tokenRetention?: import('./metrics/index.js').TokenRetentionResult;
+
+  /**
+   * Tier 3 policy router stats. Populated only when `config.policyRouter`
+   * was enabled for the run. Includes per-backend hit rate, per-category
+   * backend mix, classifier ground-truth accuracy on the run, budget
+   * breach rate, avg cost-per-query, and the oracle counterfactual
+   * estimate from the shipped per-category cost-accuracy table.
+   * See spec: docs/specs/2026-04-24-tier-3-budget-aware-policy-router-design.md
+   */
+  policyRouterStats?: import('./metrics/index.js').PolicyRouterStats;
 
   /** Per-case results. */
   cases: CaseResult[];

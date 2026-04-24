@@ -138,3 +138,8 @@ export interface RetentionRetrievedEvidence {
   /** The retrieved passage's text. */
   content: string;
 }
+
+export {
+  computePolicyRouterStats,
+  type PolicyRouterStats,
+} from './computePolicyRouterStats.js';
