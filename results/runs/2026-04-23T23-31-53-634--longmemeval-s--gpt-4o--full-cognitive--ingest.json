@@ -1,0 +1,166 @@
+{
+  "benchmarkId": "longmemeval-s",
+  "benchmarkVersion": "1.0.0",
+  "config": {
+    "reader": "gpt-4o",
+    "memoryMode": "full-cognitive",
+    "replayMode": "ingest",
+    "sampleN": 2,
+    "concurrency": 3,
+    "retrievalProfile": "balanced",
+    "adaptiveRetrieval": true,
+    "retrievalK": 10,
+    "stratified": false,
+    "trackFootprint": true,
+    "rerank": {
+      "provider": "cohere"
+    },
+    "contextSummaryModel": "gpt-5-mini",
+    "judgeAdversarial": false,
+    "judgeAdversarialMaxProbes": 50,
+    "judgeAdversarialSynthModel": "gpt-5-mini",
+    "bootstrapResamples": 10000,
+    "sessionRetrieval": false,
+    "sessionRetrievalTopSessions": 5,
+    "sessionRetrievalChunksPerSession": 3,
+    "hybridRetrieval": true,
+    "hyde": false,
+    "factSupersession": false,
+    "observerReflector": false,
+    "observerReflectorReplace": false,
+    "factGraphIngest": false,
+    "graphActivation": false,
+    "twoCallReader": false,
+    "observationalMemory": true,
+    "omReaderScaffold": false,
+    "omWithRetrieval": false,
+    "omDynamicRouter": false,
+    "omClassifierFewshot": false,
+    "omGuidedRetrieval": false,
+    "captureRetentionInputs": true,
+    "policyRouter": true,
+    "policyRouterPreset": "maximize-accuracy"
+  },
+  "totalCases": 2,
+  "passedCases": 0,
+  "accuracy": 0,
+  "avgScore": 0,
+  "scoreStdDev": 0,
+  "byType": {
+    "unknown": {
+      "n": 2,
+      "accuracy": 0,
+      "avgScore": 0
+    }
+  },
+  "avgLatencyMs": 0,
+  "p50LatencyMs": 0,
+  "p95LatencyMs": 0,
+  "totalReaderTokens": 0,
+  "totalUsd": 0,
+  "costPerCorrect": null,
+  "startedAt": "2026-04-23T23:31:53.634Z",
+  "completedAt": "2026-04-23T23:31:54.259Z",
+  "stratifiedAccuracy": {
+    "byType": {
+      "unknown": {
+        "n": 2,
+        "accuracy": 0,
+        "prior": 1
+      }
+    },
+    "weightedOverall": 0,
+    "unweightedOverall": 0,
+    "missingTypes": [
+      "single-session-user",
+      "single-session-assistant",
+      "single-session-preference",
+      "multi-session",
+      "temporal-reasoning",
+      "knowledge-update"
+    ]
+  },
+  "tokensPerCorrect": {
+    "readerIn": 0,
+    "readerOut": 0,
+    "judgeIn": 0,
+    "judgeOut": 0,
+    "embeddingIn": 0,
+    "total": 0,
+    "zeroPassedFallback": true
+  },
+  "tokenRetention": {
+    "perCategory": {},
+    "overall": {
+      "e2eRetention": {
+        "n": 0,
+        "retention": {
+          "value": 0,
+          "ciLo": 0,
+          "ciHi": 0,
+          "resamples": 0,
+          "ci": 0.95
+        }
+      }
+    },
+    "excluded": [
+      {
+        "caseId": "e47becba",
+        "category": "unknown",
+        "tokenCount": 0
+      },
+      {
+        "caseId": "118b2229",
+        "category": "unknown",
+        "tokenCount": 0
+      }
+    ]
+  },
+  "cases": [
+    {
+      "caseId": "e47becba",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "agentos-bench: OPENAI_API_KEY not set — required for reader 'gpt-5-mini'.",
+      "score": 0,
+      "passed": false
+    },
+    {
+      "caseId": "118b2229",
+      "actualOutput": "",
+      "latencyMs": 0,
+      "tokensIn": 0,
+      "tokensOut": 0,
+      "usd": 0,
+      "error": "agentos-bench: OPENAI_API_KEY not set — required for reader 'gpt-5-mini'.",
+      "score": 0,
+      "passed": false
+    }
+  ],
+  "accuracyCI": {
+    "value": 0,
+    "ciLo": 0,
+    "ciHi": 0,
+    "resamples": 10000,
+    "ci": 0.95
+  },
+  "byTypeCI": {
+    "unknown": {
+      "value": 0,
+      "ciLo": 0,
+      "ciHi": 0,
+      "resamples": 10000,
+      "ci": 0.95
+    }
+  },
+  "weightedAccuracyCI": {
+    "value": 0,
+    "ciLo": 0,
+    "ciHi": 0,
+    "resamples": 10000,
+    "ci": 0.95
+  }
+}
