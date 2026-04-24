@@ -199,16 +199,23 @@ export const DEFAULT_BACKEND_COSTS: Record<PolicyBackend, BackendCostPoint> = {
  * Preset: maximize-accuracy. Picks highest-accuracy backend per category.
  * Ties within CI noise broken by cost.
  *
+ * v2 update (2026-04-24, post-Phase-B): temporal-reasoning routes to
+ * tier_1_canonical instead of tier_2a_v10. Phase B N=500 found the v1
+ * routing (TR → Tier 2a) paid OM ingest cost for a within-CI-noise
+ * accuracy gain (71.0% Tier 2a vs 70.2% Tier 1); combined with classifier
+ * misroutes, the aggregate dropped to 73.8% (below the 74% floor). v2
+ * keeps TR on Tier 1 where it's cheapest and accuracy-equivalent.
+ *
  * Simulation (Phase B N=500, v10 classifier predictions, full-pipeline cost):
- *   Accuracy: 75.3%  |  $0.357/correct  |  1.22x cheaper vs Tier 2b flat
- * Oracle ceiling: 76.2% at $0.356/correct.
+ *   v1: Accuracy 73.8% [70.0, 77.6] | $0.2465/correct | below 74% floor
+ *   v2: predicted 75-76% | expected $0.10-0.15/correct | TR routing fix
  */
 export const MAXIMIZE_ACCURACY_TABLE: RoutingTable = Object.freeze({
   preset: 'maximize-accuracy' as const,
   defaultMapping: Object.freeze({
     'single-session-assistant': 'tier_1_canonical',
     'single-session-user': 'tier_2b_v11',
-    'temporal-reasoning': 'tier_2a_v10',
+    'temporal-reasoning': 'tier_1_canonical',
     'knowledge-update': 'tier_2b_v11',
     'multi-session': 'tier_2b_v11',
     'single-session-preference': 'tier_2b_v11',
