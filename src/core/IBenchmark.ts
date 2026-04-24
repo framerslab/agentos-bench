@@ -641,6 +641,52 @@ export interface RunConfig {
    * - `cheapest-fallback`: downgrade to cheapest-that-fits (or globally cheapest)
    */
   policyRouterBudgetMode?: 'hard' | 'soft' | 'cheapest-fallback';
+
+  /**
+   * Stage C / Tier 4a: session-level NDCG retrieval post-process.
+   * After the canonical HybridRetriever returns top-K traces, group them by
+   * sessionId, compute NDCG per session from trace ranks, pick the top-K
+   * sessions, and expand the evidence to cover ALL turns of those sessions
+   * from the haystack. Matches Emergence AI's "EmergenceMem Simple" recipe
+   * which scored 82.4% on LongMemEval at `gpt-4o` reader.
+   *
+   * Orthogonal to policy router: applies only to the canonical path (Tier 1).
+   * Cache fingerprint: `stage-c-session-ndcg:v1:top{K}`.
+   *
+   * Default: false. Opt-in behind `--session-level-ndcg` CLI flag.
+   */
+  sessionLevelNdcg?: boolean;
+
+  /**
+   * Stage C: number of top sessions (by NDCG score) to expand to the reader.
+   * Default 3. Lower = tighter scoping, potentially missing the gold session;
+   * higher = more context, potentially diluting precision.
+   */
+  sessionLevelNdcgTopK?: number;
+
+  /**
+   * Stage F-2: suppress abstention instructions in reader system prompts.
+   *
+   * LongMemEval-S ships with an explicit abstention format ("Answer: I don't
+   * know — the excerpts do not mention <topic>") because its adversarial
+   * category rewards refusal on unanswerable questions. LOCOMO's non-
+   * adversarial categories (single-hop, multi-hop, temporal, open-domain)
+   * guarantee every question has an answer in-conversation, so the same
+   * abstention wording over-fires and depresses recall (Stage F-1: LOCOMO
+   * single-hop 20.6%).
+   *
+   * When true, the full-cognitive / base-memory / no-memory prompt builders
+   * emit a "never respond 'I don't know'; commit to the best-supported
+   * answer" directive instead of the v9 abstention lines. Intended for OOD
+   * benchmarks whose gold answers are guaranteed-present (LOCOMO non-
+   * adversarial, BEAM, etc.).
+   *
+   * Cache fingerprint: `stage-f2-no-abstention:v1`. Conditional so runs
+   * without the flag remain cache-valid.
+   *
+   * Default: false. Opt-in behind `--no-abstention` CLI flag.
+   */
+  noAbstention?: boolean;
 }
 
 /**
@@ -728,6 +774,9 @@ const OPTIONAL_RUN_CONFIG_KEYS = [
   'policyRouterPreset',
   'policyRouterBudgetPerQuery',
   'policyRouterBudgetMode',
+  'sessionLevelNdcg',
+  'sessionLevelNdcgTopK',
+  'noAbstention',
 ] as const;
 /**
  * Compile-time guard: ensure every entry in {@link OPTIONAL_RUN_CONFIG_KEYS}

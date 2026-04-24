@@ -168,7 +168,7 @@ export class Locomo implements IBenchmark {
     };
 
     if (mode === 'none') {
-      system = buildNoMemorySystemPrompt(c);
+      system = buildNoMemorySystemPrompt(c, { noAbstention: ctx.config.noAbstention });
     } else if (mode === 'base-memory') {
       // Resolution priority for K:
       //   1. ctx.config.readerTopK  (from --reader-top-k CLI flag)
@@ -359,12 +359,18 @@ function remapCategoryToRubric(locomoType: string): string {
   }
 }
 
-function buildNoMemorySystemPrompt(c: BenchCase): string {
+function buildNoMemorySystemPrompt(
+  c: BenchCase,
+  options?: { noAbstention?: boolean },
+): string {
   const haystack = c.haystack.length > 0 ? buildHaystackContext(c.haystack) : '';
+  const abstentionLine = options?.noAbstention
+    ? 'Be concise. Every question has an answer in the conversation history — commit to your best-effort answer and never say "I don\'t know".'
+    : 'Be concise. If the history does not contain the answer, say "I don\'t know".';
   return [
     'You are being evaluated on long-term conversational memory.',
     'Answer the question using only the conversation history below.',
-    'Be concise. If the history does not contain the answer, say "I don\'t know".',
+    abstentionLine,
     '',
     '--- Conversation History ---',
     haystack,
@@ -396,7 +402,9 @@ async function runBaseMemoryCase(
       policy: retrievalPolicy,
     });
     return {
-      prompt: buildBaseMemoryPrompt(c, recalled),
+      prompt: buildBaseMemoryPrompt(c, recalled, {
+        noAbstention: ctx.config.noAbstention,
+      }),
       replayStats: {
         sessionsReplayed: replayStats.sessionsReplayed,
         turnsReplayed: replayStats.turnsReplayed,
@@ -410,17 +418,24 @@ async function runBaseMemoryCase(
   }
 }
 
-function buildBaseMemoryPrompt(c: BenchCase, recalled: ScoredTrace[]): string {
+function buildBaseMemoryPrompt(
+  c: BenchCase,
+  recalled: ScoredTrace[],
+  options?: { noAbstention?: boolean },
+): string {
   const body =
     recalled.length > 0
       ? recalled
           .map((r, i) => `#${i + 1} (score ${r.score.toFixed(3)})\n${r.trace.content}`)
           .join('\n\n')
       : '(no relevant memories surfaced)';
+  const abstentionLine = options?.noAbstention
+    ? 'Be concise. Every question has an answer in the excerpts — commit to your best-effort answer drawn from the closest-matching excerpt and never say "I don\'t know".'
+    : 'Be concise. If the excerpts do not contain the answer, say "I don\'t know".';
   return [
     'You are being evaluated on long-term conversational memory.',
     'Use the retrieved memory excerpts below to answer the question.',
-    'Be concise. If the excerpts do not contain the answer, say "I don\'t know".',
+    abstentionLine,
     '',
     '--- Retrieved Memory ---',
     body,

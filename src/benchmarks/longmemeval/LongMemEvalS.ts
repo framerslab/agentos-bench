@@ -651,7 +651,7 @@ export class LongMemEvalS implements IBenchmark {
       runMetadata.omReflectorTokensIn = ingest.reflectorTokensIn;
       runMetadata.omReflectorTokensOut = ingest.reflectorTokensOut;
     } else if (mode === 'none') {
-      system = buildNoMemorySystemPrompt(c);
+      system = buildNoMemorySystemPrompt(c, { noAbstention: ctx.config.noAbstention });
     } else if (mode === 'base-memory') {
       // Resolution priority for K:
       //   1. ctx.config.readerTopK  (from --reader-top-k CLI flag)
@@ -762,6 +762,68 @@ export class LongMemEvalS implements IBenchmark {
       runMetadata.traceIdToSessionId = out.traceIdToSessionId;
       runMetadata.traceCount = out.traceCount;
       runMetadata.brainBytes = out.brainBytes;
+
+      // Stage C / Tier 4a: session-level NDCG retrieval post-process
+      // (Emergence AI "Simple" recipe). After HybridRetriever returns top-K
+      // traces, group by sessionId, compute NDCG per session from trace
+      // ranks, pick top-K sessions, expand to ALL turns from haystack.
+      // Reader sees full session conversations for the highest-scored
+      // sessions rather than scattered top-K chunks.
+      if (
+        ctx.config.sessionLevelNdcg &&
+        out.retrievedEvidence &&
+        out.retrievedEvidence.length > 0
+      ) {
+        const topK = ctx.config.sessionLevelNdcgTopK ?? 3;
+        const sessionScores = new Map<string, number>();
+        out.retrievedEvidence.forEach((ev, rank) => {
+          const sid = ev.sessionId;
+          if (!sid) return;
+          const ndcgWeight = 1 / Math.log2(rank + 2);
+          sessionScores.set(sid, (sessionScores.get(sid) ?? 0) + ndcgWeight);
+        });
+        const topSessionIds = new Set(
+          [...sessionScores.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, topK)
+            .map(([sid]) => sid),
+        );
+        // Expand to full session turns from the case haystack
+        const expandedEvidence: Array<{
+          id: string;
+          content: string;
+          sessionId: string;
+          retrievalScore: number;
+        }> = [];
+        for (const session of c.haystack) {
+          if (!topSessionIds.has(session.sessionId)) continue;
+          const turns = session.turns
+            .filter((t) => t.content.trim().length > 0)
+            .map((t) => `${t.role}: ${t.content}`)
+            .join('\n');
+          const dateBracket = session.date ? `[${session.date}]` : '';
+          expandedEvidence.push({
+            id: session.sessionId,
+            content: `${dateBracket} ${turns}`.trim(),
+            sessionId: session.sessionId,
+            retrievalScore: sessionScores.get(session.sessionId) ?? 0,
+          });
+        }
+        // Sort sessions by NDCG score descending
+        expandedEvidence.sort(
+          (a, b) => (b.retrievalScore ?? 0) - (a.retrievalScore ?? 0),
+        );
+        if (expandedEvidence.length > 0) {
+          runMetadata.retrievedEvidence = expandedEvidence;
+          runMetadata.sessionLevelNdcgActive = true;
+          runMetadata.sessionLevelNdcgTopSessionIds = [...topSessionIds];
+          runMetadata.sessionLevelNdcgExpandedCount = expandedEvidence.length;
+          // Rebuild the reader system prompt with expanded evidence
+          system = buildFullCognitivePrompt(c, expandedEvidence, {
+            noAbstention: ctx.config.noAbstention,
+          });
+        }
+      }
     }
 
     let actualOutput: string;
@@ -1210,12 +1272,18 @@ export class LongMemEvalS implements IBenchmark {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function buildNoMemorySystemPrompt(c: BenchCase): string {
+function buildNoMemorySystemPrompt(
+  c: BenchCase,
+  options?: { noAbstention?: boolean },
+): string {
   const haystack = c.haystack.length > 0 ? buildHaystackContext(c.haystack) : '';
+  const abstentionLine = options?.noAbstention
+    ? 'Be concise. Every question has an answer in the conversation history — commit to your best-effort answer and never say "I don\'t know".'
+    : 'Be concise. If you cannot find the answer in the history, say "I don\'t know".';
   const header = [
     'You are being evaluated on long-term conversation memory.',
     'Answer the question based on the conversation history below.',
-    'Be concise. If you cannot find the answer in the history, say "I don\'t know".',
+    abstentionLine,
   ].join(' ');
   const dateHeader = c.questionDate ? `\n\n[Question asked on ${c.questionDate}]` : '';
   return `${header}${dateHeader}\n\n--- Conversation History ---\n${haystack}\n--- End History ---`;
@@ -1258,7 +1326,9 @@ async function runBaseMemoryCase(
       policy: retrievalPolicy,
     });
     return {
-      prompt: buildBaseMemoryPrompt(c, recalled),
+      prompt: buildBaseMemoryPrompt(c, recalled, {
+        noAbstention: ctx.config.noAbstention,
+      }),
       replayStats: {
         sessionsReplayed: replayStats.sessionsReplayed,
         turnsReplayed: replayStats.turnsReplayed,
@@ -1741,7 +1811,9 @@ export async function runFullCognitiveCase(
     }
 
     return {
-      prompt: buildFullCognitivePrompt(c, reader_chunks),
+      prompt: buildFullCognitivePrompt(c, reader_chunks, {
+        noAbstention: ctx.config.noAbstention,
+      }),
       replayStats: {
         sessionsReplayed: replayStats.sessionsReplayed,
         turnsReplayed: replayStats.turnsReplayed,
@@ -2354,6 +2426,7 @@ export function chunkSessionTurns(
 function buildFullCognitivePrompt(
   c: BenchCase,
   recalled: Array<{ id: string; content: string; retrievalScore?: number }>,
+  options?: { noAbstention?: boolean },
 ): string {
   // Reader prompt tuning (v9 — v8 + personalization rule for advice):
   //
@@ -2410,8 +2483,22 @@ function buildFullCognitivePrompt(
     // v8: abstention WORDING (not rule) — give the reader a format
     // that the gpt-4o judge reliably accepts as identifying the
     // question as unanswerable. Rule itself is unchanged from v5.
-    'When you abstain (no excerpt contains relevant information), write the answer as: "Answer: I don\'t know — the excerpts do not mention <topic>" where <topic> names the specific thing the question asks about (e.g., "the charity race", "the adoption agency", "the necklace"). This explicit framing is required; bare "I don\'t know" is ambiguous.',
-    'If the evidence is partial or indirect, give your best single answer — do not abstain just because no excerpt states the answer literally. Off-by-one day errors on intervals are acceptable; refusing to commit when the topic appears in the excerpts is not.',
+    //
+    // Stage F-2 (LOCOMO tuning): when `options.noAbstention` is true,
+    // swap the two abstention lines for a commit-always directive.
+    // LOCOMO's non-adversarial categories guarantee every question has
+    // an answer in-conversation, so the v9 abstention wording over-fires
+    // (Stage F-1 measured single-hop 20.6% because the reader refused to
+    // commit when evidence was indirect). The v9 lines remain the default
+    // for LongMemEval-S; no-abstention is opt-in per `--no-abstention`.
+    ...(options?.noAbstention
+      ? [
+          'Every question in this benchmark has an answer supported by the retrieved excerpts below. You must commit to a specific answer drawn from the excerpts. Do NOT respond "I don\'t know" and do NOT abstain. If multiple excerpts partially address the question, synthesize the most likely answer. If evidence is sparse, pick the closest-matching excerpt and extract your best inference from it.',
+        ]
+      : [
+          'When you abstain (no excerpt contains relevant information), write the answer as: "Answer: I don\'t know — the excerpts do not mention <topic>" where <topic> names the specific thing the question asks about (e.g., "the charity race", "the adoption agency", "the necklace"). This explicit framing is required; bare "I don\'t know" is ambiguous.',
+          'If the evidence is partial or indirect, give your best single answer — do not abstain just because no excerpt states the answer literally. Off-by-one day errors on intervals are acceptable; refusing to commit when the topic appears in the excerpts is not.',
+        ]),
     // v9: personalization rule for recommendation / advice questions.
     'For recommendation or advice questions (e.g., "any tips for...", "can you suggest...", "do you have ideas on...", "what should I do about..."), your answer MUST reference the user\'s specific context from the excerpts — their stated preferences, recent purchases, past experiments, cultural background, named items they mentioned (e.g., "turbinado sugar", "Instagram art accounts", "portable power bank", "mid-century dresser"). Begin the answer with that personal detail ("Since you\'ve been using turbinado sugar, try..."; "Building on your mid-century style..."), then give targeted advice. A generic best-practices answer that could apply to anyone is wrong even if well-written — preference questions are specifically evaluated on whether the response utilizes the user\'s personal information from the excerpts.',
   ].join(' ');
@@ -2432,11 +2519,18 @@ function buildFullCognitivePrompt(
 // Base-memory path helpers
 // ---------------------------------------------------------------------------
 
-function buildBaseMemoryPrompt(c: BenchCase, recalled: ScoredTrace[]): string {
+function buildBaseMemoryPrompt(
+  c: BenchCase,
+  recalled: ScoredTrace[],
+  options?: { noAbstention?: boolean },
+): string {
+  const abstentionLine = options?.noAbstention
+    ? 'Every question has an answer supported by the excerpts. Never respond "I don\'t know" — commit to your best-effort answer drawn from the closest-matching excerpt.'
+    : 'Only say "I don\'t know" when no excerpt is relevant to the question at all.';
   const header = [
     'You answer questions about a user based on retrieved memory excerpts from past conversations.',
     'The excerpts are sorted by retrieval relevance. Extract the single best answer supported by the excerpts — be specific with names, numbers, and dates.',
-    'Only say "I don\'t know" when no excerpt is relevant to the question at all.',
+    abstentionLine,
   ].join(' ');
   const dateHeader = c.questionDate ? `\n\n[Question asked on ${c.questionDate}]` : '';
   const body =
