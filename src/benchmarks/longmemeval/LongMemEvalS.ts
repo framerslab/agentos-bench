@@ -50,11 +50,13 @@ import {
   computeEvidenceProvenance,
   type EvidenceTrace,
   computeLatencyBreakdown,
+  computePolicyRouterStats,
   computeStratifiedAccuracy,
   computeTokenEfficiency,
   computeTokenRetention,
   LONGMEMEVAL_S_PRIORS,
   type MemoryFootprint,
+  type PolicyRouterStats,
 } from '../../core/metrics/index.js';
 import type { IReader } from '../../readers/IReader.js';
 import { createReader } from '../../readers/createReader.js';
@@ -76,6 +78,14 @@ import {
   type RouterConfig,
 } from '../../observational-memory/index.js';
 import { createCognitiveManager } from '../../cognitive/createCognitiveManager.js';
+import {
+  DEFAULT_BACKEND_COSTS,
+  PRESET_TABLES,
+  selectBackend,
+  type PolicyBackend,
+  type PolicyRouterConfig,
+  type PolicyRouterDecision,
+} from '../../core/policyRouter.js';
 import { loadLongMemEvalDataset, type LongMemEvalVariant } from './dataset.js';
 import {
   BENCH_SESSION_TAG_PREFIX,
@@ -288,6 +298,71 @@ export class LongMemEvalS implements IBenchmark {
     //   for the canonical Tier A and Phase A commands.
     let routerCategory: QuestionCategory | null = null;
     let routerDecision: RouterConfig | null = null;
+    // Tier 3 policy router state. Populated only when `policyRouter === true`.
+    // Mutually exclusive with `dynamicRouterOn` (validated at CLI layer).
+    let policyRouterDecision: PolicyRouterDecision | null = null;
+    const policyRouterOn = Boolean(ctx.config.policyRouter);
+    if (policyRouterOn) {
+      // Tier 3 policy router. Dispatch per-query based on the v10
+      // classifier's predicted category + the routing table for the
+      // selected preset. Backend selection {tier_1_canonical, tier_2a_v10,
+      // tier_2b_v11} drives whether to use OM path or canonical path; for
+      // OM-backend picks, it also controls whether conditional verbatim
+      // fires (pass routerCategory only for tier_2b, undefined for tier_2a).
+      const presetName = ctx.config.policyRouterPreset ?? 'maximize-accuracy';
+      const table = PRESET_TABLES[presetName];
+      const classifierModelName = (ctx.config.omClassifierModel ?? 'gpt-5-mini') as ReaderModel;
+      const classifierReader = createReader(classifierModelName);
+      let classifierTokensIn = 0;
+      let classifierTokensOut = 0;
+      let classifierModel: string = 'gpt-5-mini';
+      let predictedCategory: QuestionCategory = 'multi-session';
+      try {
+        const result = await classifyQuestion({
+          reader: classifierReader,
+          question: c.question,
+          useFewshotPrompt: Boolean(ctx.config.omClassifierFewshot),
+        });
+        predictedCategory = result.category;
+        classifierTokensIn = result.tokensIn;
+        classifierTokensOut = result.tokensOut;
+        classifierModel = result.model;
+      } catch {
+        // Classifier errored: fall back to multi-session (routes to an OM
+        // backend under every shipping preset, preserving OM's cross-
+        // session signal). Same fallback posture as the v10 dynamic router.
+        predictedCategory = 'multi-session';
+      }
+      if (classifierTokensIn > 0 || classifierTokensOut > 0) {
+        ctx.costTracker.record({
+          category: 'reader',
+          model: classifierModel,
+          tokensIn: classifierTokensIn,
+          tokensOut: classifierTokensOut,
+          tag: `${c.id}:policy-router-classifier`,
+        });
+      }
+      const policyConfig: PolicyRouterConfig = {
+        table,
+        budgetPerQuery: ctx.config.policyRouterBudgetPerQuery ?? null,
+        budgetMode: ctx.config.policyRouterBudgetMode ?? 'hard',
+        backendCosts: DEFAULT_BACKEND_COSTS,
+      };
+      // c.type is the ground-truth LongMemEval category. Cast because the
+      // caseType metadata is loosely typed upstream.
+      const groundTruthCategory = (c.type as QuestionCategory | undefined) ?? null;
+      policyRouterDecision = selectBackend({
+        predictedCategory,
+        groundTruthCategory,
+        config: policyConfig,
+      });
+      runMetadata.policyRouter = true;
+      runMetadata.policyRouterDecision = policyRouterDecision;
+      // Mirror v10 router's pattern so downstream retention / graphing tools
+      // that consume metadata.omRouterCategory still see the classifier's
+      // prediction. Policy router is a superset of v10.
+      runMetadata.omRouterCategory = predictedCategory;
+    }
     const dynamicRouterOn = Boolean(
       this.opts.observationalMemoryEnabled && ctx.config.omDynamicRouter,
     );
@@ -339,13 +414,12 @@ export class LongMemEvalS implements IBenchmark {
     }
 
     // Effective branch decision:
-    // - If router is on AND it picked canonical (runOM=false), fall
-    //   through to the canonical full-cognitive branch (skip OM).
-    // - If router is on AND it picked OM (runOM=true), enter OM branch
-    //   below; the router's useScaffold/runRetrieval override the
-    //   --om-reader-scaffold / --om-with-retrieval CLI flags per-case.
-    // - If router is off, follow the existing static-config logic.
-    const useOmBranch = dynamicRouterOn
+    // - Tier 3 policy router ON: use OM branch iff chosenBackend != tier_1_canonical
+    // - Legacy v10 router ON: use OM branch per routerDecision.runOM
+    // - Both OFF: static --observational-memory flag
+    const useOmBranch = policyRouterOn
+      ? policyRouterDecision!.chosenBackend !== 'tier_1_canonical'
+      : dynamicRouterOn
       ? routerDecision!.runOM
       : Boolean(this.opts.observationalMemoryEnabled);
 
@@ -416,15 +490,16 @@ export class LongMemEvalS implements IBenchmark {
       // of choosing canonical-or-OM per question, always run BOTH but
       // scope retrieval by OM relevance.
       //
-      // When the Step 16c v2 router is on AND it routed to OM (we're
-      // here), retrieval is FORCED OFF: v2 router's KU/MS routes go
-      // through OM-only because Step 16 family was RED. Step 16 logic
-      // is preserved for non-router runs (--om-with-retrieval flag).
-      const effectiveRetrieval = dynamicRouterOn
+      // When the Step 16c v2 router OR the Tier 3 policy router is on AND
+      // the dispatch routed to an OM-using backend (we're here), retrieval
+      // is FORCED OFF: router-picked OM paths go through OM-only because
+      // the Step 16 family was RED. Step 16 logic is preserved for non-
+      // router runs via the static --om-with-retrieval flag.
+      const effectiveRetrieval = policyRouterOn || dynamicRouterOn
         ? false
         : Boolean(ctx.config.omWithRetrieval);
       const guidedRetrievalOn =
-        !dynamicRouterOn && Boolean(ctx.config.omGuidedRetrieval);
+        !policyRouterOn && !dynamicRouterOn && Boolean(ctx.config.omGuidedRetrieval);
       let retrievedPassages: { id: string; content: string }[] | undefined;
       if (effectiveRetrieval || guidedRetrievalOn) {
         const finalK = ctx.config.readerTopK ?? this.opts.recallTopK ?? 10;
@@ -523,21 +598,33 @@ export class LongMemEvalS implements IBenchmark {
         runMetadata.omGuidedRetrieval = guidedRetrievalOn;
       }
 
-      // Effective scaffold: router decides per-case when on, else use
-      // the static --om-reader-scaffold flag.
-      const effectiveScaffold = dynamicRouterOn
+      // Effective scaffold: policy router → always true on OM-route picks
+      // (both Tier 2a and Tier 2b ship with the scaffold); legacy v10 router
+      // → use routerDecision.useScaffold; otherwise → static CLI flag.
+      const effectiveScaffold = policyRouterOn
+        ? true
+        : dynamicRouterOn
         ? routerDecision!.useScaffold
         : Boolean(ctx.config.omReaderScaffold);
+
+      // Router category passthrough for conditional verbatim (Step 18 v2
+      // rule fires only on KU/SSU when passed):
+      // - Policy router tier_2b_v11 → pass predictedCategory (verbatim fires
+      //   if it's KU/SSU; otherwise noop).
+      // - Policy router tier_2a_v10 → pass undefined (no verbatim — Tier 2a
+      //   is defined as v10 router WITHOUT conditional verbatim).
+      // - Legacy v10 router → pass existing routerCategory (unchanged).
+      // - Neither router on → routerCategory is null → pass undefined.
+      const effectiveRouterCategory: QuestionCategory | undefined = policyRouterOn
+        ? policyRouterDecision!.chosenBackend === 'tier_2b_v11'
+          ? policyRouterDecision!.predictedCategory
+          : undefined
+        : routerCategory ?? undefined;
 
       system = buildOmReaderSystemPrompt(ingest.finalLog, {
         includeScaffold: effectiveScaffold,
         retrievedPassages,
-        // Step 18 v2: pass per-question router category so the OM
-        // reader prompt conditionally appends the verbatim-citation
-        // rule for KU/SSU questions only. When the router is off
-        // (routerCategory stays null), the prompt is unchanged from
-        // the baseline.
-        routerCategory: routerCategory ?? undefined,
+        routerCategory: effectiveRouterCategory,
       });
       runMetadata.omBatchTokenTarget = ctx.config.omBatchTokenTarget ?? 24_000;
       runMetadata.omMode = ctx.config.omMode ?? 'dual-path';
@@ -1068,6 +1155,26 @@ export class LongMemEvalS implements IBenchmark {
       seed: ctx.config.seed ?? 42,
     });
 
+    // Tier 3 policy router stats. Populated only when any case has a
+    // policyRouterDecision in metadata (i.e., policyRouter was enabled
+    // during runCase). Oracle counterfactual uses the same preset's
+    // routing table as the decision to answer: "what if the classifier
+    // had been perfect?"
+    const anyPolicyDecisions = results.some(
+      (c) => (c.metadata as Record<string, unknown> | undefined)?.policyRouterDecision,
+    );
+    let policyRouterStats: PolicyRouterStats | undefined;
+    if (anyPolicyDecisions) {
+      const presetName = ctx.config.policyRouterPreset ?? 'maximize-accuracy';
+      const oracleTable = PRESET_TABLES[presetName].defaultMapping;
+      const stats = computePolicyRouterStats({
+        cases: results,
+        backendCosts: DEFAULT_BACKEND_COSTS,
+        oracleTable,
+      });
+      if (stats) policyRouterStats = stats;
+    }
+
     return {
       benchmarkId: this.id,
       benchmarkVersion: this.version,
@@ -1093,6 +1200,7 @@ export class LongMemEvalS implements IBenchmark {
       memoryFootprint: aggregateMemoryFootprint,
       tokensPerCorrect,
       tokenRetention,
+      policyRouterStats,
       cases: results,
     };
   }

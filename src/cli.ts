@@ -638,6 +638,43 @@ export function buildCli(): Command {
       'Step 15 v4a: append a cross-session reasoning scaffold to the OM reader system prompt. The scaffold walks the reader through multi-step synthesis (scan all date-grouped sections, extract per-session facts, order chronologically, synthesize). Targets the v3 failure mode where the reader fixates on the most-recent-date observation block and misses cross-session synthesis. Only effective with --observational-memory. Default off.',
     )
     .option(
+      '--policy-router',
+      'Tier 3 policy router: dispatch per-query to tier_1_canonical / tier_2a_v10 / tier_2b_v11 based on the v10 classifier prediction + routing table. Mutually exclusive with --om-dynamic-router. See --policy-router-preset for preset selection; see --policy-router-budget-per-query for optional budget envelope.',
+    )
+    .option(
+      '--policy-router-preset <preset>',
+      'Tier 3 routing preset: maximize-accuracy (default, realistic 75.3% at $0.357/correct = 1.22x cheaper vs Tier 2b flat), balanced (74.5% at $0.205/correct = 2.12x cheaper), minimize-cost (73.9% at $0.092/correct = 4.77x cheaper). Only effective with --policy-router.',
+      (value: string) => {
+        if (
+          value !== 'maximize-accuracy' &&
+          value !== 'balanced' &&
+          value !== 'minimize-cost'
+        ) {
+          throw new Error(
+            `--policy-router-preset must be 'maximize-accuracy' | 'balanced' | 'minimize-cost', got '${value}'`,
+          );
+        }
+        return value;
+      },
+    )
+    .option(
+      '--policy-router-budget-per-query <USD>',
+      'Tier 3 per-query USD ceiling. Unbounded when omitted. Combined with --policy-router-budget-mode to control exceed behavior. Only effective with --policy-router.',
+      parseFloatArg,
+    )
+    .option(
+      '--policy-router-budget-mode <mode>',
+      'Tier 3 budget mode: hard (default, throws on exceed) | soft (exceed only when better $/correct) | cheapest-fallback (downgrade to cheapest-that-fits). Only effective with --policy-router AND --policy-router-budget-per-query set.',
+      (value: string) => {
+        if (value !== 'hard' && value !== 'soft' && value !== 'cheapest-fallback') {
+          throw new Error(
+            `--policy-router-budget-mode must be 'hard' | 'soft' | 'cheapest-fallback', got '${value}'`,
+          );
+        }
+        return value;
+      },
+    )
+    .option(
       '--seed <n>',
       'Deterministic seed for bootstrap resampling (and any future RNG-dependent pipeline). Use for reproducible findings-doc CIs.',
       parseInteger,
@@ -764,7 +801,52 @@ export function buildCli(): Command {
         // Commander.js negation: --no-capture-retention-inputs sets
         // opts.captureRetentionInputs === false, default is true.
         captureRetentionInputs: opts.captureRetentionInputs as boolean | undefined,
+        policyRouter: Boolean(opts.policyRouter) || undefined,
+        policyRouterPreset: opts.policyRouterPreset as
+          | 'maximize-accuracy'
+          | 'balanced'
+          | 'minimize-cost'
+          | undefined,
+        policyRouterBudgetPerQuery: opts.policyRouterBudgetPerQuery as number | undefined,
+        policyRouterBudgetMode: opts.policyRouterBudgetMode as
+          | 'hard'
+          | 'soft'
+          | 'cheapest-fallback'
+          | undefined,
       };
+
+      // Tier 3 policy router validation: mutually exclusive with the v10
+      // dynamic router (both would dispatch; policy router is v10's strict
+      // superset). Budget-mode without budget-per-query is a silent no-op
+      // otherwise — reject explicitly so users see the bug at CLI time.
+      if (runConfig.policyRouter && runConfig.omDynamicRouter) {
+        // eslint-disable-next-line no-console
+        console.error(
+          '[cli] --policy-router and --om-dynamic-router are mutually exclusive. ' +
+            'Choose one dispatch strategy.',
+        );
+        process.exitCode = 2;
+        return;
+      }
+      if (runConfig.policyRouterBudgetMode && !runConfig.policyRouter) {
+        // eslint-disable-next-line no-console
+        console.error(
+          '[cli] --policy-router-budget-mode requires --policy-router. Aborting.',
+        );
+        process.exitCode = 2;
+        return;
+      }
+      if (
+        typeof runConfig.policyRouterBudgetPerQuery === 'number' &&
+        !runConfig.policyRouter
+      ) {
+        // eslint-disable-next-line no-console
+        console.error(
+          '[cli] --policy-router-budget-per-query requires --policy-router. Aborting.',
+        );
+        process.exitCode = 2;
+        return;
+      }
 
       // Cost preflight — coarse but enough to catch "oh no I just
       // fired 500 × Opus 4.7 cases by mistake" before any LLM call

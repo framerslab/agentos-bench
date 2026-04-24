@@ -10,6 +10,7 @@
  * @module agentos-bench/core/BenchmarkRunner
  */
 
+import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -179,6 +180,13 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     omRetrieverMsBm25Weight: cfg.omRetrieverMsBm25Weight,
     omRetrieverMsOverFetchMultiplier: cfg.omRetrieverMsOverFetchMultiplier,
     captureRetentionInputs: cfg.captureRetentionInputs,
+    // Tier 3 policy router — per-query backend selection based on
+    // classifier + routing table + optional budget envelope. Mutually
+    // exclusive with omDynamicRouter (validated at CLI layer).
+    policyRouter: cfg.policyRouter,
+    policyRouterPreset: cfg.policyRouterPreset,
+    policyRouterBudgetPerQuery: cfg.policyRouterBudgetPerQuery,
+    policyRouterBudgetMode: cfg.policyRouterBudgetMode,
   };
 }
 
@@ -566,6 +574,29 @@ export function computeCaseRunKeyParts(
   // Step 19C: over-fetch multiplier for MS-classified cases.
   if (typeof config.omRetrieverMsOverFetchMultiplier === 'number') {
     const tag = `step-19c-ms-overfetch:${config.omRetrieverMsOverFetchMultiplier.toFixed(1)}`;
+    runKeyParts.push(tag);
+    resultKeyParts.push(tag);
+  }
+
+  // Tier 3 policy router fingerprint. CONDITIONAL: only added when the
+  // router is enabled, so non-router runs (including Phase B cached runs)
+  // don't get invalidated. Hash is over the preset name + budget settings
+  // so A/B preset testing doesn't collide caches. If the routing tables
+  // themselves are edited in code, bump the `:v1` suffix to invalidate.
+  if (config.policyRouter) {
+    const preset = config.policyRouterPreset ?? 'maximize-accuracy';
+    const budget =
+      config.policyRouterBudgetPerQuery === undefined
+        ? 'null'
+        : config.policyRouterBudgetPerQuery.toFixed(4);
+    const mode = config.policyRouterBudgetMode ?? 'hard';
+    const presetHash = createHash('sha256')
+      .update(preset)
+      .update(`:${budget}`)
+      .update(`:${mode}`)
+      .digest('hex')
+      .slice(0, 8);
+    const tag = `policy-router:v1:${presetHash}`;
     runKeyParts.push(tag);
     resultKeyParts.push(tag);
   }

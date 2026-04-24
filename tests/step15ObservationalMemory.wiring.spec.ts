@@ -652,3 +652,91 @@ describe('Step 17 OM-guided retrieval: RunConfig + fingerprint', () => {
     ).toBe(false);
   });
 });
+
+describe('Tier 3 policy router cache fingerprint', () => {
+  const baseConfig: RunConfig = {
+    reader: 'gpt-4o',
+    memoryMode: 'full-cognitive',
+    replayMode: 'ingest',
+  } as RunConfig;
+
+  it('omits policy-router:v1 tag when policyRouter is not set', () => {
+    const { runKeyParts } = computeCaseRunKeyParts(baseConfig, 'case-1');
+    expect(
+      runKeyParts.some((p) => typeof p === 'string' && p.startsWith('policy-router:v1:')),
+    ).toBe(false);
+  });
+
+  it('appends policy-router:v1:<hash> when policyRouter is true', () => {
+    const { runKeyParts, resultKeyParts } = computeCaseRunKeyParts(
+      {
+        ...baseConfig,
+        policyRouter: true,
+        policyRouterPreset: 'maximize-accuracy',
+      } as RunConfig,
+      'case-1',
+    );
+    expect(
+      runKeyParts.some((p) => typeof p === 'string' && p.startsWith('policy-router:v1:')),
+    ).toBe(true);
+    expect(
+      resultKeyParts.some((p) => typeof p === 'string' && p.startsWith('policy-router:v1:')),
+    ).toBe(true);
+  });
+
+  it('produces different hashes for different presets', () => {
+    const a = computeCaseRunKeyParts(
+      {
+        ...baseConfig,
+        policyRouter: true,
+        policyRouterPreset: 'maximize-accuracy',
+      } as RunConfig,
+      'case-1',
+    );
+    const b = computeCaseRunKeyParts(
+      {
+        ...baseConfig,
+        policyRouter: true,
+        policyRouterPreset: 'minimize-cost',
+      } as RunConfig,
+      'case-1',
+    );
+    const aTag = a.runKeyParts.find(
+      (p): p is string => typeof p === 'string' && p.startsWith('policy-router:v1:'),
+    );
+    const bTag = b.runKeyParts.find(
+      (p): p is string => typeof p === 'string' && p.startsWith('policy-router:v1:'),
+    );
+    expect(aTag).toBeDefined();
+    expect(bTag).toBeDefined();
+    expect(aTag).not.toBe(bTag);
+  });
+
+  it('produces different hashes for different budget ceilings', () => {
+    const a = computeCaseRunKeyParts(
+      {
+        ...baseConfig,
+        policyRouter: true,
+        policyRouterPreset: 'maximize-accuracy',
+        policyRouterBudgetPerQuery: 0.1,
+      } as RunConfig,
+      'case-1',
+    );
+    const b = computeCaseRunKeyParts(
+      {
+        ...baseConfig,
+        policyRouter: true,
+        policyRouterPreset: 'maximize-accuracy',
+        policyRouterBudgetPerQuery: 0.2,
+      } as RunConfig,
+      'case-1',
+    );
+    const aTag = a.runKeyParts.find(
+      (p): p is string => typeof p === 'string' && p.startsWith('policy-router:v1:'),
+    );
+    const bTag = b.runKeyParts.find(
+      (p): p is string => typeof p === 'string' && p.startsWith('policy-router:v1:'),
+    );
+    expect(aTag).not.toBe(bTag);
+  });
+});
