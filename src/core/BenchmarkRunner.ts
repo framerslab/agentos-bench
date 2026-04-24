@@ -192,6 +192,10 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     // (Emergence-style). Applies to canonical path only.
     sessionLevelNdcg: cfg.sessionLevelNdcg,
     sessionLevelNdcgTopK: cfg.sessionLevelNdcgTopK,
+    // Stage F-2: --no-abstention reader-prompt variant for OOD benchmarks
+    // whose non-adversarial categories guarantee answerability (LOCOMO).
+    // Pinned by tests/resolveRunConfigContract.spec.ts.
+    noAbstention: cfg.noAbstention,
   };
 }
 
