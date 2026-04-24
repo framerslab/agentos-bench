@@ -740,3 +740,40 @@ describe('Tier 3 policy router cache fingerprint', () => {
     expect(aTag).not.toBe(bTag);
   });
 });
+
+describe('Stage F-2 no-abstention cache fingerprint', () => {
+  const baseConfig: RunConfig = {
+    reader: 'gpt-4o',
+    memoryMode: 'full-cognitive',
+    replayMode: 'ingest',
+    rerank: { provider: 'cohere' },
+    hybridRetrieval: true,
+    readerTopK: 20,
+  } as RunConfig;
+
+  it('omits stage-f2-no-abstention:v1 when noAbstention is unset', () => {
+    const { runKeyParts, resultKeyParts } = computeCaseRunKeyParts(
+      baseConfig,
+      'case-1',
+    );
+    expect(runKeyParts).not.toContain('stage-f2-no-abstention:v1');
+    expect(resultKeyParts).not.toContain('stage-f2-no-abstention:v1');
+  });
+
+  it('omits stage-f2-no-abstention:v1 when noAbstention is explicitly false', () => {
+    const { runKeyParts } = computeCaseRunKeyParts(
+      { ...baseConfig, noAbstention: false } as RunConfig,
+      'case-1',
+    );
+    expect(runKeyParts).not.toContain('stage-f2-no-abstention:v1');
+  });
+
+  it('appends stage-f2-no-abstention:v1 to both keys when noAbstention is true', () => {
+    const { runKeyParts, resultKeyParts } = computeCaseRunKeyParts(
+      { ...baseConfig, noAbstention: true } as RunConfig,
+      'case-1',
+    );
+    expect(runKeyParts).toContain('stage-f2-no-abstention:v1');
+    expect(resultKeyParts).toContain('stage-f2-no-abstention:v1');
+  });
+});

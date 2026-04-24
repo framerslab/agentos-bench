@@ -675,6 +675,19 @@ export function buildCli(): Command {
       },
     )
     .option(
+      '--session-level-ndcg',
+      'Stage C / Tier 4a: session-level NDCG retrieval post-process. After canonical HybridRetriever returns top-K traces, group them by sessionId, compute NDCG per session, pick top-K sessions (see --session-level-ndcg-top-k), and expand evidence to ALL turns of those sessions from the haystack. Matches Emergence AI Simple recipe. Applies to canonical path only; ignored on OM branches.',
+    )
+    .option(
+      '--session-level-ndcg-top-k <n>',
+      'Stage C: number of top-NDCG sessions to expand. Default 3. Only effective with --session-level-ndcg.',
+      parsePositiveInteger,
+    )
+    .option(
+      '--no-abstention',
+      "Stage F-2: suppress abstention instructions in the reader system prompt. Tells the reader every question has an answer in the retrieved excerpts and it must commit to a best-effort answer instead of responding 'I don\\'t know'. Intended for OOD benchmarks whose non-adversarial categories guarantee answerability (LOCOMO single-hop / multi-hop / temporal / open-domain). Cache fingerprint: stage-f2-no-abstention:v1.",
+    )
+    .option(
       '--seed <n>',
       'Deterministic seed for bootstrap resampling (and any future RNG-dependent pipeline). Use for reproducible findings-doc CIs.',
       parseInteger,
@@ -813,6 +826,13 @@ export function buildCli(): Command {
           | 'soft'
           | 'cheapest-fallback'
           | undefined,
+        sessionLevelNdcg: Boolean(opts.sessionLevelNdcg) || undefined,
+        sessionLevelNdcgTopK: opts.sessionLevelNdcgTopK as number | undefined,
+        // Stage F-2: commander's --no-abstention sets opts.abstention === false
+        // via the --no-<flag> negation pattern. Treat `abstention === false`
+        // as explicit opt-in to the no-abstention prompt; leave undefined
+        // otherwise so the cache fingerprint stays off.
+        noAbstention: opts.abstention === false ? true : undefined,
       };
 
       // Tier 3 policy router validation: mutually exclusive with the v10

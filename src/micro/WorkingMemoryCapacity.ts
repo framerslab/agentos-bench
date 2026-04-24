@@ -142,7 +142,7 @@ export class WorkingMemoryCapacity implements IBenchmark {
     }
 
     const finalSlotCount = wm.getSlotCount();
-    const retainedTraceIds = wm.getSlots().map((s) => s.traceId).sort();
+    const retainedTraceIds = wm.getSlots().map((s: { traceId: string }) => s.traceId).sort();
 
     // Capacity enforcement: slots never exceed capacity.
     const capacityCorrect = observedCapacity === expectedCapacity;

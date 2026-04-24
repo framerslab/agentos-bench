@@ -188,6 +188,10 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     policyRouterPreset: cfg.policyRouterPreset,
     policyRouterBudgetPerQuery: cfg.policyRouterBudgetPerQuery,
     policyRouterBudgetMode: cfg.policyRouterBudgetMode,
+    // Stage C / Tier 4a: session-level NDCG retrieval post-process
+    // (Emergence-style). Applies to canonical path only.
+    sessionLevelNdcg: cfg.sessionLevelNdcg,
+    sessionLevelNdcgTopK: cfg.sessionLevelNdcgTopK,
   };
 }
 
@@ -608,6 +612,25 @@ export function computeCaseRunKeyParts(
       .digest('hex')
       .slice(0, 8);
     const tag = `policy-router:v1:${presetHash}`;
+    runKeyParts.push(tag);
+    resultKeyParts.push(tag);
+  }
+
+  // Stage C / Tier 4a: session-level NDCG post-process fingerprint.
+  // Conditional: appended only when flag is set, so other cached runs
+  // remain valid.
+  if (config.sessionLevelNdcg) {
+    const topK = config.sessionLevelNdcgTopK ?? 3;
+    const tag = `stage-c-session-ndcg:v1:top${topK}`;
+    runKeyParts.push(tag);
+    resultKeyParts.push(tag);
+  }
+
+  // Stage F-2: no-abstention prompt variant fingerprint. Conditional so
+  // runs without the flag hit existing cached case-results cleanly.
+  // Bump the `:v1` suffix if the no-abstention prompt text changes.
+  if (config.noAbstention) {
+    const tag = 'stage-f2-no-abstention:v1';
     runKeyParts.push(tag);
     resultKeyParts.push(tag);
   }
