@@ -29,6 +29,7 @@ import { EXTRACT_PROMPT_HASH } from '../readers/twoCallReader.js';
 import { OM_PROMPT_HASH } from '../observational-memory/prompts.js';
 import { Cache, hashKey } from './Cache.js';
 import { CostTracker } from './CostTracker.js';
+import { PRESET_TABLES } from './policyRouter.js';
 import { ResultStore } from './ResultStore.js';
 import type { IJudge } from '../judges/IJudge.js';
 import type { IReader } from '../readers/IReader.js';
@@ -580,9 +581,13 @@ export function computeCaseRunKeyParts(
 
   // Tier 3 policy router fingerprint. CONDITIONAL: only added when the
   // router is enabled, so non-router runs (including Phase B cached runs)
-  // don't get invalidated. Hash is over the preset name + budget settings
-  // so A/B preset testing doesn't collide caches. If the routing tables
-  // themselves are edited in code, bump the `:v1` suffix to invalidate.
+  // don't get invalidated. Hash is over preset name + serialized routing
+  // table (so editing a routing table invalidates cache for that preset
+  // only) + budget settings. Post-2026-04-24-v2: the serialized routing
+  // table is now part of the hash (v1 hashed only preset name + budget,
+  // which meant routing-table edits silently cache-hit the prior table's
+  // results — discovered when the max-acc TR→Tier 1 v2 fix produced a
+  // $0 "re-run" that returned v1 results).
   if (config.policyRouter) {
     const preset = config.policyRouterPreset ?? 'maximize-accuracy';
     const budget =
@@ -590,8 +595,14 @@ export function computeCaseRunKeyParts(
         ? 'null'
         : config.policyRouterBudgetPerQuery.toFixed(4);
     const mode = config.policyRouterBudgetMode ?? 'hard';
+    const mapping = PRESET_TABLES[preset].defaultMapping;
+    const sortedKeys = Object.keys(mapping).sort();
+    const tableSerialization = sortedKeys
+      .map((k) => `${k}:${mapping[k as keyof typeof mapping]}`)
+      .join('|');
     const presetHash = createHash('sha256')
       .update(preset)
+      .update(`:${tableSerialization}`)
       .update(`:${budget}`)
       .update(`:${mode}`)
       .digest('hex')
