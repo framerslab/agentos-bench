@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-04-24T21:23:52.028Z",
+  "updatedAt": "2026-04-24T22:16:15.916Z",
   "latest": {
     "decay-fidelity|claude-sonnet-4-6|none|ingest": {
       "runFile": "micro/2026-04-19T06-11-20-814--decay-fidelity--claude-sonnet-4-6--none--ingest.json",
@@ -254,19 +254,19 @@
       }
     },
     "locomo|gpt-4o|full-cognitive|ingest": {
-      "runFile": "runs/2026-04-24T21-17-04-526--locomo--gpt-4o--full-cognitive--ingest.json",
+      "runFile": "runs/2026-04-24T22-10-48-759--locomo--gpt-4o--full-cognitive--ingest.json",
       "benchmarkId": "locomo",
       "benchmarkVersion": "1.0.0",
       "reader": "gpt-4o",
       "memoryMode": "full-cognitive",
       "replayMode": "ingest",
       "totalCases": 1986,
-      "accuracy": 0.5146022155085599,
-      "avgScore": 0.5146022155085599,
-      "avgLatencyMs": 1452.892749244713,
-      "totalUsd": 10.151189999999987,
-      "costPerCorrect": 0.0099326712328767,
-      "startedAt": "2026-04-24T21:17:04.526Z"
+      "accuracy": 0.4214501510574018,
+      "avgScore": 0.4214501510574018,
+      "avgLatencyMs": 1189.5055387713999,
+      "totalUsd": 6.826799999999994,
+      "costPerCorrect": 0.008156272401433684,
+      "startedAt": "2026-04-24T22:10:48.759Z"
     }
   }
 }
