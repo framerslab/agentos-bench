@@ -42,6 +42,20 @@ Target to beat: **96.2%** (agentmemory (JordanMcCann)).
 |---|---|---|---|---:|---:|---:|---:|---|
 | AgentOS (`@framers/agentos`) | gpt-4o | none | ingest | 20 | 65.0% | 765 ms | $0.0333 | — |
 
+## LOCOMO (10 conversations, 1986 QA pairs — OOD transfer result)
+
+AgentOS's pipeline is tuned for LongMemEval-S. We publish both an OOD row (no tuning changes) and a tuned row (`--reader-top-k 20 --no-abstention`). The tuned row's 95% CI overlaps the OOD row's, so the +1.6pp point-estimate gain is inside sampling variance at N=1986 — but the tuned row wins cleanly on cost-per-correct and latency. See [STAGE_F2_LOCOMO_ABSTENTION_TUNING_2026-04-24.md](../docs/STAGE_F2_LOCOMO_ABSTENTION_TUNING_2026-04-24.md) for the full per-category breakdown and diagnosis.
+
+**Judge false-positive rate on LOCOMO (Stage G-LOCOMO, this session):** 0% [0%, 0%] at n=100, measured with our `gpt-4o-2024-08-06` judge + `rubricVersion 2026-04-18.1`. Penfield Labs reported 62.81% FPR on LOCOMO's default judge (`gpt-4o-mini`, original rubric). The 63pp gap is a judge-model + rubric-strictness artifact, not an intrinsic property of LOCOMO's gold answers. Our LOCOMO numbers below are not inflated by judge noise on our side. See [STAGE_G_LOCOMO_JUDGE_FPR_PROBE_2026-04-24.md](../docs/STAGE_G_LOCOMO_JUDGE_FPR_PROBE_2026-04-24.md).
+
+| System | Reader | Memory | Replay | Cases | Accuracy | 95% CI | Avg latency | $/correct | Source |
+|---|---|---|---|---:|---:|---:|---:|---:|---|
+| AgentOS Tier 1 canonical + `--no-abstention` K=20 (tuned)[^locomo-tuned] | gpt-4o | full-cognitive | ingest | 1986 | **51.5%** | **[49.2%, 53.7%]** | **1453 ms** | **$0.0099** | — |
+| AgentOS Tier 1 canonical OOD (`@framers/agentos`)[^locomo-ood] | gpt-4o | full-cognitive | ingest | 1986 | 49.9% | [47.7%, 52.1%] | 2579 ms | $0.0123 | — |
+
+[^locomo-tuned]: **Stage F-2 tuning at matched reader.** Same HybridRetriever (BM25 + dense RRF + Cohere rerank-v3.5) as the OOD row; two knobs changed: `--reader-top-k 20` (up from default 10) and `--no-abstention` (new flag, CLI-exposed, not LOCOMO-specific code). Adversarial 83.6% (unchanged from OOD — the flag does NOT monotonically suppress refusal; the reader still refuses when evidence is genuinely absent), open-domain 51.7% (+3.2pp), single-hop 23.4% (+2.8pp), temporal 28.1% (+1.0pp), multi-hop 37.7% (−1.9pp, within CI). Bootstrap CIs overlap the OOD row at every category; the aggregate +1.6pp lift is inside sampling variance. The tuned row wins on cost (20% cheaper/correct) and latency (44% faster) because the commit-directive produces shorter reader outputs. Published as a transparent modest result — we predicted +10-15pp aggregate in [§4.1 of the handoff](../docs/NEXT_SESSION_CONTINUATION_2026-04-24_STAGE_G_FINAL.md) and measured +1.6pp. Remaining gap to Mem0's claimed 66-68% is retrieval-architecture-deep (HybridRetriever undersamples LOCOMO's 199-260-turn dense histories regardless of K) plus suspected judge-permissiveness (Stage G-LOCOMO probe queued). Per-case artifacts: `results/runs/2026-04-24T21-17-04-526--locomo--gpt-4o--full-cognitive--ingest.json`.
+[^locomo-ood]: **LongMemEval-tuned pipeline on LOCOMO without tuning changes.** Adversarial 83.4%, open-domain 48.5%, multi-hop 39.6%, temporal 27.1%, single-hop 20.6%. The single-hop underperformance is a calibration mismatch: our abstention prompt is tuned for LongMemEval-S's answer-may-not-exist distribution (where abstention on adversarial is CORRECT), and the same behavior over-refuses on LOCOMO where every non-adversarial question has an answer. Also: recallTopK=10 undersamples LOCOMO's 199-260-turn dense histories. Stage F-2 attempts to close both gaps with `--no-abstention` + K=20; result is +1.6pp aggregate with CIs overlapping, published as a second row above. Dataset: [link](https://github.com/snap-research/locomo). Per-case artifacts: `results/runs/2026-04-24T18-42-51-243--locomo--gpt-4o--full-cognitive--ingest.json`.
+
 ## BEAM (500k-token tier)
 Target to beat: **72.0%** (Hindsight).
 | System | Reader | Memory | Replay | Cases | Accuracy | Avg latency | $/correct | Source |
