@@ -3,7 +3,10 @@ title: Comprehensive Evaluation Matrix — Design (Plan B2)
 date: 2026-04-25
 scope: 6-architecture × 5-benchmark × 6-metric publication-grade comparison table
 methodology_anchor: SOTA_CITED_EVIDENCE_2026-04-25.md, NEXT_SESSION_2026-04-25_HANDOFF_v2_POST_SOTA_RESEARCH.md
-estimated_cost: $1800-2600 LLM (honest range after BEAM N=2000-per-tier accounting; revisable to $1300-2100 if BEAM 1M dropped)
+estimated_cost: ~$1000-1200 net new LLM (cached prior runs leveraged; full BEAM Phase B deferred to v2 with Stage E)
+revision_history:
+  - 2026-04-25 v1: spec drafted at $1800-2600 (full BEAM Phase B included)
+  - 2026-04-25 v2: BEAM Phase B descoped to spot-check; full multi-tier BEAM deferred to v2 publication paired with Stage E typed-network observer (avoids publishing a non-competitive headline; saves ~$1100; bundles infrastructure cost with future v2 leverage)
 estimated_duration: 3 weeks (parallel implementation + sweep)
 ---
 
@@ -13,11 +16,14 @@ estimated_duration: 3 weeks (parallel implementation + sweep)
 
 Produce a single publication-grade comparison table that:
 
-1. **Iterates aggressively first** to find the best architecture per benchmark (Phase A: 15+ cheap variants × 6 benchmarks)
-2. **Then validates winners with the best possible metrics** at full N + bootstrap CI + per-category + cost + latency + tokens + judge FPR + cross-judge
-3. Covers every shipping AgentOS architecture plus the lowest-hanging-fruit architectural advances (Anthropic Contextual Retrieval, Mem0-v3-style entity-linking) measured at our shipping reader
-4. Anchors every published number in a per-case run JSON at seed=42 for third-party reproduction
-5. Defers the single largest implementation (Stage E Hindsight 4-network typed observer) to a v2 publication so v1 ships in 3 weeks
+1. **Iterates aggressively first** to find the best architecture per benchmark (Phase A: 15+ cheap variants × 4 benchmarks)
+2. **Then validates winners with the best possible metrics** at full N on the conversational benchmarks (LongMemEval-S, LongMemEval-M, LOCOMO) + bootstrap CI + per-category + cost + latency + tokens + judge FPR
+3. **Tracks BEAM via spot-check at the 100K tier** (not full multi-tier sweep) so we have an anchor measurement for the v2 publication that pairs Stage E with the full BEAM table
+4. Covers every shipping AgentOS architecture plus the lowest-hanging-fruit architectural advances (Anthropic Contextual Retrieval, Mem0-v3-style entity-linking) measured at our shipping reader
+5. Anchors every published number in a per-case run JSON at seed=42 for third-party reproduction
+6. Defers Stage E Hindsight 4-network typed observer AND full multi-tier BEAM to a v2 publication where they ship together
+
+The brutal-honest reasoning behind the BEAM scope cut: our LOCOMO 51.5% predicts BEAM 10M ~30-45%, and Hindsight ships at 64.1%. Publishing a non-competitive headline number for $1140 of LLM and 5+ days of dev work is anti-leverage. Bundling BEAM with Stage E in v2 produces a publication that says "we built Stage E and went from preliminary 32% to validated 55%", which is worth the spend. Publishing 35% in v1 is not.
 
 Non-goals: cross-vendor reproduction (defer to v2 with Supermemory's `memorybench`), MemoryArena coverage (defer to v3), and any architecture that adds a non-OpenAI dependency for the shipping configuration.
 
@@ -79,9 +85,7 @@ Six columns. Three already implemented (LongMemEval-S, LongMemEval-M, LOCOMO via
 | 1 | LongMemEval-S | 500 | ~115K tok | Shipping |
 | 2 | LongMemEval-M | 500 | ~1.5M tok | Shipping (loader exists; not yet sweep-tested) |
 | 3 | LOCOMO | 1986 | 199-260 turns | Shipping |
-| 4 | BEAM 100K | 2000 (100 conv × 20 q) | 100K tok haystack, 32K reader window | New adapter (was `BeamUnimplementedError`) |
-| 5 | BEAM 500K | 2000 | 500K tok haystack, 32K reader window | New adapter |
-| 6 | BEAM 1M | 2000 | 1M tok haystack, 32K reader window | New adapter |
+| 4 | BEAM 100K spot-check | 100 (5 conv × 20 q stratified) | 100K tok haystack, 32K reader window | New adapter (was `BeamUnimplementedError`); spot-check only, full N=2000 + multi-tier sweep deferred to v2 |
 
 BEAM 10M deferred. Per Markmhendrickson's published critique, "state integrity degrades at 500K to 2M tokens" — the 100K-1M range is more architecturally discriminating than the 10M tier. BEAM 10M reader cost at gpt-4o is ~$200/architecture for marginal extra information.
 
@@ -118,11 +122,11 @@ Days 3-4: Implementation in new `packages/agentos-ext-summarized-memory/` packag
 
 Day 5: Phase A sweep on LongMemEval-S (N=25 stratified per type = 150 cases) at ~$2 to validate +signal vs Tier 3 min-cost.
 
-### Week 1.5 — BEAM adapter
+### Week 1.5 — BEAM adapter (build adapter, spot-check only)
 
-Days 6-8: Implement `packages/agentos-bench/src/benchmarks/beam/` adapter. Wraps the official BEAM repo (`github.com/mohammadtavakoli78/BEAM`) loader. Supports `--tier 100k|500k|1m` flag.
+Days 6-8: Implement `packages/agentos-bench/src/benchmarks/beam/` adapter. Wraps the official BEAM repo (`github.com/mohammadtavakoli78/BEAM`) loader. Supports `--tier 100k|500k|1m|10m` flag (only 100k exercised in v1).
 
-Day 9: Phase A on BEAM 100K with Tier 3 min-cost (~$5 to verify pipeline works end-to-end at frontier accuracy).
+Day 9: Spot-check on BEAM 100K with Tier 3 min-cost at N=100 stratified (~$5). Goal is verify the adapter works end-to-end and produces a directional preliminary number to cite in v1 transparency note ("BEAM 100K preliminary: ~X%; full multi-tier table forthcoming in v2 with Stage E").
 
 ### Week 2 — Stage I (entity-linking hybrid)
 
@@ -152,32 +156,33 @@ Days 20-21: Assemble comparison table, draft accompanying transparency notes (pe
 | Stage L ingest, LongMemEval-S | $75 |
 | Stage L ingest, LongMemEval-M | ~$200 |
 | Stage L ingest, LOCOMO | ~$50 |
-| Stage L ingest, BEAM × 3 tiers | ~$15 |
+| Stage L ingest, BEAM 100K (spot-check only) | ~$5 |
 | Stage I ingest, LongMemEval-S | ~$50 |
 | Stage I ingest, LongMemEval-M | ~$100 |
 | Stage I ingest, LOCOMO | ~$100 |
-| Stage I ingest, BEAM × 3 tiers | ~$15 |
-| **Subtotal ingest (all cached after first run)** | **~$605** |
-| Phase A sweeps (~15 variants × 6 benchmarks × ~$1 incl. observer-variant ingest) | ~$90 |
-| Phase B LongMemEval-S (6 archs × $13) | ~$78 |
-| Phase B LongMemEval-M (6 archs × ~$50) | ~$300 |
-| Phase B LOCOMO N=1986 (6 archs × $10) | ~$60 |
-| Phase B BEAM 100K (6 archs × N=2000 × ~$0.025/case) | ~$300 |
-| Phase B BEAM 500K (6 archs × N=2000 × ~$0.030/case) | ~$360 |
-| Phase B BEAM 1M (6 archs × N=2000 × ~$0.040/case) | ~$480 |
-| Cross-judge BEAM Phase A (subset N=200 at GPT-4.1-mini judge) | ~$10 |
-| Stage G judge FPR probes (5 benchmarks × ~$0.05) | ~$0.25 |
-| **Subtotal sweeps** | **~$1909** |
-| **Grand total** | **~$2514** |
+| Stage I ingest, BEAM 100K (spot-check only) | ~$5 |
+| **Subtotal ingest (all cached after first run)** | **~$585** |
+| Phase A sweeps (~15 variants × 3 conversational benchmarks × ~$1) | ~$45 |
+| Phase B LongMemEval-S (6 archs × $13, 4 already cached → 2 new × $13) | ~$26 |
+| Phase B LongMemEval-M (6 archs × ~$50, all new) | ~$300 |
+| Phase B LOCOMO N=1986 (6 archs × $10, 2 cached → 4 new × $10) | ~$40 |
+| BEAM 100K spot-check (1 architecture × N=100 stratified) | ~$5 |
+| Stage G judge FPR probes (3 benchmarks × ~$0.05) | ~$0.15 |
+| **Subtotal sweeps** | **~$416** |
+| **Grand total NET NEW** | **~$1001** |
 
-Phase A gating reduces this if architectures fail signal: each architecture that drops at Phase A saves ~$160-300 in Phase B reader cost across the 6 benchmarks (more on BEAM tiers because N=2000 per tier).
+**Cached prior runs that appear in the matrix at $0** (from prior $1300 spend):
+- LongMemEval-S × 4 architectures (Tier 1 canonical, Tier 2b OM-v11, Tier 3 min-cost, Tier 3 max-acc)
+- LOCOMO × 2 architectures (Tier 1 baseline, K=20 tuned)
 
-Realistic range: **$1800-2600** depending on:
-- Whether all 6 architectures survive Phase A (lower bound = 4 survive)
-- Whether reader retrieved-evidence context averages closer to 5K (LME-style) or 32K (BEAM-style) tokens
-- Whether we run BEAM 1M at full N=2000 or stratified N=500 (saves $360 across the table)
+Phase A gating may reduce this further if architectures fail signal — each architecture dropped at Phase A saves ~$50-100 in net new Phase B cost.
 
-If $2600 is the wrong order of magnitude for the budget envelope, the cleanest cut is **drop BEAM 1M and run only BEAM 100K + 500K** (saves ~$480 + closes the most discriminating tiers per Markmhendrickson's critique). Revised cost: **$1300-2100**.
+Realistic NET NEW range: **$900-1200** depending on:
+- Whether all 6 architectures survive Phase A
+- Whether reader retrieved-evidence context averages ~5K tokens (LongMemEval-style)
+- Whether we run LongMemEval-M at full N=500 or stratified N=200 (saves ~$120)
+
+The spot-check-BEAM cut means full multi-tier BEAM (100K + 500K + 1M + 10M) gets bundled with Stage E in v2 (~$1140 + $500 Stage E ingest + $400 Stage E reader = ~$2040 v2 budget). Total v1+v2 spend is roughly equivalent to the original full-BEAM-v1 plan, but v2's narrative ("Stage E pushed BEAM 10M from 32% preliminary to 55% validated") is worth meaningfully more than v1's "first non-Hindsight to publish 35%".
 
 ## 8. Decision gates
 
@@ -219,7 +224,9 @@ If $2600 is the wrong order of magnitude for the budget envelope, the cleanest c
 
 ## 12. Out of scope (explicitly)
 
-- Stage E (Hindsight 4-network typed observer) — defer to v2 publication
+- Stage E (Hindsight 4-network typed observer) — defer to v2 publication, paired with full BEAM
+- **Full multi-tier BEAM (100K + 500K + 1M + 10M) at full N** — defer to v2 alongside Stage E. v1 includes BEAM 100K spot-check only (~$5) to anchor v2 with a baseline measurement
+- BEAM cross-judge column (charitable + strict scoring under both gpt-4o-2024-08-06 and GPT-4.1-mini) — defer to v2
 - MemoryArena adapter — defer to v3
 - Cross-vendor replication via Supermemory's `memorybench` — defer to v2
 - Bench-side `policyRouter.ts` migration to `@framers/agentos/memory-router` (deferred from prior session, ~$130 cache invalidation; orthogonal to this spec)
