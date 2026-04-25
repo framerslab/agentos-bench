@@ -1,0 +1,118 @@
+{
+  "config": {
+    "reader": "gpt-4o",
+    "memoryMode": "full-cognitive",
+    "replayMode": "ingest",
+    "concurrency": 3,
+    "retrievalProfile": "balanced",
+    "adaptiveRetrieval": true,
+    "retrievalK": 10,
+    "stratified": false,
+    "trackFootprint": true,
+    "rerank": {
+      "provider": "cohere"
+    },
+    "readerTopK": 20,
+    "judgeAdversarial": false,
+    "judgeAdversarialMaxProbes": 50,
+    "judgeAdversarialSynthModel": "gpt-5-mini",
+    "bootstrapResamples": 10000,
+    "seed": 42,
+    "sessionRetrieval": false,
+    "sessionRetrievalTopSessions": 5,
+    "sessionRetrievalChunksPerSession": 3,
+    "hybridRetrieval": true,
+    "hyde": false,
+    "factSupersession": false,
+    "observerReflector": false,
+    "observerReflectorReplace": false,
+    "factGraphIngest": false,
+    "graphActivation": false,
+    "twoCallReader": false,
+    "observationalMemory": false,
+    "omReaderScaffold": false,
+    "omWithRetrieval": false,
+    "omDynamicRouter": false,
+    "omClassifierFewshot": false,
+    "omGuidedRetrieval": false,
+    "captureRetentionInputs": true
+  },
+  "totalCases": 500,
+  "passedCases": 153,
+  "accuracy": 0.306,
+  "totalUsd": 12.515732500000013,
+  "durationMs": null,
+  "byType": {
+    "single-session-assistant": {
+      "n": 56,
+      "accuracy": 0.5,
+      "avgScore": 0.5
+    },
+    "single-session-user": {
+      "n": 70,
+      "accuracy": 0.6,
+      "avgScore": 0.6
+    },
+    "multi-session": {
+      "n": 133,
+      "accuracy": 0.18045112781954886,
+      "avgScore": 0.18045112781954886
+    },
+    "knowledge-update": {
+      "n": 78,
+      "accuracy": 0.5,
+      "avgScore": 0.5
+    },
+    "temporal-reasoning": {
+      "n": 133,
+      "accuracy": 0.12781954887218044,
+      "avgScore": 0.12781954887218044
+    },
+    "single-session-preference": {
+      "n": 30,
+      "accuracy": 0.1,
+      "avgScore": 0.1
+    }
+  },
+  "latencyP50Ms": null,
+  "latencyP95Ms": null,
+  "latencyAvgMs": null,
+  "stratifiedAccuracy": {
+    "byType": {
+      "single-session-assistant": {
+        "n": 56,
+        "accuracy": 0.5,
+        "prior": 0.16666666666666666
+      },
+      "single-session-user": {
+        "n": 70,
+        "accuracy": 0.6,
+        "prior": 0.16666666666666666
+      },
+      "multi-session": {
+        "n": 133,
+        "accuracy": 0.18045112781954886,
+        "prior": 0.16666666666666666
+      },
+      "knowledge-update": {
+        "n": 78,
+        "accuracy": 0.5,
+        "prior": 0.16666666666666666
+      },
+      "temporal-reasoning": {
+        "n": 133,
+        "accuracy": 0.12781954887218044,
+        "prior": 0.16666666666666666
+      },
+      "single-session-preference": {
+        "n": 30,
+        "accuracy": 0.1,
+        "prior": 0.16666666666666666
+      }
+    },
+    "weightedOverall": 0.33471177944862157,
+    "unweightedOverall": 0.306,
+    "missingTypes": []
+  },
+  "bootstrapCi": null
+}
