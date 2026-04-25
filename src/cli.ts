@@ -688,6 +688,11 @@ export function buildCli(): Command {
       "Stage F-2: suppress abstention instructions in the reader system prompt. Tells the reader every question has an answer in the retrieved excerpts and it must commit to a best-effort answer instead of responding 'I don\\'t know'. Intended for OOD benchmarks whose non-adversarial categories guarantee answerability (LOCOMO single-hop / multi-hop / temporal / open-domain). Cache fingerprint: stage-f2-no-abstention:v1.",
     )
     .option(
+      '--entity-linking [weight]',
+      'Stage I: post-retrieval re-rank by Mem0-v3-style entity-overlap. Weight in [0,1] sets the entity signal blend in combinedScore = (1-w)*semanticScore + w*entityOverlapRatio. Default when flag is supplied without a value: 0.5. Cache fingerprint: stage-i-entity-linking:w<weight>:v1.',
+      (val: string | true) => (val === true ? 0.5 : Number(val)),
+    )
+    .option(
       '--seed <n>',
       'Deterministic seed for bootstrap resampling (and any future RNG-dependent pipeline). Use for reproducible findings-doc CIs.',
       parseInteger,
@@ -833,6 +838,13 @@ export function buildCli(): Command {
         // as explicit opt-in to the no-abstention prompt; leave undefined
         // otherwise so the cache fingerprint stays off.
         noAbstention: opts.abstention === false ? true : undefined,
+        // Stage I: --entity-linking [weight] enables Mem0-v3-style
+        // post-retrieval re-rank. Coerced to number by the option parser
+        // above; undefined when flag is absent so cache fingerprint stays off.
+        entityLinking:
+          typeof opts.entityLinking === 'number' && opts.entityLinking > 0
+            ? opts.entityLinking
+            : undefined,
       };
 
       // Tier 3 policy router validation: mutually exclusive with the v10

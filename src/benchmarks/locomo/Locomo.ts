@@ -43,6 +43,8 @@ import type { IReader } from '../../readers/IReader.js';
 import { runFullCognitiveCase } from '../longmemeval/LongMemEvalS.js';
 import { loadLocomoDataset, LOCOMO_CATEGORY_NAMES } from './dataset.js';
 import type { IEmbeddingManager } from '@framers/agentos/core/embeddings/IEmbeddingManager';
+import { EntityExtractor } from '@framers/agentos/ingest-router';
+import { EntityRetrievalRanker } from '@framers/agentos/memory-router';
 
 export interface LocomoAdapterOptions {
   reader: IReader;
@@ -401,8 +403,9 @@ async function runBaseMemoryCase(
       limit: recallTopK,
       policy: retrievalPolicy,
     });
+    const reranked = applyEntityLinkingRerank(c.question, recalled, ctx.config.entityLinking);
     return {
-      prompt: buildBaseMemoryPrompt(c, recalled, {
+      prompt: buildBaseMemoryPrompt(c, reranked, {
         noAbstention: ctx.config.noAbstention,
       }),
       replayStats: {
@@ -410,12 +413,36 @@ async function runBaseMemoryCase(
         turnsReplayed: replayStats.turnsReplayed,
         durationMs: replayStats.durationMs,
       },
-      recallCount: recalled.length,
+      recallCount: reranked.length,
     };
   } finally {
     await mem.close().catch(() => {});
     await fs.rm(brainPath, { force: true }).catch(() => {});
   }
+}
+
+/**
+ * Stage I: post-retrieval re-rank by Mem0-v3-style entity overlap.
+ * When `entityLinkingWeight` is undefined or 0, returns `recalled`
+ * unchanged. Otherwise extracts entities from each candidate's content
+ * and re-ranks via {@link EntityRetrievalRanker}.
+ */
+function applyEntityLinkingRerank(
+  question: string,
+  recalled: ScoredTrace[],
+  entityLinkingWeight: number | undefined,
+): ScoredTrace[] {
+  if (!entityLinkingWeight || entityLinkingWeight <= 0) return recalled;
+  const extractor = new EntityExtractor();
+  const ranker = new EntityRetrievalRanker({ entityWeight: entityLinkingWeight });
+  const candidates = recalled.map((r, idx) => ({
+    id: String(idx),
+    text: r.trace.content,
+    semanticScore: r.score,
+    entities: extractor.extract(r.trace.content).entities.map((e) => e.text),
+  }));
+  const reordered = ranker.rank(question, candidates);
+  return reordered.map((rc) => recalled[Number(rc.id)]);
 }
 
 function buildBaseMemoryPrompt(
