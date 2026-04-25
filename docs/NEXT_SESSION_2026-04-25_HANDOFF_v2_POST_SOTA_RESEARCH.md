@@ -64,7 +64,14 @@ The v1 handoff's Stage H (§1.2) proposed "session-NDCG at K=20." Calvin Ku's re
 
 Seven experiment families ranked by ROI per dollar after the corrections in §0. Costs are LLM budget; effort is calendar time.
 
-**2026-04-25 update — Stage L measured and dropped as accuracy push.** See [STAGE_L_PHASE_A_FINDINGS_2026-04-25.md](STAGE_L_PHASE_A_FINDINGS_2026-04-25.md). Anthropic Contextual Retrieval lifted accuracy by **−3.7pp** in our pipeline (paired N=54 with OpenAI semantic embedder, baseline 74.1% vs treatment 70.4%, with temporal-reasoning collapsing −33.3pp). The pattern's document-domain lift doesn't translate to conversational memory. Stage L's agentos-side code is shipped and architecturally clean; it's just not an accuracy push. **Reallocate Stage L's budget to Stage I + Stage J.** Updated table reflects this:
+**2026-04-25 update — Stage L AND Stage I both measured negative.** See [STAGE_L_PHASE_A_FINDINGS_2026-04-25.md](STAGE_L_PHASE_A_FINDINGS_2026-04-25.md) and [STAGE_I_PHASE_A_FINDINGS_2026-04-25.md](STAGE_I_PHASE_A_FINDINGS_2026-04-25.md):
+
+- Stage L (Anthropic Contextual Retrieval): **−3.7pp** on LongMemEval-S, with temporal-reasoning collapsing −33.3pp. Document-domain pattern doesn't translate to conversational memory.
+- Stage I (Mem0-v3-style entity-linking re-rank): **−4.0pp** on LOCOMO, with multi-hop −20pp. Cohere rerank-v3.5 already subsumes the entity-overlap signal.
+
+**Two consecutive negative results for lightweight signal additions.** The bench's shipping config (hybrid + Cohere rerank + reader-top-k 20) is well-tuned for LongMemEval-S/LOCOMO; lightweight pre/post-processing additions either duplicate the rerank stage's work (Stage L) or introduce signals the rerank stage already considers (Stage I). Both architectures shipped in agentos (0.2.12, 0.2.13) as production primitives for consumers to use; just not accuracy lifts for our specific bench config.
+
+**Stage E (Hindsight 4-network typed observer) becomes the sole remaining accuracy-push candidate** for v1+. Different mechanism (typed network of World/Experience/Opinion/Observation graphs with spreading activation), different hypothesis. Updated table reflects this:
 
 | # | Stage | Cost | Effort | Expected outcome | Notes |
 |---|---|---:|---|---|---|
@@ -72,7 +79,7 @@ Seven experiment families ranked by ROI per dollar after the corrections in §0.
 | 2 | **J** | $150 | 1 day | First-mover LongMemEval-M number | No vendor publishes M numbers prominently. |
 | 3 | **H** | $240 | 1 day | Session-NDCG at K∈{20,42,62,100} | Cheap risk; broadened from $60. |
 | 4 | **M** | $60 | 1 day | HEXACO modulation A/B (likely null) | **NEW** — fills published research gap. |
-| **1 (was 5)** | **I** | $400 | 1 week | LOCOMO 51.5% → 60+% | Pivoted to entity-linking + Mem0-v3-style ADD-only. **NOW THE HIGHEST-PRIORITY ACCURACY PUSH** since Stage L measured negative. |
+| ~~1 (was 5)~~ | ~~I~~ | ~~$400~~ | ~~1 week~~ | ~~LOCOMO 51.5% → 60+%~~ | **MEASURED 2026-04-25: −4.0pp on LOCOMO (multi-hop −20pp). Dropped from accuracy-push priority.** Code shipped in agentos 0.2.13 as IngestRouter `fact-graph` + MemoryRouter entity-overlap re-rank primitives. See [STAGE_I_PHASE_A_FINDINGS_2026-04-25.md](STAGE_I_PHASE_A_FINDINGS_2026-04-25.md). |
 | 6 | **K** | $300 | 1 week | BEAM 100K + 500K + 1M | Skip 10M (Markmhendrickson 500K-degradation finding). |
 | 7 | **E** | $500-800 | 2-3 weeks | Tier 3 max-acc → 78-80% | Upgraded scope: 4 typed networks + opinion evolution. |
 
