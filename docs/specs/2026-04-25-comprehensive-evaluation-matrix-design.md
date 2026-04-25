@@ -48,8 +48,8 @@ Six rows. All measured at `gpt-4o` reader, `gpt-4o-2024-08-06` judge, rubric `20
 | 2 | **Tier 2b OM-v11** | Shipping | None |
 | 3 | **Tier 3 min-cost** (`@framers/agentos/memory-router` `minimize-cost` preset) | Shipping (current SOTA) | None |
 | 4 | **Tier 3 max-acc** (`maximize-accuracy` preset) | Shipping | None |
-| 5 | **Tier 3 + Stage L** (Anthropic Contextual Retrieval `summarized` executor at ingest) | NEW | New `agentos-ext-summarized-memory` package |
-| 6 | **Tier 3 + Stage I** (entity-linking hybrid retrieval, Mem0-v3-style ADD-only) | NEW | New `agentos-ext-entity-linking-memory` package |
+| 5 | **Tier 3 + Stage L** (Anthropic Contextual Retrieval `summarized` executor at ingest) | NEW | New `SummarizedIngestExecutor` in `packages/agentos/src/ingest-router/executors/` (agentos core) |
+| 6 | **Tier 3 + Stage I** (entity-linking hybrid retrieval, Mem0-v3-style ADD-only) | NEW | `EntityLinkingIngestExecutor` in `ingest-router/executors/` + `EntityLinkingHybridBackend` in `memory-router/backends/` (agentos core) |
 
 Plus a reference row:
 
@@ -58,7 +58,15 @@ Plus a reference row:
 | R0 | **Full-context gpt-4o** baseline | LongMemEval paper, Mastra research, BEAM paper |
 | Rx | Vendor self-reported (Mem0 v3, Mastra OM, Hindsight, Supermemory, Zep) | Footnoted with judge-harness caveats from SOTA_CITED_EVIDENCE §2-§7 |
 
-Per the agentos-bench-is-benchmarks-only invariant, Stage L + Stage I implementations live in agentos core extension packages, not in the bench. Bench wires them as dispatchers behind `IngestRouter` / `MemoryRouter`.
+Per the agentos-bench-is-benchmarks-only invariant, Stage L + Stage I executors live in **agentos core**, co-located with the IngestRouter and MemoryRouter strategy IDs they fulfill — NOT in the bench and NOT in `agentos-ext-*` extension packages. Reference executors ship alongside their strategy IDs so the IngestRouter `summarized` and `fact-graph` strategies work out of the box, instead of being empty promises consumers must implement themselves. The `agentos-ext-*` extension pattern is reserved for OPTIONAL output-side concerns (grounding-guard, pii-redaction, code-safety, topicality). Memory and RAG architectures are core. Bench imports them via `@framers/agentos/ingest-router` and `@framers/agentos/memory-router`.
+
+### 3.2 Why core, not extensions (architectural decision)
+
+When this spec was first drafted (v1), Stage L and Stage I executors were placed in two new extension packages (`agentos-ext-summarized-memory`, `agentos-ext-entity-linking-memory`). That violated the stored agentos-bench-is-benchmarks-only invariant, which explicitly says "all memory/RAG/retrieval improvements go in agentos core, not in the bench adapter" — and by extension, not in `agentos-ext-*` packages, which are for output-side guardrails.
+
+The corrected placement (core) is also better for consumers: the IngestRouter ships `summarized`, `fact-graph`, etc. as strategy IDs. Without core executors, those IDs are empty promises — a developer importing `@framers/agentos/ingest-router` gets the strategy ID surface but has to author their own implementation or install yet another package. Reference executors in core close that gap: the strategy IDs work out of the box.
+
+Anthropic Contextual Retrieval (Stage L) is also baseline RAG circa 2026, not an optional feature. Mem0 v3's hybrid+entity-linking (Stage I) is the production architecture for one of the most-used agent memory libraries. Both are core memory concerns; they belong in agentos core alongside HybridRetriever and CognitiveMemoryManager.
 
 ### 3.1 Phase A iteration variants (cheap exploration before Phase B commit)
 

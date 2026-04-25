@@ -4,7 +4,9 @@
 
 **Goal:** Ship Plan B2 v1 of the comprehensive evaluation matrix: 6 architectures × 3 conversational benchmarks (LongMemEval-S, LongMemEval-M, LOCOMO) at full N + BEAM 100K spot-check, all with bootstrap CI + per-category + cost/correct + p50/p95 + tokens/query + judge FPR.
 
-**Architecture:** Two new agentos extension packages (`agentos-ext-summarized-memory` for Stage L, `agentos-ext-entity-linking-memory` for Stage I) implementing executors that wire into existing `IngestRouter` and `MemoryRouter` dispatchers. One bench adapter (BEAM) implementing `IBenchmark`. Iterate cheaply via `--sample-per-type N` Phase A, validate winners at full N Phase B.
+**Architecture:** Stage L and Stage I executors live in **agentos core**, co-located with the IngestRouter and MemoryRouter strategy IDs they fulfill: `packages/agentos/src/ingest-router/executors/` for ingest-side executors (`SummarizedIngestExecutor`, `EntityLinkingIngestExecutor`, `EntityExtractor`, `sessionSummarizer`) and `packages/agentos/src/memory-router/backends/` for the recall-side ranker (`EntityRetrievalRanker`, plus the `EntityLinkingHybridBackend` that wires it into MemoryRouter). One bench adapter (BEAM) implementing `IBenchmark` lives in `packages/agentos-bench/src/benchmarks/beam/`. Iterate cheaply via `--sample-per-type N` Phase A, validate winners at full N Phase B.
+
+**Why core, not extensions:** the `agentos-bench-is-benchmarks-only` rule says memory/RAG improvements live in agentos core. The IngestRouter ships `summarized` and `fact-graph` strategy IDs without executors; putting reference executors in core makes those IDs work out of the box. `agentos-ext-*` is reserved for optional output-side guardrails (grounding-guard, pii-redaction, code-safety, topicality), not core memory architectures. See spec §3.2 for the full architectural rationale.
 
 **Tech Stack:** TypeScript, vitest, pnpm workspaces, semantic-release. New packages follow `agentos-ext-grounding-guard` template. New benchmark adapter follows `LongMemEvalS` template.
 
@@ -16,38 +18,47 @@
 
 ## File Structure
 
-### New files
+### New files (in agentos core)
+
+Stage L (Anthropic Contextual Retrieval `summarized` executor):
 
 | Path | Responsibility |
 |---|---|
-| `packages/agentos-ext-summarized-memory/package.json` | Package manifest, peer-dep on `@framers/agentos@^0.2.11` |
-| `packages/agentos-ext-summarized-memory/tsconfig.json` | TS build config |
-| `packages/agentos-ext-summarized-memory/vitest.config.ts` | Test config with monorepo agentos path resolution |
-| `packages/agentos-ext-summarized-memory/src/SummarizedIngestExecutor.ts` | Anthropic Contextual Retrieval recipe — one summary per session, prepended to chunks |
-| `packages/agentos-ext-summarized-memory/src/sessionSummarizer.ts` | LLM-summarize-per-session pure function with caching key |
-| `packages/agentos-ext-summarized-memory/src/types.ts` | `SummarizedIngestOptions`, `SummarizerLLM`, `SummarizedTrace` types |
-| `packages/agentos-ext-summarized-memory/src/index.ts` | Barrel export + `createExtensionPack()` factory |
-| `packages/agentos-ext-summarized-memory/test/sessionSummarizer.spec.ts` | Pure-function tests for the summarizer |
-| `packages/agentos-ext-summarized-memory/test/SummarizedIngestExecutor.spec.ts` | Executor contract tests (works with `FunctionIngestDispatcher`) |
-| `packages/agentos-ext-entity-linking-memory/package.json` | Package manifest |
-| `packages/agentos-ext-entity-linking-memory/tsconfig.json` | TS build config |
-| `packages/agentos-ext-entity-linking-memory/vitest.config.ts` | Test config |
-| `packages/agentos-ext-entity-linking-memory/src/EntityExtractor.ts` | Mem0-v3-style entity extraction (proper nouns, quoted text, compound noun phrases) |
-| `packages/agentos-ext-entity-linking-memory/src/EntityStore.ts` | Parallel `{collection}_entities` store wrapping `IVectorStore` |
-| `packages/agentos-ext-entity-linking-memory/src/EntityLinkingExecutor.ts` | Ingest executor: runs extraction + writes both main + entity collections |
-| `packages/agentos-ext-entity-linking-memory/src/EntityRetrievalRanker.ts` | Recall-stage signal: re-rank candidates by entity-overlap score |
-| `packages/agentos-ext-entity-linking-memory/src/types.ts` | Types |
-| `packages/agentos-ext-entity-linking-memory/src/index.ts` | Barrel + factory |
-| `packages/agentos-ext-entity-linking-memory/test/EntityExtractor.spec.ts` | Pure extraction tests |
-| `packages/agentos-ext-entity-linking-memory/test/EntityRetrievalRanker.spec.ts` | Ranker tests |
-| `packages/agentos-ext-entity-linking-memory/test/EntityLinkingExecutor.spec.ts` | End-to-end ingest+recall test |
+| `packages/agentos/src/ingest-router/executors/SummarizedIngestExecutor.ts` | Per-session summary call, summary prepended to chunk before embedding |
+| `packages/agentos/src/ingest-router/executors/sessionSummarizer.ts` | Pure summarizer with verbatim Anthropic Contextual Retrieval prompt |
+| `packages/agentos/src/ingest-router/executors/types.ts` | Shared executor types: `SummarizerLLM`, `SummarizedIngestOptions`, etc. |
+| `packages/agentos/src/ingest-router/executors/__tests__/SummarizedIngestExecutor.test.ts` | Executor contract tests (works with `FunctionIngestDispatcher`) |
+| `packages/agentos/src/ingest-router/executors/__tests__/sessionSummarizer.test.ts` | Pure-function tests for the summarizer + verbatim Anthropic prompt assertion |
+
+Stage I (Mem0-v3-style entity-linking hybrid):
+
+| Path | Responsibility |
+|---|---|
+| `packages/agentos/src/ingest-router/executors/EntityExtractor.ts` | Mem0-v3-style entity extraction: proper nouns, quoted text, compound noun phrases |
+| `packages/agentos/src/ingest-router/executors/EntityLinkingIngestExecutor.ts` | Ingest executor: runs extraction; emits entities alongside chunk for downstream indexing |
+| `packages/agentos/src/memory-router/backends/EntityRetrievalRanker.ts` | Pure ranker: re-ranks candidates by query-entity-overlap signal |
+| `packages/agentos/src/memory-router/backends/EntityLinkingHybridBackend.ts` | Recall-stage backend: combines hybrid retrieval with entity-overlap re-rank |
+| `packages/agentos/src/ingest-router/executors/__tests__/EntityExtractor.test.ts` | Pure extraction tests |
+| `packages/agentos/src/ingest-router/executors/__tests__/EntityLinkingIngestExecutor.test.ts` | Executor contract tests |
+| `packages/agentos/src/memory-router/backends/__tests__/EntityRetrievalRanker.test.ts` | Pure ranker tests |
+| `packages/agentos/src/memory-router/backends/__tests__/EntityLinkingHybridBackend.test.ts` | End-to-end ingest+recall integration test |
+
+BEAM adapter (in agentos-bench, this benchmarks-only file is the right home):
+
+| Path | Responsibility |
+|---|---|
 | `packages/agentos-bench/src/benchmarks/beam/dataset.ts` | BEAM dataset loader (`loadBeamDataset(dataDir, tier)`) |
-| `packages/agentos-bench/src/benchmarks/beam/Beam100K.ts` | BEAM 100K tier subclass (concrete, not placeholder) |
+| `packages/agentos-bench/src/benchmarks/beam/Beam100K.ts` | BEAM 100K tier adapter (concrete, replaces the placeholder) |
 | `packages/agentos-bench/tests/beam-dataset.spec.ts` | Loader tests |
 | `packages/agentos-bench/tests/beam-adapter.spec.ts` | Adapter contract tests |
-| `packages/agentos-bench/scripts/run-eval-matrix-phase-a.ts` | Orchestration script: sweep all 15 variants × 3 conversational benchmarks |
+
+Orchestration + outputs (in agentos-bench):
+
+| Path | Responsibility |
+|---|---|
+| `packages/agentos-bench/scripts/run-eval-matrix-phase-a.ts` | Orchestration: sweep ~12 variants × 3 conversational benchmarks |
 | `packages/agentos-bench/scripts/run-eval-matrix-phase-b.ts` | Phase B orchestration for surviving architectures |
-| `packages/agentos-bench/scripts/run-beam-spot-check.ts` | BEAM 100K spot-check (one-shot, ~$5) |
+| `packages/agentos-bench/scripts/gate-phase-a-results.ts` | Gating analysis: emit ADVANCE/DROP table from Phase A run JSONs |
 | `packages/agentos-bench/scripts/build-eval-matrix-table.ts` | Reads all run JSONs, emits comparison-table markdown |
 | `packages/agentos-bench/results/eval-matrix-v1/comparison-table.md` | Final assembled table (output) |
 | `packages/agentos-bench/results/eval-matrix-v1/transparency-notes.md` | Judge FPR per benchmark, vendor footnotes (output) |
@@ -56,13 +67,13 @@
 
 | Path | Modification |
 |---|---|
+| `packages/agentos/src/ingest-router/index.ts` | Re-export `SummarizedIngestExecutor`, `EntityLinkingIngestExecutor`, `EntityExtractor`, `sessionSummarizer` from `./executors/` |
+| `packages/agentos/src/memory-router/index.ts` | Re-export `EntityRetrievalRanker`, `EntityLinkingHybridBackend` from `./backends/` |
 | `packages/agentos-bench/src/benchmarks/beam/Beam.ts` | Replace `BeamUnimplementedError` placeholder with real adapter |
 | `packages/agentos-bench/src/benchmarks/beam/index.ts` | Export `Beam100K` instead of just placeholder |
-| `packages/agentos-bench/src/cli.ts` | Add `--benchmark beam-100k` mapping + new orchestration scripts |
-| `packages/agentos/src/ingest-router/dispatcher.ts` | (No code change) Verified `FunctionIngestDispatcher` accepts the new executor signatures |
-| `packages/agentos/src/memory-router/dispatcher.ts` | (No code change) Same verification for entity-linking-hybrid backend |
-| `apps/agentos-live-docs/docs/index.md` | Add v1 publication entry + cross-link new extension packages |
-| `pnpm-workspace.yaml` | (Auto, but verify) New packages are picked up by workspace pnpm |
+| `packages/agentos-bench/src/cli.ts` | Add `--ingest-strategy {summarized,fact-graph}` + `--ingest-strategy-llm` + `--entity-weight` flags + `--benchmark beam-100k` mapping |
+| `packages/agentos-bench/src/cognitive/createCognitiveManager.ts` | Wire core executors into the bench's IngestRouter dispatcher; wire `EntityLinkingHybridBackend` into MemoryRouter dispatcher |
+| `apps/agentos-live-docs/docs/index.md` | Add v1 publication entry + cross-link to new agentos `ingest-router/executors/` + `memory-router/backends/` (no new extension packages to link) |
 
 ---
 
@@ -98,125 +109,45 @@ Expected: only the new plan file shows up as untracked. If other tracked files a
 
 ## Week 1 — Stage L: Anthropic Contextual Retrieval `summarized` executor (Days 1-5)
 
-### Task 1.1: Scaffold the `agentos-ext-summarized-memory` package
+### Task 1.1: Create the `executors/` subdirectory in agentos core
 
 **Files:**
-- Create: `packages/agentos-ext-summarized-memory/package.json`
-- Create: `packages/agentos-ext-summarized-memory/tsconfig.json`
-- Create: `packages/agentos-ext-summarized-memory/vitest.config.ts`
+- Create: `packages/agentos/src/ingest-router/executors/` (directory)
+- Create: `packages/agentos/src/ingest-router/executors/__tests__/` (directory)
 
-- [ ] **Step 1: Create package.json**
+No package scaffolding is needed. The `@framers/agentos` package already exists with TypeScript build, vitest, and workspace wiring. We add a new `executors/` subdirectory underneath the existing `ingest-router/` module and let the existing build pipeline pick up the new files.
 
-```json
-{
-  "name": "@framers/agentos-ext-summarized-memory",
-  "version": "0.1.0",
-  "description": "Anthropic Contextual Retrieval ingest executor for AgentOS IngestRouter — prepends per-session summary to every chunk before embedding",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
-  },
-  "files": ["dist", "src"],
-  "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "test": "vitest run",
-    "typecheck": "tsc --noEmit"
-  },
-  "peerDependencies": {
-    "@framers/agentos": "^0.2.11"
-  },
-  "devDependencies": {
-    "@framers/agentos": "workspace:*",
-    "typescript": "^5.5.0",
-    "vitest": "^1.6.0"
-  },
-  "license": "MIT",
-  "author": "Frame.dev",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/framersai/voice-chat-assistant.git",
-    "directory": "packages/agentos-ext-summarized-memory"
-  },
-  "publishConfig": { "access": "public" }
-}
-```
-
-- [ ] **Step 2: Create tsconfig.json**
-
-```json
-{
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "outDir": "dist",
-    "rootDir": "src",
-    "declaration": true,
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true
-  },
-  "include": ["src/**/*"]
-}
-```
-
-- [ ] **Step 3: Create vitest.config.ts (mirror grounding-guard pattern)**
-
-```typescript
-// @ts-nocheck
-import { defineConfig } from 'vitest/config';
-import path from 'path';
-import fs from 'fs';
-
-const localPath = path.resolve(__dirname, '../agentos/src');
-const ciPath = path.resolve(__dirname, '../../../../packages/agentos/src');
-const monoPath = path.resolve(__dirname, '../../../../../agentos/src');
-
-const agentosPath = fs.existsSync(localPath)
-  ? localPath
-  : fs.existsSync(ciPath)
-    ? ciPath
-    : fs.existsSync(monoPath)
-      ? monoPath
-      : null;
-
-export default defineConfig({
-  test: {
-    globals: true,
-    environment: 'node',
-    include: ['test/**/*.spec.ts'],
-    testTimeout: 10000,
-  },
-  resolve: agentosPath ? { alias: { '@framers/agentos': agentosPath } } : {},
-});
-```
-
-- [ ] **Step 4: Install workspace deps**
+- [ ] **Step 1: Create the executor directories**
 
 ```bash
-cd /Users/johnn/Documents/git/voice-chat-assistant && pnpm install --filter @framers/agentos-ext-summarized-memory
+mkdir -p packages/agentos/src/ingest-router/executors/__tests__
+mkdir -p packages/agentos/src/memory-router/backends/__tests__
 ```
 
-Expected: package picked up by workspace, no errors.
-
-- [ ] **Step 5: Commit scaffold**
+- [ ] **Step 2: Verify the existing agentos build picks up empty subdirs**
 
 ```bash
-git add packages/agentos-ext-summarized-memory/{package.json,tsconfig.json,vitest.config.ts}
-git commit -m "chore(agentos-ext-summarized-memory): scaffold package for Anthropic Contextual Retrieval executor"
+cd packages/agentos && pnpm build
 ```
+
+Expected: build succeeds (empty subdirs are no-ops). Note: tsc may warn about the dirs being empty; that's expected before we add files.
+
+- [ ] **Step 3: Verify vitest picks up the test convention**
+
+```bash
+ls -la src/ingest-router/__tests__/
+```
+
+Expected: see existing `ingest-router.test.ts` — confirms the `__tests__/` subdirectory naming convention used across agentos. Our new `executors/__tests__/*.test.ts` files will follow the same pattern.
+
+No commit yet — this task is just establishing the directory layout. The first commit happens at the end of Task 1.2 with the types file.
 
 ---
 
 ### Task 1.2: Define types for the summarizer
 
 **Files:**
-- Create: `packages/agentos-ext-summarized-memory/src/types.ts`
+- Create: `packages/agentos/src/ingest-router/executors/types.ts`
 
 - [ ] **Step 1: Write types.ts**
 
@@ -268,8 +199,8 @@ export interface SummarizedTrace {
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/agentos-ext-summarized-memory/src/types.ts
-git commit -m "feat(agentos-ext-summarized-memory): define summarizer types"
+git add packages/agentos/src/ingest-router/executors/types.ts
+git commit -m "feat(ingest-router): define summarizer types"
 ```
 
 ---
@@ -277,8 +208,8 @@ git commit -m "feat(agentos-ext-summarized-memory): define summarizer types"
 ### Task 1.3: Write failing test for `sessionSummarizer` pure function
 
 **Files:**
-- Create: `packages/agentos-ext-summarized-memory/test/sessionSummarizer.spec.ts`
-- Test: `packages/agentos-ext-summarized-memory/test/sessionSummarizer.spec.ts`
+- Create: `packages/agentos/src/ingest-router/executors/__tests__/sessionSummarizer.test.ts`
+- Test: `packages/agentos/src/ingest-router/executors/__tests__/sessionSummarizer.test.ts`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -342,7 +273,7 @@ describe('summarizeSession', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 ```bash
-cd packages/agentos-ext-summarized-memory && pnpm exec vitest run test/sessionSummarizer.spec.ts
+cd packages/agentos && pnpm exec vitest run src/ingest-router/executors/__tests__/sessionSummarizer.test.ts
 ```
 
 Expected: FAIL — `Cannot find module '../src/sessionSummarizer'`.
@@ -352,7 +283,7 @@ Expected: FAIL — `Cannot find module '../src/sessionSummarizer'`.
 ### Task 1.4: Implement `sessionSummarizer`
 
 **Files:**
-- Create: `packages/agentos-ext-summarized-memory/src/sessionSummarizer.ts`
+- Create: `packages/agentos/src/ingest-router/executors/sessionSummarizer.ts`
 
 - [ ] **Step 1: Write minimal implementation**
 
@@ -395,7 +326,7 @@ export async function summarizeSession(
 - [ ] **Step 2: Run test to verify it passes**
 
 ```bash
-pnpm exec vitest run test/sessionSummarizer.spec.ts
+pnpm exec vitest run src/ingest-router/executors/__tests__/sessionSummarizer.test.ts
 ```
 
 Expected: PASS, 3 tests green.
@@ -403,8 +334,8 @@ Expected: PASS, 3 tests green.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/agentos-ext-summarized-memory/src/sessionSummarizer.ts packages/agentos-ext-summarized-memory/test/sessionSummarizer.spec.ts
-git commit -m "feat(agentos-ext-summarized-memory): implement session summarizer with verbatim Anthropic prompt"
+git add packages/agentos/src/ingest-router/executors/sessionSummarizer.ts packages/agentos/src/ingest-router/executors/__tests__/sessionSummarizer.test.ts
+git commit -m "feat(ingest-router): implement session summarizer with verbatim Anthropic prompt"
 ```
 
 ---
@@ -412,7 +343,7 @@ git commit -m "feat(agentos-ext-summarized-memory): implement session summarizer
 ### Task 1.5: Write failing test for `SummarizedIngestExecutor`
 
 **Files:**
-- Create: `packages/agentos-ext-summarized-memory/test/SummarizedIngestExecutor.spec.ts`
+- Create: `packages/agentos/src/ingest-router/executors/__tests__/SummarizedIngestExecutor.test.ts`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -468,7 +399,7 @@ describe('SummarizedIngestExecutor', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 ```bash
-pnpm exec vitest run test/SummarizedIngestExecutor.spec.ts
+pnpm exec vitest run src/ingest-router/executors/__tests__/SummarizedIngestExecutor.test.ts
 ```
 
 Expected: FAIL — module not found.
@@ -478,7 +409,7 @@ Expected: FAIL — module not found.
 ### Task 1.6: Implement `SummarizedIngestExecutor`
 
 **Files:**
-- Create: `packages/agentos-ext-summarized-memory/src/SummarizedIngestExecutor.ts`
+- Create: `packages/agentos/src/ingest-router/executors/SummarizedIngestExecutor.ts`
 
 - [ ] **Step 1: Write implementation**
 
@@ -542,7 +473,7 @@ export class SummarizedIngestExecutor {
 - [ ] **Step 2: Run test to verify it passes**
 
 ```bash
-pnpm exec vitest run test/SummarizedIngestExecutor.spec.ts
+pnpm exec vitest run src/ingest-router/executors/__tests__/SummarizedIngestExecutor.test.ts
 ```
 
 Expected: PASS, 3 tests green.
@@ -550,23 +481,26 @@ Expected: PASS, 3 tests green.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/agentos-ext-summarized-memory/src/SummarizedIngestExecutor.ts packages/agentos-ext-summarized-memory/test/SummarizedIngestExecutor.spec.ts
-git commit -m "feat(agentos-ext-summarized-memory): implement SummarizedIngestExecutor with per-session caching"
+git add packages/agentos/src/ingest-router/executors/SummarizedIngestExecutor.ts packages/agentos/src/ingest-router/executors/__tests__/SummarizedIngestExecutor.test.ts
+git commit -m "feat(ingest-router): implement SummarizedIngestExecutor with per-session caching"
 ```
 
 ---
 
-### Task 1.7: Add `index.ts` barrel + factory
+### Task 1.7: Add `executors/index.ts` barrel + re-export from `ingest-router/index.ts`
 
 **Files:**
-- Create: `packages/agentos-ext-summarized-memory/src/index.ts`
+- Create: `packages/agentos/src/ingest-router/executors/index.ts`
+- Modify: `packages/agentos/src/ingest-router/index.ts` (add re-exports)
 
-- [ ] **Step 1: Write index.ts**
+- [ ] **Step 1: Write executors/index.ts (sub-barrel)**
 
 ```typescript
 /**
- * @file index.ts
- * @description Public API for `@framers/agentos-ext-summarized-memory`.
+ * @file executors/index.ts
+ * @description Sub-barrel for IngestRouter reference executors. Consumers
+ * typically import from '@framers/agentos/ingest-router' which re-exports
+ * these for convenience.
  */
 
 export { SummarizedIngestExecutor } from './SummarizedIngestExecutor';
@@ -587,27 +521,49 @@ export function createSummarizedIngestExecutor(opts: { llm: SummarizerLLM }) {
 }
 ```
 
-- [ ] **Step 2: Run build to verify exports resolve**
+- [ ] **Step 2: Add re-exports to the existing `ingest-router/index.ts`**
 
-```bash
-pnpm build
+Append at the end of `packages/agentos/src/ingest-router/index.ts`:
+
+```typescript
+// --- Reference executors (Stage L: Anthropic Contextual Retrieval) ---
+export {
+  SummarizedIngestExecutor,
+  summarizeSession,
+  ANTHROPIC_CONTEXTUAL_PROMPT,
+  createSummarizedIngestExecutor,
+} from './executors';
+export type {
+  IngestOutcome,
+  IngestPayload,
+  SessionContent,
+  SummarizerLLM,
+  SummarizedIngestOptions,
+  SummarizedTrace,
+} from './executors';
 ```
 
-Expected: build succeeds, dist/ populated.
-
-- [ ] **Step 3: Run all package tests**
+- [ ] **Step 3: Run build to verify the re-exports resolve**
 
 ```bash
-pnpm test
+cd packages/agentos && pnpm build
 ```
 
-Expected: all tests pass.
+Expected: build succeeds, `dist/ingest-router/executors/` populated, `dist/ingest-router/index.d.ts` re-exports the new symbols.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Run all ingest-router tests**
 
 ```bash
-git add packages/agentos-ext-summarized-memory/src/index.ts
-git commit -m "feat(agentos-ext-summarized-memory): public barrel + createSummarizedIngestExecutor factory"
+pnpm exec vitest run src/ingest-router/
+```
+
+Expected: all tests pass (the existing 38 ingest-router tests + the 7 new executor tests = 45).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add packages/agentos/src/ingest-router/executors/index.ts packages/agentos/src/ingest-router/index.ts
+git commit -m "feat(ingest-router): add executors sub-barrel + top-level re-exports of summarized executor"
 ```
 
 ---
@@ -615,7 +571,7 @@ git commit -m "feat(agentos-ext-summarized-memory): public barrel + createSummar
 ### Task 1.8: Integration test — wire executor into `FunctionIngestDispatcher`
 
 **Files:**
-- Create: `packages/agentos-ext-summarized-memory/test/dispatcher-integration.spec.ts`
+- Create: `packages/agentos/src/ingest-router/executors/__tests__/dispatcher-integration.test.ts`
 
 - [ ] **Step 1: Write the failing integration test**
 
@@ -662,7 +618,7 @@ describe('SummarizedIngestExecutor + FunctionIngestDispatcher', () => {
 - [ ] **Step 2: Run test to verify it passes (executor exists, dispatcher exists)**
 
 ```bash
-pnpm exec vitest run test/dispatcher-integration.spec.ts
+pnpm exec vitest run src/ingest-router/executors/__tests__/dispatcher-integration.test.ts
 ```
 
 Expected: PASS. If FAIL with type errors, fix the dispatcher arg shape and re-run.
@@ -670,8 +626,8 @@ Expected: PASS. If FAIL with type errors, fix the dispatcher arg shape and re-ru
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/agentos-ext-summarized-memory/test/dispatcher-integration.spec.ts
-git commit -m "test(agentos-ext-summarized-memory): integration with FunctionIngestDispatcher"
+git add packages/agentos/src/ingest-router/executors/__tests__/dispatcher-integration.test.ts
+git commit -m "test(ingest-router): integration with FunctionIngestDispatcher"
 ```
 
 ---
@@ -703,7 +659,7 @@ grep -n "memoryMode\|ingestStrategy\|--memory" packages/agentos-bench/src/cli.ts
 Open `packages/agentos-bench/src/cognitive/createCognitiveManager.ts` and add a branch for `summarized`:
 
 ```typescript
-import { SummarizedIngestExecutor } from '@framers/agentos-ext-summarized-memory';
+import { SummarizedIngestExecutor } from '@framers/agentos/ingest-router';
 import { createOpenAILLM } from '../llm/createOpenAILLM.js';
 
 if (config.ingestStrategy === 'summarized') {
@@ -741,7 +697,7 @@ git commit -m "feat(agentos-bench): wire SummarizedIngestExecutor as --ingest-st
 cd /Users/johnn/Documents/git/voice-chat-assistant && pnpm -r build
 ```
 
-Expected: clean build across agentos + agentos-ext-summarized-memory + agentos-bench.
+Expected: clean build across agentos + agentos + agentos-bench.
 
 - [ ] **Step 2: Run Stage L Phase A spot-check on LongMemEval-S**
 
@@ -1216,18 +1172,37 @@ User decides: **GO** (proceed to Stage I) / **STOP** (BEAM 100K number is unexpe
 
 ## Week 2 — Stage I: Entity-Linking Hybrid (Days 10-14)
 
-### Task 3.1: Scaffold `agentos-ext-entity-linking-memory` package
+### Task 3.1: Verify `memory-router/backends/` subdirectory exists
 
-(Same scaffolding pattern as Task 1.1 — copy the agentos-ext-summarized-memory `package.json`, `tsconfig.json`, `vitest.config.ts` and update `name` field.)
+**Files:**
+- Verify: `packages/agentos/src/memory-router/backends/__tests__/` (created in Task 1.1)
 
-- [ ] **Steps 1-5 mirror Task 1.1 with name change**: `@framers/agentos-ext-entity-linking-memory`
+Stage I adds two files in `memory-router/backends/` (the `EntityRetrievalRanker` and `EntityLinkingHybridBackend`) and three files in `ingest-router/executors/` (`EntityExtractor`, `EntityLinkingIngestExecutor`, plus types extension). No new package or scaffolding needed; these live in agentos core alongside the strategy IDs they implement.
+
+- [ ] **Step 1: Confirm directories exist**
+
+```bash
+ls -la packages/agentos/src/memory-router/backends/__tests__/ packages/agentos/src/ingest-router/executors/__tests__/
+```
+
+Expected: both directories exist (created in Task 1.1).
+
+- [ ] **Step 2: Verify the existing memory-router/index.ts barrel for context**
+
+```bash
+grep -n "^export" packages/agentos/src/memory-router/index.ts | head -20
+```
+
+Expected: see the existing exports — Stage I's new exports will be appended in Task 3.7 (mirrors Task 1.7's pattern).
+
+No commit yet — directory verification only. The first commit lands at the end of Task 3.2 with the entity-linking types.
 
 ---
 
 ### Task 3.2: Define entity-linking types
 
 **Files:**
-- Create: `packages/agentos-ext-entity-linking-memory/src/types.ts`
+- Create: `packages/agentos/src/ingest-router/executors/types.ts`
 
 - [ ] **Step 1: Write types.ts**
 
@@ -1254,8 +1229,8 @@ export interface EntityLinkingOptions {
 - [ ] **Step 2: Commit**
 
 ```bash
-git add packages/agentos-ext-entity-linking-memory/src/types.ts
-git commit -m "feat(agentos-ext-entity-linking-memory): types for entity extraction + linking"
+git add packages/agentos/src/ingest-router/executors/types.ts
+git commit -m "feat(ingest-router): types for entity extraction + linking"
 ```
 
 ---
@@ -1263,7 +1238,7 @@ git commit -m "feat(agentos-ext-entity-linking-memory): types for entity extract
 ### Task 3.3: Write `EntityExtractor` failing test
 
 **Files:**
-- Create: `packages/agentos-ext-entity-linking-memory/test/EntityExtractor.spec.ts`
+- Create: `packages/agentos/src/ingest-router/executors/__tests__/EntityExtractor.test.ts`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1306,7 +1281,7 @@ describe('EntityExtractor (Mem0 v3 style)', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 ```bash
-cd packages/agentos-ext-entity-linking-memory && pnpm exec vitest run test/EntityExtractor.spec.ts
+cd packages/agentos && pnpm exec vitest run src/ingest-router/executors/__tests__/EntityExtractor.test.ts
 ```
 
 Expected: FAIL — module not found.
@@ -1316,7 +1291,7 @@ Expected: FAIL — module not found.
 ### Task 3.4: Implement `EntityExtractor`
 
 **Files:**
-- Create: `packages/agentos-ext-entity-linking-memory/src/EntityExtractor.ts`
+- Create: `packages/agentos/src/ingest-router/executors/EntityExtractor.ts`
 
 - [ ] **Step 1: Write minimal regex-based implementation**
 
@@ -1392,7 +1367,7 @@ export class EntityExtractor {
 - [ ] **Step 2: Run test to verify it passes**
 
 ```bash
-pnpm exec vitest run test/EntityExtractor.spec.ts
+pnpm exec vitest run src/ingest-router/executors/__tests__/EntityExtractor.test.ts
 ```
 
 Expected: PASS, 4 tests green. If a regex doesn't catch a case (e.g., "San Francisco" should be one compound noun phrase), refine the regex to make the test pass.
@@ -1400,8 +1375,8 @@ Expected: PASS, 4 tests green. If a regex doesn't catch a case (e.g., "San Franc
 - [ ] **Step 3: Commit**
 
 ```bash
-git add packages/agentos-ext-entity-linking-memory/src/EntityExtractor.ts packages/agentos-ext-entity-linking-memory/test/EntityExtractor.spec.ts
-git commit -m "feat(agentos-ext-entity-linking-memory): implement EntityExtractor with proper noun + quoted text + compound noun phrase detection"
+git add packages/agentos/src/ingest-router/executors/EntityExtractor.ts packages/agentos/src/ingest-router/executors/__tests__/EntityExtractor.test.ts
+git commit -m "feat(ingest-router): implement EntityExtractor with proper noun + quoted text + compound noun phrase detection"
 ```
 
 ---
@@ -1409,8 +1384,8 @@ git commit -m "feat(agentos-ext-entity-linking-memory): implement EntityExtracto
 ### Task 3.5: Implement `EntityRetrievalRanker` (TDD)
 
 **Files:**
-- Create: `packages/agentos-ext-entity-linking-memory/test/EntityRetrievalRanker.spec.ts`
-- Create: `packages/agentos-ext-entity-linking-memory/src/EntityRetrievalRanker.ts`
+- Create: `packages/agentos/src/memory-router/backends/__tests__/EntityRetrievalRanker.test.ts`
+- Create: `packages/agentos/src/memory-router/backends/EntityRetrievalRanker.ts`
 
 - [ ] **Step 1: Write failing test for ranker**
 
@@ -1447,7 +1422,7 @@ describe('EntityRetrievalRanker', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 ```bash
-pnpm exec vitest run test/EntityRetrievalRanker.spec.ts
+pnpm exec vitest run src/memory-router/backends/__tests__/EntityRetrievalRanker.test.ts
 ```
 
 Expected: FAIL — module not found.
@@ -1501,7 +1476,7 @@ export class EntityRetrievalRanker {
 - [ ] **Step 4: Run test to verify it passes**
 
 ```bash
-pnpm exec vitest run test/EntityRetrievalRanker.spec.ts
+pnpm exec vitest run src/memory-router/backends/__tests__/EntityRetrievalRanker.test.ts
 ```
 
 Expected: PASS, 2 tests green.
@@ -1509,8 +1484,8 @@ Expected: PASS, 2 tests green.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add packages/agentos-ext-entity-linking-memory/src/EntityRetrievalRanker.ts packages/agentos-ext-entity-linking-memory/test/EntityRetrievalRanker.spec.ts
-git commit -m "feat(agentos-ext-entity-linking-memory): implement EntityRetrievalRanker with entity-overlap boost"
+git add packages/agentos/src/memory-router/backends/EntityRetrievalRanker.ts packages/agentos/src/memory-router/backends/__tests__/EntityRetrievalRanker.test.ts
+git commit -m "feat(ingest-router): implement EntityRetrievalRanker with entity-overlap boost"
 ```
 
 ---
@@ -1518,8 +1493,8 @@ git commit -m "feat(agentos-ext-entity-linking-memory): implement EntityRetrieva
 ### Task 3.6: Implement `EntityLinkingExecutor` (ingest-side wrapper)
 
 **Files:**
-- Create: `packages/agentos-ext-entity-linking-memory/src/EntityLinkingExecutor.ts`
-- Create: `packages/agentos-ext-entity-linking-memory/test/EntityLinkingExecutor.spec.ts`
+- Create: `packages/agentos/src/ingest-router/executors/EntityLinkingIngestExecutor.ts`
+- Create: `packages/agentos/src/ingest-router/executors/__tests__/EntityLinkingIngestExecutor.test.ts`
 
 - [ ] **Step 1: Failing test**
 
@@ -1549,7 +1524,7 @@ describe('EntityLinkingExecutor', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 ```bash
-pnpm exec vitest run test/EntityLinkingExecutor.spec.ts
+pnpm exec vitest run src/ingest-router/executors/__tests__/EntityLinkingIngestExecutor.test.ts
 ```
 
 Expected: FAIL.
@@ -1579,9 +1554,9 @@ export class EntityLinkingExecutor {
 - [ ] **Step 4: Run + commit**
 
 ```bash
-pnpm exec vitest run test/EntityLinkingExecutor.spec.ts
-git add packages/agentos-ext-entity-linking-memory/src/EntityLinkingExecutor.ts packages/agentos-ext-entity-linking-memory/test/EntityLinkingExecutor.spec.ts
-git commit -m "feat(agentos-ext-entity-linking-memory): implement EntityLinkingExecutor"
+pnpm exec vitest run src/ingest-router/executors/__tests__/EntityLinkingIngestExecutor.test.ts
+git add packages/agentos/src/ingest-router/executors/EntityLinkingIngestExecutor.ts packages/agentos/src/ingest-router/executors/__tests__/EntityLinkingIngestExecutor.test.ts
+git commit -m "feat(ingest-router): implement EntityLinkingExecutor"
 ```
 
 ---
