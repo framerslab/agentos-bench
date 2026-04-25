@@ -12,10 +12,27 @@
  * @module agentos-bench/benchmarks/longmemeval/dataset
  */
 
-import { promises as fs } from 'node:fs';
+import { promises as fs, createReadStream } from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
+// stream-json + stream-chain publish under ./src/* with kebab-case
+// filenames; the exports maps rewrite. Use chain() to build a real
+// Duplex pipeline (the bare streamers from stream-json return chunk
+// processors, not Transform streams).
+// @ts-ignore - stream-chain ships CJS types; runtime works
+import { chain } from 'stream-chain';
+// @ts-ignore - stream-json ships CJS types
+import { streamArray } from 'stream-json/streamers/stream-array.js';
+// @ts-ignore - same as above
+import { parser } from 'stream-json/index.js';
 import type { BenchCase, Session, Turn } from '../../core/IBenchmark.js';
+
+/**
+ * Files larger than this are stream-parsed instead of buffered into a
+ * Node string. Required for LongMemEval-M (2.7 GB) which exceeds V8's
+ * max-string limit (~1.4 GB on most platforms).
+ */
+const STREAMING_THRESHOLD_BYTES = 1_000_000_000;
 
 /** Which LongMemEval variant to load. */
 export type LongMemEvalVariant = 's' | 'm' | 'oracle';
@@ -84,9 +101,11 @@ export async function loadLongMemEvalDataset(
   const filename = VARIANT_FILENAMES[variant];
   const filePath = path.join(dataDir, 'longmemeval', filename);
 
-  let raw: string;
+  // Probe file size first; large files (LongMemEval-M is 2.7 GB) exceed
+  // V8's max-string limit when read with fs.readFile and require streaming.
+  let stat;
   try {
-    raw = await fs.readFile(filePath, 'utf8');
+    stat = await fs.stat(filePath);
   } catch (err: unknown) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
       throw new Error(
@@ -99,7 +118,11 @@ export async function loadLongMemEvalDataset(
     throw err;
   }
 
-  // Upstream format is a JSON array. Accept JSONL too for forward compat.
+  if (stat.size > STREAMING_THRESHOLD_BYTES) {
+    return loadLongMemEvalStreaming(filePath, variant);
+  }
+
+  const raw: string = await fs.readFile(filePath, 'utf8');
   const parsed: unknown = raw.trim().startsWith('[') ? JSON.parse(raw) : parseJsonl(raw);
   if (!Array.isArray(parsed)) {
     throw new Error(`LongMemEval dataset at ${filePath} is not an array (${SOURCE_FORMAT} expected).`);
@@ -109,6 +132,46 @@ export async function loadLongMemEvalDataset(
     const c = RawCaseSchema.parse(entry);
     return convertCase(c, idx, variant);
   });
+}
+
+/**
+ * Stream-parse a large LongMemEval JSON array. Used for LongMemEval-M
+ * (2.7 GB) which would otherwise hit V8's max-string limit. Each
+ * top-level array element is parsed individually and converted into a
+ * {@link BenchCase} as it arrives, so peak memory stays bounded by the
+ * largest single case (typically a few MB).
+ */
+async function loadLongMemEvalStreaming(
+  filePath: string,
+  variant: LongMemEvalVariant,
+): Promise<BenchCase[]> {
+  const cases: BenchCase[] = [];
+  let idx = 0;
+
+  await new Promise<void>((resolve, reject) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pipeline: any = chain([
+      createReadStream(filePath, { highWaterMark: 1 << 16 }),
+      parser(),
+      streamArray(),
+    ]);
+
+    pipeline.on('data', ({ value }: { value: unknown }) => {
+      try {
+        const c = RawCaseSchema.parse(value);
+        cases.push(convertCase(c, idx, variant));
+        idx += 1;
+      } catch (err) {
+        reject(err instanceof Error ? err : new Error(String(err)));
+      }
+    });
+    pipeline.on('end', () => resolve());
+    pipeline.on('error', (err: unknown) => {
+      reject(err instanceof Error ? err : new Error(String(err)));
+    });
+  });
+
+  return cases;
 }
 
 function parseJsonl(raw: string): unknown[] {
