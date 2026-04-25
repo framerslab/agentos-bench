@@ -3,11 +3,14 @@ title: Comprehensive Evaluation Matrix — Design (Plan B2)
 date: 2026-04-25
 scope: 6-architecture × 5-benchmark × 6-metric publication-grade comparison table
 methodology_anchor: SOTA_CITED_EVIDENCE_2026-04-25.md, NEXT_SESSION_2026-04-25_HANDOFF_v2_POST_SOTA_RESEARCH.md
-estimated_cost: ~$1000-1200 net new LLM (cached prior runs leveraged; full BEAM Phase B deferred to v2 with Stage E)
+estimated_cost: ~$400-600 net new LLM (cached prior runs leveraged; Stage L + Stage I dropped after measured negative; full BEAM Phase B deferred to v2 with Stage E)
 revision_history:
   - 2026-04-25 v1: spec drafted at $1800-2600 (full BEAM Phase B included)
-  - 2026-04-25 v2: BEAM Phase B descoped to spot-check; full multi-tier BEAM deferred to v2 publication paired with Stage E typed-network observer (avoids publishing a non-competitive headline; saves ~$1100; bundles infrastructure cost with future v2 leverage)
-estimated_duration: 3 weeks (parallel implementation + sweep)
+  - 2026-04-25 v2: BEAM Phase B descoped to spot-check; full multi-tier BEAM deferred to v2 paired with Stage E typed-network observer (saves ~$1100)
+  - 2026-04-25 v3: Stage L MEASURED on LongMemEval-S — −3.7pp (temporal-reasoning collapsed −33.3pp). Document-domain Anthropic Contextual Retrieval doesn't translate to conversational memory. Stage L dropped from Phase B sweep. See STAGE_L_PHASE_A_FINDINGS_2026-04-25.md.
+  - 2026-04-25 v4: Stage I MEASURED on LOCOMO — −4.0pp (multi-hop −20pp). Mem0-v3-style entity-linking re-rank duplicates Cohere rerank's cross-encoder semantic signal. Stage I dropped from Phase B sweep. See STAGE_I_PHASE_A_FINDINGS_2026-04-25.md. Both architectures shipped in agentos (0.2.12, 0.2.13) as production primitives for IngestRouter / MemoryRouter consumers.
+  - 2026-04-25 v5: Stage J unblocked (LongMemEval-M loader streamed via stream-json + stream-chain). First Phase A measurement on M: 41.7% N=12 (-35pp from S baseline; single-session-assistant + temporal-reasoning collapsed to 0%). See STAGE_J_PHASE_A_FINDINGS_2026-04-25.md.
+estimated_duration: ~1 week remaining work after measurement updates (Phase B for 4 surviving architectures + Stage G judge FPR + table assembly)
 ---
 
 # Comprehensive Evaluation Matrix — Design (Plan B2)
@@ -48,8 +51,8 @@ Six rows. All measured at `gpt-4o` reader, `gpt-4o-2024-08-06` judge, rubric `20
 | 2 | **Tier 2b OM-v11** | Shipping | None |
 | 3 | **Tier 3 min-cost** (`@framers/agentos/memory-router` `minimize-cost` preset) | Shipping (current SOTA) | None |
 | 4 | **Tier 3 max-acc** (`maximize-accuracy` preset) | Shipping | None |
-| 5 | **Tier 3 + Stage L** (Anthropic Contextual Retrieval `summarized` executor at ingest) | NEW | New `SummarizedIngestExecutor` in `packages/agentos/src/ingest-router/executors/` (agentos core) |
-| 6 | **Tier 3 + Stage I** (entity-linking hybrid retrieval, Mem0-v3-style ADD-only) | NEW | `EntityLinkingIngestExecutor` in `ingest-router/executors/` + `EntityLinkingHybridBackend` in `memory-router/backends/` (agentos core) |
+| ~~5~~ | ~~Tier 3 + Stage L~~ | DROPPED | **MEASURED 2026-04-25: −3.7pp on LongMemEval-S.** Code shipped in agentos 0.2.12 as IngestRouter `summarized` reference executor for consumers. |
+| ~~6~~ | ~~Tier 3 + Stage I~~ | DROPPED | **MEASURED 2026-04-25: −4.0pp on LOCOMO.** Code shipped in agentos 0.2.13 as IngestRouter `fact-graph` + MemoryRouter entity-overlap re-rank primitives for consumers. |
 
 Plus a reference row:
 
