@@ -64,13 +64,15 @@ The v1 handoff's Stage H (§1.2) proposed "session-NDCG at K=20." Calvin Ku's re
 
 Seven experiment families ranked by ROI per dollar after the corrections in §0. Costs are LLM budget; effort is calendar time.
 
+**2026-04-25 update — Stage L measured and dropped as accuracy push.** See [STAGE_L_PHASE_A_FINDINGS_2026-04-25.md](STAGE_L_PHASE_A_FINDINGS_2026-04-25.md). Anthropic Contextual Retrieval lifted accuracy by **−3.7pp** in our pipeline (paired N=54 with OpenAI semantic embedder, baseline 74.1% vs treatment 70.4%, with temporal-reasoning collapsing −33.3pp). The pattern's document-domain lift doesn't translate to conversational memory. Stage L's agentos-side code is shipped and architecturally clean; it's just not an accuracy push. **Reallocate Stage L's budget to Stage I + Stage J.** Updated table reflects this:
+
 | # | Stage | Cost | Effort | Expected outcome | Notes |
 |---|---|---:|---|---|---|
-| 1 | **L** | $475 | 3-5 days | +10-20pp on multi-session | **NEW** — Anthropic Contextual Retrieval `summarized` executor. Lowest hanging fruit. |
+| ~~1~~ | ~~L~~ | ~~$475~~ | ~~3-5 days~~ | ~~+10-20pp on multi-session~~ | **MEASURED 2026-04-25: −3.7pp. Dropped from accuracy-push priority.** Code shipped in agentos 0.2.12 as IngestRouter reference executor. |
 | 2 | **J** | $150 | 1 day | First-mover LongMemEval-M number | No vendor publishes M numbers prominently. |
 | 3 | **H** | $240 | 1 day | Session-NDCG at K∈{20,42,62,100} | Cheap risk; broadened from $60. |
 | 4 | **M** | $60 | 1 day | HEXACO modulation A/B (likely null) | **NEW** — fills published research gap. |
-| 5 | **I** | $400 | 1 week | LOCOMO 51.5% → 60+% | Pivoted to entity-linking + Mem0-v3-style ADD-only. |
+| **1 (was 5)** | **I** | $400 | 1 week | LOCOMO 51.5% → 60+% | Pivoted to entity-linking + Mem0-v3-style ADD-only. **NOW THE HIGHEST-PRIORITY ACCURACY PUSH** since Stage L measured negative. |
 | 6 | **K** | $300 | 1 week | BEAM 100K + 500K + 1M | Skip 10M (Markmhendrickson 500K-degradation finding). |
 | 7 | **E** | $500-800 | 2-3 weeks | Tier 3 max-acc → 78-80% | Upgraded scope: 4 typed networks + opinion evolution. |
 
