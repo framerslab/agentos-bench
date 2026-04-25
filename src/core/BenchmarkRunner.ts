@@ -196,6 +196,9 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     // whose non-adversarial categories guarantee answerability (LOCOMO).
     // Pinned by tests/resolveRunConfigContract.spec.ts.
     noAbstention: cfg.noAbstention,
+    // Stage I: --entity-linking weight for Mem0-v3-style post-retrieval
+    // re-rank. Pinned by tests/resolveRunConfigContract.spec.ts.
+    entityLinking: cfg.entityLinking,
   };
 }
 
@@ -635,6 +638,15 @@ export function computeCaseRunKeyParts(
   // Bump the `:v1` suffix if the no-abstention prompt text changes.
   if (config.noAbstention) {
     const tag = 'stage-f2-no-abstention:v1';
+    runKeyParts.push(tag);
+    resultKeyParts.push(tag);
+  }
+
+  // Stage I: entity-linking re-rank weight fingerprint. Conditional so
+  // runs without the flag hit existing cached case-results cleanly.
+  // Bump the `:v1` suffix if the EntityRetrievalRanker scoring changes.
+  if (typeof config.entityLinking === 'number' && config.entityLinking > 0) {
+    const tag = `stage-i-entity-linking:w${config.entityLinking}:v1`;
     runKeyParts.push(tag);
     resultKeyParts.push(tag);
   }

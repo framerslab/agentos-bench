@@ -687,6 +687,23 @@ export interface RunConfig {
    * Default: false. Opt-in behind `--no-abstention` CLI flag.
    */
   noAbstention?: boolean;
+
+  /**
+   * Stage I: enable Mem0-v3-style entity-linking re-rank on retrieved
+   * traces. When set (>0), the bench post-retrieval re-ranks the top-K
+   * candidates from `mem.recall()` by entity-overlap with the query
+   * using {@link EntityRetrievalRanker}. Value is the entity-overlap
+   * weight in the combined score:
+   *   combinedScore = (1-w)*semanticScore + w*entityOverlapRatio
+   *
+   * 0.0 = no re-rank (default). 0.5 = balanced. 1.0 = pure entity overlap.
+   * Mem0 v3 default: ~0.5.
+   *
+   * Cache fingerprint: `stage-i-entity-linking:w<weight>:v1`.
+   *
+   * Default: undefined (no re-rank). Opt-in behind `--entity-linking [w]`.
+   */
+  entityLinking?: number;
 }
 
 /**
@@ -777,6 +794,7 @@ export const OPTIONAL_RUN_CONFIG_KEYS = [
   'sessionLevelNdcg',
   'sessionLevelNdcgTopK',
   'noAbstention',
+  'entityLinking',
 ] as const;
 /**
  * Compile-time guard: ensure every entry in {@link OPTIONAL_RUN_CONFIG_KEYS}
