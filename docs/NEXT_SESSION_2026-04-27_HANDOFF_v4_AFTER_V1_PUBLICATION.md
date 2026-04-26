@@ -10,7 +10,15 @@ supersedes: NEXT_SESSION_2026-04-26_HANDOFF_v3_AFTER_STAGE_LIJ_MEASUREMENTS.md
 
 **Status at handoff:** v1 publication shipped. **M-tuned Phase B at N=500 finished 2026-04-26: 45.4% [41.2%, 49.8%]** (227/500), $30.59 LLM, $0.1348/correct, avg 40.3s latency, **+14.8 pp validated** over Tier 1 canonical 30.6% Phase B baseline. Phase A's 57.4% N=54 result compressed −12 pp at full N=500 because `--sample-per-type 9` overweighted easy categories (multi-session: Phase A 66.7% N=9 → Phase B 26.2% [18.5%, 33.8%] N=130; temporal-reasoning: 33.3% N=9 → 22.6% [15.8%, 30.1%] N=133). Per-category Phase B with bootstrap CIs: SSA 91.1% [82.1%, 98.2%], SSU 78.6% [68.6%, 87.1%], KU 62.8% [52.6%, 73.1%], SSP 28.6% [14.3%, 46.4%], MS 26.2% [18.5%, 33.8%], TR 22.6% [15.8%, 30.1%]. **RetrievalConfigRouter productionization shipped end-to-end** (Phase 1 agentos primitives `MINIMIZE_COST_AUGMENTED_TABLE`+`selectAugmentedDispatch`, Phase 2 `MemoryRouter.decideAugmented`+`decideAndDispatchAugmented`, Phase 3 bench `--retrieval-config-router minimize-cost-augmented` flag + per-case dispatch hook in `LongMemEvalS.runCase`). 65 new memory-router tests + 516 bench tests pass. Stage E typed-network primitives shipped (75 tests), bench wiring scaffolded.
 
-**Mission for next session:** Validate the per-category dispatch lift at full N=500 by running hyde-only and topk-only Phase B ablations (each ~$30, ~5 hours) so the augmented-router dispatch can be measured against static M-tuned at scale. The 68.5% Phase A per-category-oracle forecast was inflated by the same N=9-per-category small-sample variance that compressed M-tuned from 57.4% Phase A to 45.4% Phase B; the Phase B dispatch lift over static combined will likely be smaller than +11 pp. Then launch Stage E Phase A measurement on S (~$3-5) to test whether typed-network fact retrieval lifts S over canonical baseline.
+**Phase B ablations completed in-session (2026-04-26 afternoon):**
+- HyDE-only Phase B at N=500: 35.6% [31.4%, 39.6%] at $0.0432/correct (3.1× cheaper Pareto pick)
+- TopK50-only Phase B at N=500: 40.8% [36.6%, 45.2%] at $0.1379/correct
+- **Phase B oracle aggregate: 46.4%** (+1.0 pp over static M-tuned 45.4%); the 68.5% Phase A oracle forecast was inflated ~22 pp
+- **v3 calibration:** TR → hyde (validated); KU and SSP revert to combined (Phase A picks didn't survive); v2 picks ship but v3 will re-derive
+
+**BEAM 100K adapter unblocked and shipped** (2026-04-26): the upstream dataset is published at github.com/vectorize-io/agent-memory-benchmark/data/beam/100k. Adapter loads 400 queries × 10 categories × 170 user-grouped haystacks. 8 contract tests pass; Phase A measurement queued.
+
+**Mission for next session:** (1) Re-derive `MINIMIZE_COST_AUGMENTED_TABLE` from Phase B per-category accuracies; ship as v3 calibration alongside the Phase A v2 table. (2) BEAM 100K Phase B at full N=400 (~$25-30). (3) Run augmented router Phase B at N=500 with v3 calibration to validate the +1 pp empirical lift. (4) Stage E typed-network Phase A on S (~$3-5).
 
 ---
 

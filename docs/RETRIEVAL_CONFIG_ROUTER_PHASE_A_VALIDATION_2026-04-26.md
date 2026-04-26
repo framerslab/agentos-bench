@@ -178,6 +178,25 @@ Run JSON: `results/runs/2026-04-26T18-19-05-942--longmemeval-m--gpt-4o--full-cog
 
 All three Phase A validation runs converge to **46.3%–57.4% aggregate, bounded by static M-tuned 57.4%**. The 68.5% Phase A oracle is not classifier-realizable at N=54 with any classifier configuration tested (gpt-5-mini base, gpt-5-mini fewshot, gpt-4o fewshot). The dispatch wiring is correct; classifier accuracy varies (46-59%) but **small-sample variance at n=9 per category dominates the aggregate** — the augmented router's true lift can only be measured at Phase B N=500.
 
+## Phase B finalization (2026-04-26 12:37 PT)
+
+After all three Phase B ablations finished (M-tuned 45.4%, HyDE-only 35.6%, TopK50-only 40.8%), the per-category-oracle Phase B aggregate is **46.4%** — only **+1.0 pp** over static M-tuned 45.4%. The dispatch lift over static at full scale is essentially zero except for TR → HyDE (+3.7 pp on TR alone, +1 pp aggregate).
+
+**Phase B re-derived calibration:**
+
+| Category | Phase A pick | Phase B pick | Action |
+|---|---|---|---|
+| SSA | combined | combined | ✅ kept |
+| SSU | combined | combined | ✅ kept |
+| KU | topk50 | combined | ❌ revised (Phase B: combined wins by +1.3 pp within CI; combined is simpler) |
+| SSP | hyde | combined | ❌ revised (Phase A "+8 pp" was small-sample noise; Phase B: combined wins by +1.9 pp within CI) |
+| MS | combined | combined | ✅ kept |
+| TR | hyde | hyde | ✅ kept (Phase B: +3.7 pp validated) |
+
+The augmented router's value at Phase B reduces to **a TR-only HyDE override on top of static M-tuned**. The 68.5% Phase A oracle was inflated ~22 pp by `--sample-per-type 9` overweighting easy categories AND wide n=9 binomial CIs on MS / TR / SSP. Phase B-derived calibration ships in a future v3 release; the current Phase A calibration in `MINIMIZE_COST_AUGMENTED_TABLE` scores 46.0% Phase B oracle (one case worse than the Phase B optimal 46.4%) — close enough that v2 consumers see no material harm from running on Phase A picks.
+
+Findings: [PHASE_B_ABLATIONS_2026-04-26.md](PHASE_B_ABLATIONS_2026-04-26.md). The augmented router primitive (`MemoryRouter.decideAugmented`, `--retrieval-config-router minimize-cost-augmented`) ships unchanged; the calibration table will be re-derived in v3.
+
 To validate the augmented router's theoretical lift, the remaining levers are:
 - **Stronger classifier model** (`--om-classifier-model gpt-4o`): ~10x classifier cost, but classifier accuracy on M should hit 70-85% based on policy-router measurements
 - **Phase B at N=500**: settles small-sample per-category variance
