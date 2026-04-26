@@ -675,6 +675,18 @@ export function buildCli(): Command {
       },
     )
     .option(
+      '--retrieval-config-router <preset>',
+      "RetrievalConfigRouter (2026-04-26 v2): per-case retrieval-config dispatch on canonical-hybrid. Classifies each query via gpt-5-mini, looks up the calibrated MINIMIZE_COST_AUGMENTED_TABLE, and overrides the run-level --hyde / --reader-top-k / --rerank-candidate-multiplier flags for that case. Calibration: 2026-04-26 LongMemEval-M Phase A N=54 ablation matrix; forecast aggregate 68.5% (vs static M-tuned 57.4%, canonical baseline 30.6%). Orthogonal to --policy-router (which dispatches the backend axis). Only preset: minimize-cost-augmented. Cache fingerprint: stage-rcr:<preset>:v1.",
+      (value: string) => {
+        if (value !== 'minimize-cost-augmented') {
+          throw new Error(
+            `--retrieval-config-router must be 'minimize-cost-augmented' (only preset shipped in v2), got '${value}'`,
+          );
+        }
+        return value;
+      },
+    )
+    .option(
       '--session-level-ndcg',
       'Stage C / Tier 4a: session-level NDCG retrieval post-process. After canonical HybridRetriever returns top-K traces, group them by sessionId, compute NDCG per session, pick top-K sessions (see --session-level-ndcg-top-k), and expand evidence to ALL turns of those sessions from the haystack. Matches Emergence AI Simple recipe. Applies to canonical path only; ignored on OM branches.',
     )
@@ -842,6 +854,9 @@ export function buildCli(): Command {
           | 'hard'
           | 'soft'
           | 'cheapest-fallback'
+          | undefined,
+        retrievalConfigRouter: opts.retrievalConfigRouter as
+          | 'minimize-cost-augmented'
           | undefined,
         sessionLevelNdcg: Boolean(opts.sessionLevelNdcg) || undefined,
         sessionLevelNdcgTopK: opts.sessionLevelNdcgTopK as number | undefined,

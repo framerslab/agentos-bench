@@ -49,6 +49,12 @@ Cross-validation of the M-tuned config on LongMemEval-S N=54: **72.2% accuracy, 
 
 **Per-category-oracle aggregate ≈ 70.4%** at $0.052/correct on the LongMemEval-M true category distribution (computed by `computeOracleAggregate` in the new `RetrievalConfigRouter` primitive). That's another **+13 pp on top of the static combined config** if a per-query classifier dispatches each query to the calibrated best config.
 
+### 0.2c Stage H hierarchical retrieval — third negative finding (2026-04-26 overnight)
+
+Hierarchical 2-stage retrieval at N=54 stratified on M completed overnight at 9.5 hours wall-clock. Result: **42.6% (23/54)** at $0.196/correct, avg 11.1 min/case. **−14.8 pp below M-tuned combined (57.4%)**; multi-session collapsed −44.5 pp (66.7% → 22.2%); single-session-preference 0.0%. Stage 1's summary-similarity cut drops the gold session on hard queries; Stage 2 has nothing to recover from. Findings: [STAGE_H_PHASE_A_HIERARCHICAL_FINDINGS_2026-04-26.md](STAGE_H_PHASE_A_HIERARCHICAL_FINDINGS_2026-04-26.md). Run JSON: `results/runs/2026-04-26T04-57-45-526--longmemeval-m--gpt-4o--full-cognitive--ingest.json`.
+
+This is the third negative finding (Stage L, Stage I, Stage H) — alternative retrieval architectures don't beat hybrid + Cohere rerank with widened windows on conversational benchmarks at 500-session-haystack scale. **Per-category dispatch (68.5% empirical) remains the strongest M result. Headline picks change accordingly.**
+
 ### 0.3a Stage E retrieval integration COMPLETE (2026-04-26 late session)
 
 The Stage E typed-network primitives (Phase 1-3) shipped earlier in this session with 59 tests. The Phase 4b deep retrieval integration also landed before the session closed. All code paths are wired:

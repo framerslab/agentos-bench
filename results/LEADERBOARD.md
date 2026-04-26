@@ -71,6 +71,7 @@ These rows document architectures we tested and DROPPED at Phase A because they 
 |---|---|---|---|---:|---:|---|
 | AgentOS + Stage L (Anthropic Contextual Retrieval `summarized` executor) | gpt-4o | full-cognitive + per-session summary prepended to chunks before embedding | ingest | 54 | **−3.7 pp** on LongMemEval-S (74.1% → 70.4%); temporal-reasoning −33.3 pp | [STAGE_L_PHASE_A_FINDINGS_2026-04-25.md](../docs/STAGE_L_PHASE_A_FINDINGS_2026-04-25.md) |
 | AgentOS + Stage I (Mem0-v3-style entity-linking re-rank) | gpt-4o | full-cognitive + entity-overlap re-rank at retrieval | ingest | 25 | **−4.0 pp** on LOCOMO (64.0% → 60.0%); multi-hop −20 pp | [STAGE_I_PHASE_A_FINDINGS_2026-04-25.md](../docs/STAGE_I_PHASE_A_FINDINGS_2026-04-25.md) |
+| AgentOS + Hierarchical retrieval (`--session-retrieval` 2-stage) | gpt-4o | full-cognitive + Stage 1 summary-similarity (top-10 sessions) → Stage 2 chunks-per-session (top-10) → Cohere rerank ×5 → reader-top-k 50 + HyDE | ingest | 54 | **−14.8 pp** on LongMemEval-M vs M-tuned combined (57.4% → 42.6%); MS −44.5 pp, SSP −14.3 pp, $0.196/correct (3.5x more expensive) | [STAGE_H_PHASE_A_HIERARCHICAL_FINDINGS_2026-04-26.md](../docs/STAGE_H_PHASE_A_HIERARCHICAL_FINDINGS_2026-04-26.md) |
 
 Both architectures shipped as production primitives in agentos core for consumers building different pipelines:
 - `SummarizedIngestExecutor` (0.2.12) — Anthropic Contextual Retrieval recipe; wraps `SessionSummarizer` for the `IngestRouter.dispatcher['summarized']` slot

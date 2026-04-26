@@ -188,6 +188,11 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     policyRouterPreset: cfg.policyRouterPreset,
     policyRouterBudgetPerQuery: cfg.policyRouterBudgetPerQuery,
     policyRouterBudgetMode: cfg.policyRouterBudgetMode,
+    // RetrievalConfigRouter — per-case retrieval-config dispatch on
+    // canonical-hybrid backend (orthogonal to policyRouter's backend
+    // axis). Calibrated from 2026-04-26 LongMemEval-M Phase A N=54
+    // ablation matrix.
+    retrievalConfigRouter: cfg.retrievalConfigRouter,
     // Stage C / Tier 4a: session-level NDCG retrieval post-process
     // (Emergence-style). Applies to canonical path only.
     sessionLevelNdcg: cfg.sessionLevelNdcg,
@@ -622,6 +627,17 @@ export function computeCaseRunKeyParts(
       .digest('hex')
       .slice(0, 8);
     const tag = `policy-router:v1:${presetHash}`;
+    runKeyParts.push(tag);
+    resultKeyParts.push(tag);
+  }
+
+  // RetrievalConfigRouter (2026-04-26 v2) fingerprint. Conditional so
+  // runs without the flag keep existing cache hashes intact. The preset
+  // name uniquely identifies the calibrated mapping; bump `:v1` if the
+  // MINIMIZE_COST_AUGMENTED_TABLE calibration in agentos core changes
+  // (e.g. after a Phase B re-derivation tightens the per-category picks).
+  if (config.retrievalConfigRouter) {
+    const tag = `stage-rcr:${config.retrievalConfigRouter}:v1`;
     runKeyParts.push(tag);
     resultKeyParts.push(tag);
   }
