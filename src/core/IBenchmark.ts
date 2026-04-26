@@ -643,6 +643,33 @@ export interface RunConfig {
   policyRouterBudgetMode?: 'hard' | 'soft' | 'cheapest-fallback';
 
   /**
+   * RetrievalConfigRouter (2026-04-26 v2): per-case retrieval-config
+   * dispatch on the canonical-hybrid backend. Classifies each query
+   * via the LLM judge, looks up the calibrated
+   * `MINIMIZE_COST_AUGMENTED_TABLE` mapping, and overrides the
+   * run-level `hyde`, `readerTopK`, and `rerank.candidateMultiplier`
+   * flags for that case only.
+   *
+   * The augmented table's backend axis is ignored on this path
+   * (canonical-hybrid stays the backend); only the retrieval-config
+   * axis applies. Calibration source: 2026-04-26 LongMemEval-M
+   * Phase A N=54 ablation matrix.
+   *
+   * Empirical aggregate forecast (M Phase A): 68.5% (vs 57.4%
+   * static M-tuned `hyde-topk50-mult5`, 30.6% canonical baseline).
+   *
+   * Cache fingerprint: `stage-rcr:<preset>:v1`.
+   * Mutually compatible with `policyRouter` (which dispatches the
+   * orthogonal backend axis).
+   *
+   * Default: undefined. Opt-in behind `--retrieval-config-router
+   * <preset>` CLI flag.
+   *
+   * See [docs/specs/2026-04-26-retrieval-config-router-productionization-plan.md](../../docs/specs/2026-04-26-retrieval-config-router-productionization-plan.md).
+   */
+  retrievalConfigRouter?: 'minimize-cost-augmented';
+
+  /**
    * Stage C / Tier 4a: session-level NDCG retrieval post-process.
    * After the canonical HybridRetriever returns top-K traces, group them by
    * sessionId, compute NDCG per session from trace ranks, pick the top-K
@@ -807,6 +834,7 @@ export const OPTIONAL_RUN_CONFIG_KEYS = [
   'policyRouterPreset',
   'policyRouterBudgetPerQuery',
   'policyRouterBudgetMode',
+  'retrievalConfigRouter',
   'sessionLevelNdcg',
   'sessionLevelNdcgTopK',
   'noAbstention',

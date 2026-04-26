@@ -86,6 +86,13 @@ import {
   type PolicyRouterConfig,
   type PolicyRouterDecision,
 } from '../../core/policyRouter.js';
+import {
+  MINIMIZE_COST_AUGMENTED_TABLE,
+  RETRIEVAL_CONFIG_SPECS,
+  selectAugmentedDispatch,
+  type MemoryQueryCategory,
+  type RetrievalConfigId,
+} from '@framers/agentos/memory-router';
 import { loadLongMemEvalDataset, type LongMemEvalVariant } from './dataset.js';
 import {
   BENCH_SESSION_TAG_PREFIX,
@@ -411,6 +418,90 @@ export class LongMemEvalS implements IBenchmark {
       runMetadata.omRouterRunOM = routerDecision.runOM;
       runMetadata.omRouterScaffold = routerDecision.useScaffold;
       runMetadata.omRouterRetrieval = routerDecision.runRetrieval;
+    }
+
+    // RetrievalConfigRouter (2026-04-26 v2): per-case retrieval-config
+    // dispatch on canonical-hybrid. Classifies the question via
+    // gpt-5-mini, looks up MINIMIZE_COST_AUGMENTED_TABLE, and produces
+    // a per-case override spec that supersedes the run-level
+    // --hyde / --reader-top-k / --rerank-candidate-multiplier flags
+    // for this case only. Reuses the policy-router's classifier output
+    // when both flags are on (saves one LLM call per case). Backend
+    // axis of the augmented table is ignored on this path — the
+    // backend stays canonical-hybrid and only the retrieval-config
+    // axis is applied.
+    let retrievalConfigOverride:
+      | {
+          hyde?: boolean;
+          readerTopK?: number;
+          rerankCandidateMultiplier?: number;
+        }
+      | undefined;
+    let retrievalConfigDispatchedId: RetrievalConfigId | undefined;
+    let retrievalConfigClassifierCategory: MemoryQueryCategory | undefined;
+    if (ctx.config.retrievalConfigRouter === 'minimize-cost-augmented') {
+      // Reuse the policy-router classifier when active (predictedCategory
+      // populated above). When neither policy nor om-dynamic router fired,
+      // run a fresh classifier call using gpt-5-mini with the same
+      // few-shot prompt variant the existing routers use.
+      let predictedCategory: QuestionCategory;
+      if (policyRouterOn && policyRouterDecision) {
+        predictedCategory = policyRouterDecision.predictedCategory;
+      } else if (dynamicRouterOn && routerCategory) {
+        predictedCategory = routerCategory;
+      } else {
+        const classifierModelName = (ctx.config.omClassifierModel ??
+          'gpt-5-mini') as ReaderModel;
+        const classifierReader = createReader(classifierModelName);
+        let cTokensIn = 0;
+        let cTokensOut = 0;
+        let cModel = 'gpt-5-mini';
+        try {
+          const result = await classifyQuestion({
+            reader: classifierReader,
+            question: c.question,
+            useFewshotPrompt: Boolean(ctx.config.omClassifierFewshot),
+          });
+          predictedCategory = result.category;
+          cTokensIn = result.tokensIn;
+          cTokensOut = result.tokensOut;
+          cModel = result.model;
+        } catch {
+          // Classifier errored: fall back to multi-session — its augmented
+          // dispatch (hyde-topk50-mult5, the M-tuned combined config) is
+          // the safest default for an unknown query.
+          predictedCategory = 'multi-session';
+        }
+        if (cTokensIn > 0 || cTokensOut > 0) {
+          ctx.costTracker.record({
+            category: 'reader',
+            model: cModel,
+            tokensIn: cTokensIn,
+            tokensOut: cTokensOut,
+            tag: `${c.id}:retrieval-config-classifier`,
+          });
+        }
+      }
+      // QuestionCategory and MemoryQueryCategory are structurally identical
+      // (same six string-literal members); cast through unknown so the
+      // bench's local type aligns with the agentos memory-router type.
+      const memoryCategory = predictedCategory as unknown as MemoryQueryCategory;
+      const dispatchKey = selectAugmentedDispatch(
+        memoryCategory,
+        MINIMIZE_COST_AUGMENTED_TABLE,
+      );
+      const spec = RETRIEVAL_CONFIG_SPECS[dispatchKey.retrievalConfig];
+      retrievalConfigOverride = {
+        hyde: spec.hyde,
+        readerTopK: spec.readerTopK,
+        rerankCandidateMultiplier: spec.rerankCandidateMultiplier,
+      };
+      retrievalConfigDispatchedId = dispatchKey.retrievalConfig;
+      retrievalConfigClassifierCategory = memoryCategory;
+      runMetadata.retrievalConfigRouter = 'minimize-cost-augmented';
+      runMetadata.retrievalConfigDispatched = retrievalConfigDispatchedId;
+      runMetadata.retrievalConfigCategory = retrievalConfigClassifierCategory;
+      runMetadata.retrievalConfigBackendIgnored = dispatchKey.backend;
     }
 
     // Effective branch decision:
@@ -741,6 +832,7 @@ export class LongMemEvalS implements IBenchmark {
         this.opts.graphActivationEnabled,
         hybridSparseWeightForCase,
         hybridOverFetchForCase,
+        retrievalConfigOverride,
       );
       system = out.prompt;
       // Step 18 v2 + Step 19 stacked test (NULL at Tier A): the
@@ -1457,7 +1549,31 @@ export async function runFullCognitiveCase(
   // as per-call options; bench just plumbs them through.
   hybridSparseWeightOverride?: number,
   hybridOverFetchMultiplierOverride?: number,
+  // RetrievalConfigRouter (2026-04-26 v2): per-case override of the
+  // run-level retrieval flags. When the caller supplies this, it
+  // supersedes the function-level `hydeEnabled` / `recallTopK` args
+  // and the `ctx.config.rerank.candidateMultiplier` config read.
+  // Calibrated source: M_TUNED_PER_CATEGORY_TABLE in agentos
+  // memory-router. Three flags fully describe a retrieval-config
+  // variant; missing fields fall back to the run-level values.
+  retrievalConfigOverride?: {
+    hyde?: boolean;
+    readerTopK?: number;
+    rerankCandidateMultiplier?: number;
+  },
 ): Promise<FullCognitiveOutput> {
+  // Apply the RetrievalConfigRouter per-case overrides BEFORE any
+  // downstream code reads the flags. This lets the rest of the
+  // function continue to read `hydeEnabled` / `recallTopK` as locals
+  // — the override is invisible past this point.
+  if (retrievalConfigOverride) {
+    if (retrievalConfigOverride.hyde !== undefined) {
+      hydeEnabled = retrievalConfigOverride.hyde;
+    }
+    if (typeof retrievalConfigOverride.readerTopK === 'number') {
+      recallTopK = retrievalConfigOverride.readerTopK;
+    }
+  }
   // Step 3 mutex: combined hybrid + session-level retrieval is Step 7
   // territory; MVP rejects the combination explicitly.
   if (hybridRetrievalEnabled && sessionSummaryStore) {
@@ -1662,10 +1778,21 @@ export async function runFullCognitiveCase(
 
     // Widen the candidate pool when a reranker is active so the
     // cross-encoder has meaningfully more options than the final
-    // reader K. Default 3× on rerank, 1× otherwise.
+    // reader K. Default 3× on rerank, 1× otherwise. The
+    // RetrievalConfigRouter override (per-case calibration from
+    // M_TUNED_PER_CATEGORY_TABLE) supersedes the run-level
+    // `--rerank-candidate-multiplier` flag when set.
     const rerankActive = Boolean(rerankRequest && rerankApiKey);
+    const baseCandidateMultiplier = rerankRequest?.candidateMultiplier ?? 3;
+    const overrideCandidateMultiplier =
+      retrievalConfigOverride?.rerankCandidateMultiplier;
     const candidateMultiplier = rerankActive
-      ? Math.max(1, rerankRequest?.candidateMultiplier ?? 3)
+      ? Math.max(
+          1,
+          typeof overrideCandidateMultiplier === 'number'
+            ? overrideCandidateMultiplier
+            : baseCandidateMultiplier,
+        )
       : 1;
     const retrievalTopK = Math.max(recallTopK, recallTopK * candidateMultiplier);
 

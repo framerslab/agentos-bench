@@ -90,6 +90,7 @@ const SAMPLES: Record<(typeof OPTIONAL_RUN_CONFIG_KEYS)[number], unknown> = {
   policyRouterPreset: 'minimize-cost',
   policyRouterBudgetPerQuery: 0.05,
   policyRouterBudgetMode: 'soft',
+  retrievalConfigRouter: 'minimize-cost-augmented',
   sessionLevelNdcg: true,
   sessionLevelNdcgTopK: 5,
   noAbstention: true,
