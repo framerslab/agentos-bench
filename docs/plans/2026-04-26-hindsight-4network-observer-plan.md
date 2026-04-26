@@ -56,7 +56,7 @@ execution_mode: inline (no subagents per user preference)
 - Phase A measurement on LongMemEval-S N=54 stratified at minimal + full (Phase 5)
 - Phase 4.4 (4-way RRF + budget-split prompt blocks) as conditional escalation per Phase 6
 - Locomo adapter mirror (deferred to Phase 7)
-- COHERE_API_KEY in monorepo `.env` (blocks Phase A)
+- COHERE_API_KEY: available in `apps/wilds-ai/.env.local` (verified 2026-04-25); source it before any rerank-using bench command via `set -a && source apps/wilds-ai/.env.local && set +a`
 
 **Pre-flight constraints (NON-NEGOTIABLE):**
 - Branch: `master`
