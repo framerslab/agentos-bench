@@ -1727,6 +1727,38 @@ export async function runFullCognitiveCase(
       );
     }
 
+    // Stage E retrieval: typed-network spreading-activation pool.
+    // When --typed-network is set, instantiate a TypedNetworkRetriever
+    // (cached on first use) and append top-K activated facts to the
+    // canonical retrieval pool. The reader then sees both raw chunks
+    // and typed facts. Errors are non-critical; canonical pool stays
+    // intact on any failure.
+    if (
+      handle.typedNetworkStore &&
+      handle.typedNetworkSpreadingActivation &&
+      handle.typedNetworkVariant
+    ) {
+      try {
+        const { TypedNetworkRetriever } = await import('@framers/agentos/memory');
+        const tnRetriever = new TypedNetworkRetriever({
+          store: handle.typedNetworkStore,
+          spreading: handle.typedNetworkSpreadingActivation,
+        });
+        const typedTraces = await tnRetriever.retrieve(c.question, {
+          topK: retrievalTopK,
+          scope: { scope: 'user', scopeId: 'bench' },
+        });
+        if (typedTraces.length > 0) {
+          retrieval = {
+            ...retrieval,
+            retrieved: [...retrieval.retrieved, ...typedTraces],
+          };
+        }
+      } catch {
+        // Typed-network retrieval errors non-critical; canonical pool intact.
+      }
+    }
+
     // Step-5: FactSupersession post-retrieval filter. Runs when
     // --fact-supersession is set. Uses the already-threaded
     // `hydeReader` (the main adapter reader) as the LLM invoker.
@@ -2014,11 +2046,7 @@ export function indexReflectionTracesIntoBm25(
  */
 async function replayForCognitive(
   c: BenchCase,
-  handle: {
-    manager: import('@framers/agentos').CognitiveMemoryManager;
-    factStore?: import('@framers/agentos').FactStore;
-    factExtractor?: import('@framers/agentos').FactExtractor;
-  },
+  handle: import('../../cognitive/createCognitiveManager.js').BenchCognitiveHandle,
   mode: 'observe' | 'ingest',
   sessionSummarizer?: SessionSummarizer,
   sessionSummaryStore?: import('@framers/agentos/memory').SessionSummaryStore,

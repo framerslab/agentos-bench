@@ -49,6 +49,36 @@ Cross-validation of the M-tuned config on LongMemEval-S N=54: **72.2% accuracy, 
 
 **Per-category-oracle aggregate ≈ 70.4%** at $0.052/correct on the LongMemEval-M true category distribution (computed by `computeOracleAggregate` in the new `RetrievalConfigRouter` primitive). That's another **+13 pp on top of the static combined config** if a per-query classifier dispatches each query to the calibrated best config.
 
+### 0.3a Stage E retrieval integration COMPLETE (2026-04-26 late session)
+
+The Stage E typed-network primitives (Phase 1-3) shipped earlier in this session with 59 tests. The Phase 4b deep retrieval integration also landed before the session closed. All code paths are wired:
+
+- **Ingest**: `LongMemEvalS.runFullCognitiveCase` ingest hook calls `handle.typedNetworkObserver.extract(sessionText, sessionId)` per session, then `handle.typedNetworkStore.addFact(...)` for each extracted fact. Hooked in both `replay='observe'` and `replay='ingest'` branches.
+- **Retrieval**: After canonical retrieval (any of `hybridRetriever`, `sessionRetriever`, or `manager.retrieve`), the bench instantiates `TypedNetworkRetriever` and appends top-K activated typed facts to `retrieval.retrieved`. Falls through silently when the typed-network store is empty (no query-entity matches).
+- **Adapter primitive**: `TypedNetworkRetriever` in `packages/agentos/src/memory/retrieval/typed-network/TypedNetworkRetriever.ts`. Accepts a `TypedNetworkStore` + `TypedSpreadingActivation`, exposes `retrieve(query, options)` returning `ScoredMemoryTrace[]`. Includes `extractQueryEntities` (regex: proper nouns + quoted strings) and `typedFactToScoredTrace` (TypedFact → ScoredMemoryTrace shape with `sourceType: 'typed_network'`, bank-prefixed content for reader disambiguation, activation level → retrievalScore).
+- **Test coverage**: 75/75 typed-network tests pass (15 new for `TypedNetworkRetriever`). Bench contract test still 57/57.
+- **agentos@0.3.4** dist rebuilt (893 files, +3 from prior 890 — TypedNetworkRetriever + new MemorySourceType `'typed_network'`).
+- **Side fix**: `src/api/agent.ts` had a pre-existing TypeScript build break on the `send()` overload; fixed with a cast through `unknown` so dist builds end-to-end.
+
+**Stage E Phase A measurement is now unblocked.** Run command:
+```bash
+NODE_OPTIONS="--max-old-space-size=8192" pnpm --dir packages/agentos-bench exec tsx src/cli.ts run longmemeval-s \
+  --reader gpt-4o \
+  --memory full-cognitive \
+  --replay ingest \
+  --hybrid-retrieval \
+  --rerank cohere \
+  --reader-top-k 20 \
+  --typed-network minimal \
+  --sample-per-type 9 \
+  --concurrency 1 \
+  --bootstrap-resamples 10000
+```
+
+Expected cost on S N=54: ~$3-5 (50 sessions per case × 54 cases × $0.0003 typed extraction = ~$0.81 + reader $1.35 + judge $0.27 + small overhead). Wall-clock: ~30-60 min sequential. **Decision gate: if Phase A point estimate ≥ Tier 1 canonical baseline + 2 pp (i.e. ≥ 75.2% on S), proceed to Phase B at full N=500. Otherwise document as a third negative result and ship the typed-network primitive to consumers anyway** (it's already in agentos core, 75 tests pass).
+
+For LongMemEval-M Phase A, expect ~$10-15 LLM (500 sessions per case × 54 cases × $0.0003 = ~$8 typed extraction + reader/judge) and ~10+ hours wall-clock at concurrency=1 due to sequential per-session typed extraction. Same wall-clock characteristic as the hierarchical retrieval test.
+
 ### 0.3 RetrievalConfigRouter (new primitive, shipped this session)
 
 `packages/agentos/src/memory-router/retrieval-config.ts` — extends the MemoryRouter pattern with per-query retrieval-config dispatch. Six calibrated config IDs (`canonical`, `hyde`, `topk50`, `topk50-mult5`, `hyde-topk50`, `hyde-topk50-mult5`) with frozen specs, per-category accuracy table from the 2026-04-26 ablation matrix, per-config $/correct, calibrated `M_TUNED_PER_CATEGORY_TABLE`, and pure functions `selectBestRetrievalConfig` + `computeOracleAggregate` + `computeOracleCostPerCorrect`. **23/23 contract tests pass.** Exported from `@framers/agentos/memory-router`.
