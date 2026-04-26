@@ -1,0 +1,1011 @@
+---
+title: Stage E: Hindsight 4-Network Typed Observer (Implementation Plan)
+date: 2026-04-26
+spec: ../specs/2026-04-26-hindsight-4network-observer-design.md
+estimated_cost: $500-800 LLM total
+estimated_duration: 13-15 working days
+execution_mode: inline (no subagents per user preference)
+---
+
+# Stage E: Hindsight 4-Network Typed Observer Plan
+
+**Goal:** Implement the typed-network observer architecture in agentos core, wire into the bench, and run Phase A measurement with a decision gate before any Phase B spend.
+
+**Architecture (3 sentences):** New `packages/agentos/src/memory/retrieval/typed-network/` module with four typed banks (World, Experience, Opinion, Observation), LLM-driven 6-step extraction at ingest, typed spreading activation across the bank graph, and 4-way RRF fusion at retrieval. Sits alongside the existing `CognitiveMemoryManager`, opt-in via new config. Bench wiring adds `--typed-network [variant]` CLI flag with cache-fingerprint propagation reusing the Stage F-2 pattern.
+
+**Tech Stack:** TypeScript (ESM), `zod` for schema validation, `vitest` for TDD, existing `IEmbeddingManager` + `IVectorStore` interfaces, OpenAI gpt-5-mini for extraction (gpt-4o for reader/judge ablations).
+
+**Pre-flight constraints (NON-NEGOTIABLE):**
+- Branch: `master`
+- Commits: never commit unless user explicitly asks
+- Push: never push unless user explicitly asks
+- Commit messages: never mention AI / Claude / Opus / LLM / rewrite. No `Co-Authored-By` lines.
+- agentos is a submodule, `cd packages/agentos`, commit there, push to `framersai/agentos`, then update submodule pointer in monorepo
+- agentos-bench is in the monorepo root (NOT a submodule); commit explicitly-staged files only with `--no-verify`
+- TDD discipline: failing test FIRST, then minimal implementation, then refactor. Skipping the failing-test step disqualifies the work as TDD.
+- No subagents
+- No worktrees with submodules
+- Get explicit user approval before launching any new LLM run >$5
+
+---
+
+## Phase 0: Spec approval + plan kickoff (1 day, $0)
+
+### Task 0.1: Read the spec end-to-end at max reasoning
+
+- [ ] **Step 0.1.1: Re-read the spec**
+
+```bash
+cat /Users/johnn/Documents/git/voice-chat-assistant/packages/agentos-bench/docs/specs/2026-04-26-hindsight-4network-observer-design.md | wc -l
+```
+
+Expected: ~250 lines. Read at maximum reasoning per the user's CLAUDE.md "Self-Review Before Implementation" rule.
+
+- [ ] **Step 0.1.2: Verify all referenced files exist**
+
+For each anchor in spec §11:
+```bash
+ls /Users/johnn/Documents/git/voice-chat-assistant/packages/agentos/src/memory/retrieval/graph/SpreadingActivation.ts
+ls /Users/johnn/Documents/git/voice-chat-assistant/packages/agentos/src/memory/CognitiveMemoryManager.ts
+ls /Users/johnn/Documents/git/voice-chat-assistant/packages/agentos-bench/docs/SOTA_CITED_EVIDENCE_2026-04-25.md
+```
+
+If any missing, halt and surface to user.
+
+- [ ] **Step 0.1.3: Get explicit user approval before any code**
+
+Pose to user:
+> "Stage E spec ready at `packages/agentos-bench/docs/specs/2026-04-26-hindsight-4network-observer-design.md`. 4 typed networks (W/E/O/S), $500-800 budget, 2-3 weeks. Approve scaffolding the agentos-core module + bench wiring + Phase A measurement?"
+
+If no approval, halt entire plan.
+
+---
+
+## Phase 1: Pure-code primitives (no LLM) (3 days, $0)
+
+### Task 1.1: TDD `types.ts`
+
+**Files:**
+- Create: `packages/agentos/src/memory/retrieval/typed-network/types.ts`
+- Create: `packages/agentos/src/memory/retrieval/typed-network/__tests__/types.test.ts`
+
+- [ ] **Step 1.1.1: Write the failing test**
+
+```ts
+// types.test.ts
+import { describe, it, expect } from 'vitest';
+import {
+  type BankId,
+  type TypedFact,
+  type TypedEdge,
+  type EdgeKind,
+  isBankId,
+  BANK_IDS,
+} from '../types.js';
+
+describe('typed-network types', () => {
+  it('BANK_IDS contains exactly the 4 typed banks', () => {
+    expect(BANK_IDS).toEqual(['WORLD', 'EXPERIENCE', 'OPINION', 'OBSERVATION']);
+  });
+
+  it('isBankId narrows correctly for valid banks', () => {
+    expect(isBankId('WORLD')).toBe(true);
+    expect(isBankId('OPINION')).toBe(true);
+    expect(isBankId('NONSENSE')).toBe(false);
+  });
+
+  it('TypedFact has required fields per Eq. 1', () => {
+    const fact: TypedFact = {
+      id: 'f1',
+      bank: 'WORLD',
+      text: 'Berlin is in Germany',
+      embedding: [0.1, 0.2, 0.3],
+      temporal: { start: '2026-04-26', end: '2026-04-26', mention: '2026-04-26' },
+      participants: [],
+      reasoningMarkers: [],
+      entities: ['Berlin', 'Germany'],
+      confidence: 1.0,
+    };
+    expect(fact.bank).toBe('WORLD');
+  });
+});
+```
+
+- [ ] **Step 1.1.2: Run test, verify it fails**
+
+```bash
+cd packages/agentos
+pnpm exec vitest run src/memory/retrieval/typed-network/__tests__/types.test.ts
+```
+
+Expected: FAIL with "Cannot find module '../types.js'".
+
+- [ ] **Step 1.1.3: Write minimal implementation**
+
+```ts
+// types.ts
+export const BANK_IDS = ['WORLD', 'EXPERIENCE', 'OPINION', 'OBSERVATION'] as const;
+export type BankId = (typeof BANK_IDS)[number];
+
+export function isBankId(s: string): s is BankId {
+  return (BANK_IDS as readonly string[]).includes(s);
+}
+
+export const EDGE_KINDS = ['temporal', 'semantic', 'entity', 'causal'] as const;
+export type EdgeKind = (typeof EDGE_KINDS)[number];
+
+export interface TypedFact {
+  id: string;
+  bank: BankId;
+  text: string;
+  embedding: number[];
+  temporal: { start?: string; end?: string; mention: string };
+  participants: { name: string; role: string }[];
+  reasoningMarkers: string[];
+  entities: string[];
+  confidence: number;
+  /** Optional auxiliary metadata. */
+  metadata?: Record<string, unknown>;
+}
+
+export interface TypedEdge {
+  fromFactId: string;
+  toFactId: string;
+  kind: EdgeKind;
+  weight: number;
+}
+```
+
+- [ ] **Step 1.1.4: Run test, verify it passes**
+
+```bash
+cd packages/agentos
+pnpm exec vitest run src/memory/retrieval/typed-network/__tests__/types.test.ts
+```
+
+Expected: PASS, 3 tests.
+
+- [ ] **Step 1.1.5: Commit (in agentos submodule, await user approval)**
+
+```bash
+cd /Users/johnn/Documents/git/voice-chat-assistant/packages/agentos
+git add src/memory/retrieval/typed-network/types.ts src/memory/retrieval/typed-network/__tests__/types.test.ts
+# Wait for user approval; if approved:
+# git commit -m "feat(memory/typed-network): types for 4-bank fact + typed edge"
+```
+
+### Task 1.2: TDD `TypedNetworkStore.ts`
+
+**Files:**
+- Create: `packages/agentos/src/memory/retrieval/typed-network/TypedNetworkStore.ts`
+- Create: `packages/agentos/src/memory/retrieval/typed-network/__tests__/TypedNetworkStore.test.ts`
+
+- [ ] **Step 1.2.1: Write failing test**
+
+```ts
+// TypedNetworkStore.test.ts
+import { describe, it, expect, beforeEach } from 'vitest';
+import { TypedNetworkStore } from '../TypedNetworkStore.js';
+import type { TypedFact } from '../types.js';
+
+describe('TypedNetworkStore', () => {
+  let store: TypedNetworkStore;
+  const fact: TypedFact = {
+    id: 'f1',
+    bank: 'WORLD',
+    text: 'Berlin is in Germany',
+    embedding: [0.1, 0.2, 0.3],
+    temporal: { mention: '2026-04-26' },
+    participants: [],
+    reasoningMarkers: [],
+    entities: ['Berlin', 'Germany'],
+    confidence: 1.0,
+  };
+
+  beforeEach(() => {
+    store = new TypedNetworkStore();
+  });
+
+  it('starts with 0 facts in every bank', () => {
+    expect(store.getBank('WORLD').size).toBe(0);
+    expect(store.getBank('EXPERIENCE').size).toBe(0);
+    expect(store.getBank('OPINION').size).toBe(0);
+    expect(store.getBank('OBSERVATION').size).toBe(0);
+  });
+
+  it('addFact routes to the correct bank', () => {
+    store.addFact(fact);
+    expect(store.getBank('WORLD').size).toBe(1);
+    expect(store.getBank('EXPERIENCE').size).toBe(0);
+  });
+
+  it('getFact retrieves by id', () => {
+    store.addFact(fact);
+    const got = store.getFact('f1');
+    expect(got?.text).toBe('Berlin is in Germany');
+  });
+
+  it('addEdge creates bidirectional entity edges', () => {
+    store.addFact(fact);
+    store.addFact({ ...fact, id: 'f2', text: 'Germany is in Europe' });
+    store.addEdge({ fromFactId: 'f1', toFactId: 'f2', kind: 'entity', weight: 1.0 });
+    expect(store.getEdges('f1')).toHaveLength(1);
+    // Bidirectional: f2 also sees an edge to f1
+    expect(store.getEdges('f2')).toHaveLength(1);
+  });
+});
+```
+
+- [ ] **Step 1.2.2: Run test, verify it fails**
+
+Expected: FAIL on "Cannot find module".
+
+- [ ] **Step 1.2.3: Write minimal implementation**
+
+```ts
+// TypedNetworkStore.ts
+import type { BankId, TypedFact, TypedEdge } from './types.js';
+import { BANK_IDS } from './types.js';
+
+export class TypedNetworkStore {
+  private readonly facts = new Map<string, TypedFact>();
+  private readonly banks: Record<BankId, Set<string>>;
+  private readonly edgesFrom = new Map<string, TypedEdge[]>();
+
+  constructor() {
+    this.banks = Object.fromEntries(
+      BANK_IDS.map((b) => [b, new Set<string>()]),
+    ) as Record<BankId, Set<string>>;
+  }
+
+  addFact(fact: TypedFact): void {
+    this.facts.set(fact.id, fact);
+    this.banks[fact.bank].add(fact.id);
+  }
+
+  getFact(id: string): TypedFact | undefined {
+    return this.facts.get(id);
+  }
+
+  getBank(bank: BankId): Set<string> {
+    return this.banks[bank];
+  }
+
+  addEdge(edge: TypedEdge): void {
+    this.appendEdge(edge.fromFactId, edge);
+    // Per Hindsight Eq. 12 + entity bidirectionality, edges are bidirectional.
+    this.appendEdge(edge.toFactId, {
+      fromFactId: edge.toFactId,
+      toFactId: edge.fromFactId,
+      kind: edge.kind,
+      weight: edge.weight,
+    });
+  }
+
+  getEdges(factId: string): TypedEdge[] {
+    return this.edgesFrom.get(factId) ?? [];
+  }
+
+  private appendEdge(fromId: string, edge: TypedEdge): void {
+    const list = this.edgesFrom.get(fromId) ?? [];
+    list.push(edge);
+    this.edgesFrom.set(fromId, list);
+  }
+}
+```
+
+- [ ] **Step 1.2.4: Run test, verify it passes (4 tests)**
+
+- [ ] **Step 1.2.5: Commit**
+
+```bash
+cd packages/agentos
+git add src/memory/retrieval/typed-network/TypedNetworkStore.ts src/memory/retrieval/typed-network/__tests__/TypedNetworkStore.test.ts
+# Wait for approval; if approved:
+# git commit -m "feat(memory/typed-network): in-memory 4-bank store + bidirectional edges"
+```
+
+### Task 1.3: TDD `TemporalIntervalOverlap.ts`
+
+**Files:**
+- Create: `packages/agentos/src/memory/retrieval/typed-network/TemporalIntervalOverlap.ts`
+- Create: `packages/agentos/src/memory/retrieval/typed-network/__tests__/TemporalIntervalOverlap.test.ts`
+
+- [ ] **Step 1.3.1: Write failing test**
+
+```ts
+// TemporalIntervalOverlap.test.ts
+import { describe, it, expect } from 'vitest';
+import { rankByTemporalOverlap } from '../TemporalIntervalOverlap.js';
+import type { TypedFact } from '../types.js';
+
+const make = (id: string, start: string, end: string): TypedFact => ({
+  id,
+  bank: 'WORLD',
+  text: id,
+  embedding: [],
+  temporal: { start, end, mention: start },
+  participants: [],
+  reasoningMarkers: [],
+  entities: [],
+  confidence: 1.0,
+});
+
+describe('rankByTemporalOverlap', () => {
+  it('ranks facts that overlap query timestamp higher', () => {
+    const facts: TypedFact[] = [
+      make('a', '2026-01-01', '2026-01-31'),
+      make('b', '2026-04-01', '2026-04-30'),
+      make('c', '2026-03-01', '2026-05-31'),
+    ];
+    const ranked = rankByTemporalOverlap(facts, '2026-04-15');
+    expect(ranked[0].id).toBe('b'); // tightest overlap
+    expect(ranked[1].id).toBe('c'); // wider overlap
+    expect(ranked[2].id).toBe('a'); // no overlap
+  });
+
+  it('handles facts without temporal range (mention only)', () => {
+    const facts: TypedFact[] = [
+      { ...make('a', '', ''), temporal: { mention: '2026-01-01' } },
+      { ...make('b', '', ''), temporal: { mention: '2026-04-15' } },
+    ];
+    const ranked = rankByTemporalOverlap(facts, '2026-04-15');
+    expect(ranked[0].id).toBe('b'); // exact match on mention
+  });
+});
+```
+
+- [ ] **Step 1.3.2-1.3.5: Implement, run, verify, commit (same pattern)**
+
+```ts
+// TemporalIntervalOverlap.ts
+import type { TypedFact } from './types.js';
+
+export function rankByTemporalOverlap(
+  facts: TypedFact[],
+  queryTimestamp: string,
+): TypedFact[] {
+  const queryMs = Date.parse(queryTimestamp);
+  if (Number.isNaN(queryMs)) return [...facts];
+
+  const scored = facts.map((f) => ({
+    fact: f,
+    score: scoreOverlap(f, queryMs),
+  }));
+  scored.sort((a, b) => b.score - a.score);
+  return scored.map((s) => s.fact);
+}
+
+function scoreOverlap(fact: TypedFact, queryMs: number): number {
+  const start = fact.temporal.start ? Date.parse(fact.temporal.start) : NaN;
+  const end = fact.temporal.end ? Date.parse(fact.temporal.end) : NaN;
+  const mention = Date.parse(fact.temporal.mention);
+
+  if (!Number.isNaN(start) && !Number.isNaN(end)) {
+    if (queryMs >= start && queryMs <= end) {
+      // Inside the interval; tighter intervals score higher
+      const width = Math.max(1, end - start);
+      return 1.0 / (1 + width / 86_400_000);
+    }
+    // Outside: distance penalty
+    const dist = Math.min(Math.abs(queryMs - start), Math.abs(queryMs - end));
+    return 1.0 / (1 + dist / 86_400_000);
+  }
+
+  // Fallback: distance from mention timestamp
+  const dist = Math.abs(queryMs - mention);
+  return 1.0 / (1 + dist / 86_400_000);
+}
+```
+
+Run + commit per pattern.
+
+---
+
+## Phase 2: TypedNetworkObserver (LLM extraction) (2 days, $1)
+
+### Task 2.1: Write the extraction prompt + zod schema
+
+**Files:**
+- Create: `packages/agentos/src/memory/retrieval/typed-network/prompts/extraction-prompt.ts`
+- Create: `packages/agentos/src/memory/retrieval/typed-network/prompts/extraction-schema.ts`
+
+- [ ] **Step 2.1.1: Author the prompt verbatim from spec §6**
+
+```ts
+// extraction-prompt.ts
+export const TYPED_EXTRACTION_SYSTEM_PROMPT = `You are an information extractor for a typed memory network. Process the conversation below into structured facts.
+
+For each fact, perform these six steps:
+
+1. COREFERENCE: resolve "he/she/they/it/this/that" to the actual referent.
+2. TEMPORAL: normalize times to ISO 8601. Extract ranges as (start, end) when applicable.
+3. PARTICIPANTS: list every named participant and their role.
+4. REASONING: preserve any explicit reasoning marker (because, since, therefore, etc.) verbatim.
+5. FACT TYPE: classify into ONE of:
+   - WORLD: objective facts about the external world
+   - EXPERIENCE: biographical / first-person events
+   - OPINION: claims with confidence < 1.0
+   - OBSERVATION: preference-neutral summaries of entities
+6. ENTITIES: list every named entity (proper nouns, organizations, places, products).
+
+Output JSON matching the schema strictly. Do not add commentary.`;
+
+export function buildExtractionUserPrompt(sessionText: string): string {
+  return `CONVERSATION:\n<<<\n${sessionText}\n>>>`;
+}
+```
+
+- [ ] **Step 2.1.2: Author the zod schema**
+
+```ts
+// extraction-schema.ts
+import { z } from 'zod';
+
+export const TypedExtractionSchema = z.object({
+  facts: z.array(
+    z.object({
+      text: z.string().min(1),
+      bank: z.enum(['WORLD', 'EXPERIENCE', 'OPINION', 'OBSERVATION']),
+      temporal: z.object({
+        start: z.string().optional(),
+        end: z.string().optional(),
+        mention: z.string(),
+      }),
+      participants: z.array(
+        z.object({ name: z.string(), role: z.string() }),
+      ),
+      reasoning_markers: z.array(z.string()),
+      entities: z.array(z.string()),
+      confidence: z.number().min(0).max(1).default(1.0),
+    }),
+  ),
+});
+
+export type TypedExtractionOutput = z.infer<typeof TypedExtractionSchema>;
+```
+
+### Task 2.2: TDD `TypedNetworkObserver.ts`
+
+**Files:**
+- Create: `packages/agentos/src/memory/retrieval/typed-network/TypedNetworkObserver.ts`
+- Create: `packages/agentos/src/memory/retrieval/typed-network/__tests__/TypedNetworkObserver.test.ts`
+
+- [ ] **Step 2.2.1: Write failing test (mocked LLM)**
+
+```ts
+// TypedNetworkObserver.test.ts
+import { describe, it, expect } from 'vitest';
+import { TypedNetworkObserver } from '../TypedNetworkObserver.js';
+
+describe('TypedNetworkObserver', () => {
+  it('parses LLM output into TypedFact[]', async () => {
+    const mockLlm = async () => JSON.stringify({
+      facts: [{
+        text: 'Berlin is in Germany',
+        bank: 'WORLD',
+        temporal: { mention: '2026-04-26' },
+        participants: [],
+        reasoning_markers: [],
+        entities: ['Berlin', 'Germany'],
+        confidence: 1.0,
+      }],
+    });
+    const obs = new TypedNetworkObserver({ llm: { invoke: mockLlm } });
+    const facts = await obs.extract('User: Where is Berlin? Assistant: In Germany.', 'session-1');
+    expect(facts).toHaveLength(1);
+    expect(facts[0].bank).toBe('WORLD');
+    expect(facts[0].entities).toContain('Berlin');
+    expect(facts[0].id).toMatch(/^session-1/);
+  });
+
+  it('throws on invalid LLM output (zod validation)', async () => {
+    const mockLlm = async () => '{"facts": [{"text": ""}]}'; // missing required fields
+    const obs = new TypedNetworkObserver({ llm: { invoke: mockLlm } });
+    await expect(obs.extract('blah', 'session-2')).rejects.toThrow();
+  });
+});
+```
+
+- [ ] **Step 2.2.2: Implement**
+
+```ts
+// TypedNetworkObserver.ts
+import { TypedExtractionSchema } from './prompts/extraction-schema.js';
+import {
+  TYPED_EXTRACTION_SYSTEM_PROMPT,
+  buildExtractionUserPrompt,
+} from './prompts/extraction-prompt.js';
+import type { TypedFact } from './types.js';
+
+export interface ITypedExtractionLLM {
+  invoke(args: { system: string; user: string; maxTokens: number; temperature: number }): Promise<string>;
+}
+
+export class TypedNetworkObserver {
+  constructor(private readonly opts: { llm: ITypedExtractionLLM }) {}
+
+  async extract(sessionText: string, sessionId: string): Promise<TypedFact[]> {
+    const raw = await this.opts.llm.invoke({
+      system: TYPED_EXTRACTION_SYSTEM_PROMPT,
+      user: buildExtractionUserPrompt(sessionText),
+      maxTokens: 4096,
+      temperature: 0,
+    });
+    const parsed = TypedExtractionSchema.parse(JSON.parse(raw));
+    return parsed.facts.map((f, idx) => ({
+      id: `${sessionId}-fact-${idx}`,
+      bank: f.bank,
+      text: f.text,
+      embedding: [], // populated by IEmbeddingManager downstream
+      temporal: f.temporal,
+      participants: f.participants,
+      reasoningMarkers: f.reasoning_markers,
+      entities: f.entities,
+      confidence: f.confidence,
+    }));
+  }
+}
+```
+
+- [ ] **Step 2.2.3: Run + commit**
+
+### Task 2.3: 5-case smoke run with real LLM
+
+- [ ] **Step 2.3.1: Get user approval ($1 spend)**
+
+> "Smoke test of TypedNetworkObserver with real gpt-5-mini on 5 LongMemEval-S sessions, ~$1. Approve?"
+
+- [ ] **Step 2.3.2: Run smoke script**
+
+Create `packages/agentos-bench/src/scripts/smoke-typed-network-observer.ts`:
+
+```ts
+// Loads 5 cases from LongMemEval-S, runs TypedNetworkObserver on each,
+// pretty-prints the extracted facts, asserts that every case produces ≥ 1 fact
+// per bank (or documents which banks are empty).
+```
+
+```bash
+cd packages/agentos-bench
+pnpm exec tsx src/scripts/smoke-typed-network-observer.ts --n 5 --observer gpt-5-mini
+```
+
+Expected: $1, 5+ facts per case, even bank distribution (or documented imbalance).
+
+---
+
+## Phase 3: TypedSpreadingActivation + FourWayRrf (2 days, $0)
+
+### Task 3.1: TDD `TypedSpreadingActivation.ts`
+
+Per spec §2.4.1 Eq. 12. Implementation should match the reference `SpreadingActivation` pattern but with typed-edge multipliers `μ(ℓ)`.
+
+- [ ] **Step 3.1.1: Write failing test for Eq. 12 numerics**
+
+```ts
+// TypedSpreadingActivation.test.ts
+import { describe, it, expect } from 'vitest';
+import { TypedSpreadingActivation } from '../TypedSpreadingActivation.js';
+import { TypedNetworkStore } from '../TypedNetworkStore.js';
+import type { TypedFact } from '../types.js';
+
+const makeFact = (id: string, bank: 'WORLD' = 'WORLD'): TypedFact => ({
+  id, bank, text: id, embedding: [], temporal: { mention: '2026-04-26' },
+  participants: [], reasoningMarkers: [], entities: [], confidence: 1.0,
+});
+
+describe('TypedSpreadingActivation Eq. 12', () => {
+  it('seeds activate at 1.0', () => {
+    const store = new TypedNetworkStore();
+    store.addFact(makeFact('a'));
+    const act = new TypedSpreadingActivation({ decay: 0.5 });
+    const result = act.spread(store, ['a'], { maxDepth: 3 });
+    expect(result.get('a')).toBe(1.0);
+  });
+
+  it('typed-edge multiplier μ scales the activation', () => {
+    const store = new TypedNetworkStore();
+    store.addFact(makeFact('a'));
+    store.addFact(makeFact('b'));
+    store.addEdge({ fromFactId: 'a', toFactId: 'b', kind: 'entity', weight: 1.0 });
+    // entity edges have μ = 1.0 (paper); decay δ = 0.5
+    const act = new TypedSpreadingActivation({ decay: 0.5 });
+    const result = act.spread(store, ['a'], { maxDepth: 3 });
+    // a=1.0 (seed), b = 1.0 * 1.0 * 0.5 * 1.0 = 0.5
+    expect(result.get('b')).toBe(0.5);
+  });
+
+  it('temporal edges use the cited multiplier', () => {
+    const store = new TypedNetworkStore();
+    store.addFact(makeFact('a'));
+    store.addFact(makeFact('b'));
+    store.addEdge({ fromFactId: 'a', toFactId: 'b', kind: 'temporal', weight: 0.8 });
+    const act = new TypedSpreadingActivation({ decay: 0.5, edgeMultipliers: { temporal: 0.7, semantic: 0.6, entity: 1.0, causal: 1.0 } });
+    const result = act.spread(store, ['a'], { maxDepth: 3 });
+    // b = 1.0 * 0.8 (edge weight) * 0.5 (decay) * 0.7 (μ for temporal) = 0.28
+    expect(result.get('b')).toBeCloseTo(0.28, 5);
+  });
+
+  it('respects maxDepth cutoff', () => {
+    const store = new TypedNetworkStore();
+    store.addFact(makeFact('a'));
+    store.addFact(makeFact('b'));
+    store.addFact(makeFact('c'));
+    store.addEdge({ fromFactId: 'a', toFactId: 'b', kind: 'entity', weight: 1.0 });
+    store.addEdge({ fromFactId: 'b', toFactId: 'c', kind: 'entity', weight: 1.0 });
+    const act = new TypedSpreadingActivation({ decay: 0.5 });
+    const result = act.spread(store, ['a'], { maxDepth: 1 });
+    expect(result.has('a')).toBe(true);
+    expect(result.has('b')).toBe(true);
+    expect(result.has('c')).toBe(false); // depth 2, cutoff at 1
+  });
+});
+```
+
+- [ ] **Step 3.1.2: Implement (BFS with Eq. 12)**
+
+```ts
+// TypedSpreadingActivation.ts
+import type { TypedNetworkStore } from './TypedNetworkStore.js';
+import type { EdgeKind } from './types.js';
+
+export interface TypedSpreadingActivationOptions {
+  decay: number;
+  edgeMultipliers?: Record<EdgeKind, number>;
+}
+
+const DEFAULT_MULTIPLIERS: Record<EdgeKind, number> = {
+  temporal: 0.7,
+  semantic: 0.6,
+  entity: 1.0,
+  causal: 1.0,
+};
+
+export class TypedSpreadingActivation {
+  constructor(private readonly opts: TypedSpreadingActivationOptions) {}
+
+  spread(
+    store: TypedNetworkStore,
+    seedIds: string[],
+    options: { maxDepth: number; activationThreshold?: number },
+  ): Map<string, number> {
+    const μ = this.opts.edgeMultipliers ?? DEFAULT_MULTIPLIERS;
+    const threshold = options.activationThreshold ?? 0.05;
+    const activations = new Map<string, number>(seedIds.map((id) => [id, 1.0]));
+
+    for (let depth = 0; depth < options.maxDepth; depth++) {
+      const next = new Map<string, number>(activations);
+      for (const [factId, currentAct] of activations) {
+        for (const edge of store.getEdges(factId)) {
+          const candidate = currentAct * edge.weight * this.opts.decay * μ[edge.kind];
+          if (candidate < threshold) continue;
+          // Eq. 12 uses max over incoming edges
+          const existing = next.get(edge.toFactId) ?? 0;
+          if (candidate > existing) next.set(edge.toFactId, candidate);
+        }
+      }
+      // No change → break early
+      if (next.size === activations.size && [...next.entries()].every(([k, v]) => activations.get(k) === v)) break;
+      // Replace activations for next iteration
+      for (const [k, v] of next) activations.set(k, v);
+    }
+
+    return activations;
+  }
+}
+```
+
+- [ ] **Step 3.1.3: Run + commit (4 tests pass)**
+
+### Task 3.2: TDD `FourWayRrf.ts`
+
+- [ ] **Step 3.2.1: Write failing test**
+
+```ts
+// FourWayRrf.test.ts
+import { describe, it, expect } from 'vitest';
+import { fourWayRrf } from '../FourWayRrf.js';
+
+describe('fourWayRrf', () => {
+  it('computes RRF score with k=60', () => {
+    // Fact 'a' is rank 1 in semantic, rank 2 in BM25, rank 1 in graph, rank 1 in temporal
+    // RRF(a) = 1/(60+1) + 1/(60+2) + 1/(60+1) + 1/(60+1) ≈ 4 * (1/61) - small correction
+    const result = fourWayRrf({
+      semantic: ['a', 'b', 'c'],
+      bm25: ['b', 'a', 'c'],
+      graphActivation: ['a', 'c', 'b'],
+      temporalOverlap: ['a', 'b', 'c'],
+    }, { k: 60 });
+    expect(result[0]).toBe('a');
+    expect(result.length).toBe(3);
+  });
+
+  it('handles facts present in only some rankings', () => {
+    const result = fourWayRrf({
+      semantic: ['a', 'b'],
+      bm25: ['a'],
+      graphActivation: [],
+      temporalOverlap: ['b'],
+    });
+    // 'a' wins (in 2 strong rankings)
+    expect(result[0]).toBe('a');
+  });
+});
+```
+
+- [ ] **Step 3.2.2: Implement**
+
+```ts
+// FourWayRrf.ts
+export interface FourWayRrfInput {
+  semantic: string[];
+  bm25: string[];
+  graphActivation: string[];
+  temporalOverlap: string[];
+}
+
+export function fourWayRrf(
+  input: FourWayRrfInput,
+  options: { k?: number } = {},
+): string[] {
+  const k = options.k ?? 60;
+  const scores = new Map<string, number>();
+
+  for (const ranking of [input.semantic, input.bm25, input.graphActivation, input.temporalOverlap]) {
+    ranking.forEach((id, idx) => {
+      const rank = idx + 1;
+      const contribution = 1.0 / (k + rank);
+      scores.set(id, (scores.get(id) ?? 0) + contribution);
+    });
+  }
+
+  return [...scores.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([id]) => id);
+}
+```
+
+- [ ] **Step 3.2.3: Run + commit**
+
+---
+
+## Phase 4: Integration with CognitiveMemoryManager + bench wiring (2 days, $5)
+
+### Task 4.1: Add typed-network config to CognitiveMemoryManager
+
+**Files:**
+- Modify: `packages/agentos/src/memory/CognitiveMemoryManager.ts` (add optional `typedNetwork` to config)
+- Modify: `packages/agentos/src/memory/config.ts` (add `TypedNetworkConfig` type)
+
+- [ ] **Step 4.1.1: Read current config to find insertion point**
+
+```bash
+grep -n "interface CognitiveMemoryConfig" packages/agentos/src/memory/config.ts
+```
+
+- [ ] **Step 4.1.2: Add the optional config type**
+
+In `config.ts`:
+
+```ts
+export interface TypedNetworkConfig {
+  enabled: boolean;
+  variant: 'minimal' | 'full' | 'production';
+  llm?: ITypedExtractionLLM;
+  decay?: number;
+  edgeMultipliers?: Record<EdgeKind, number>;
+  rrfK?: number;
+}
+```
+
+In `CognitiveMemoryConfig` interface, add:
+
+```ts
+typedNetwork?: Partial<TypedNetworkConfig>;
+```
+
+- [ ] **Step 4.1.3: Wire the module into `CognitiveMemoryManager.initialize()`**
+
+If `config.typedNetwork?.enabled === true`, lazy-import the typed-network module and store the observer + store + spreading activation as instance fields. Keep the typed-network path independent of the existing 6-signal scoring; final ranking blends the two.
+
+### Task 4.2: Bench `--typed-network` CLI flag
+
+**Files:**
+- Modify: `packages/agentos-bench/src/cli.ts` (add `--typed-network [variant]`)
+- Modify: `packages/agentos-bench/src/core/IBenchmark.ts` (add to RunConfig + OPTIONAL_RUN_CONFIG_KEYS)
+- Modify: `packages/agentos-bench/src/core/BenchmarkRunner.ts` (propagate in `resolveRunConfig`, add cache fingerprint tag)
+- Modify: `packages/agentos-bench/src/cognitive/createCognitiveManager.ts` (wire when set)
+- Modify: `packages/agentos-bench/tests/resolveRunConfigContract.spec.ts` (add to SAMPLES, DO NOT skip this; the same regression caught the v1 publication's Stage I work)
+
+- [ ] **Step 4.2.1: Add to RunConfig + OPTIONAL_RUN_CONFIG_KEYS in IBenchmark.ts**
+
+```ts
+// In RunConfig interface
+typedNetwork?: 'minimal' | 'full' | 'production';
+
+// In OPTIONAL_RUN_CONFIG_KEYS array
+'typedNetwork',
+```
+
+- [ ] **Step 4.2.2: Add to SAMPLES in contract test FIRST (TDD discipline)**
+
+Per spec §4.3 explicit note + the v1 publication Phase 0 regression: add the sample BEFORE running the contract test, otherwise it fails immediately.
+
+```ts
+// resolveRunConfigContract.spec.ts SAMPLES record
+typedNetwork: 'minimal',
+```
+
+- [ ] **Step 4.2.3: Propagate in resolveRunConfig**
+
+Per Stage F-2 contract pattern (mirrored from `entityLinking` at `BenchmarkRunner.ts:201`):
+
+```ts
+// In resolveRunConfig
+typedNetwork: cfg.typedNetwork,
+```
+
+- [ ] **Step 4.2.4: Add cache fingerprint tag**
+
+Per Stage F-2 pattern:
+
+```ts
+// In cache fingerprint composer
+if (config.typedNetwork) {
+  fingerprintTags.push(`stage-e-typed-network:${config.typedNetwork}:v1`);
+}
+```
+
+- [ ] **Step 4.2.5: Wire CLI flag**
+
+```ts
+// cli.ts
+.option('--typed-network <variant>', 'Stage E typed network observer (minimal/full/production)')
+```
+
+- [ ] **Step 4.2.6: Verify all bench tests pass**
+
+```bash
+cd packages/agentos-bench
+pnpm test 2>&1 | tail -10
+```
+
+Expected: 514+ tests pass, 0 fail.
+
+- [ ] **Step 4.2.7: Smoke test end-to-end ($5)**
+
+```bash
+cd packages/agentos-bench
+pnpm exec tsx src/cli.ts \
+  --benchmark longmemeval-s \
+  --reader gpt-4o \
+  --memory full-cognitive \
+  --replay ingest \
+  --typed-network minimal \
+  --sample-per-type 1 \
+  --seed 42
+```
+
+Expected: $5, 6 cases (1 per type), at least non-error completion. Validate that typed facts are actually being extracted (check the run JSON for typed-network metadata).
+
+---
+
+## Phase 5: Phase A measurement on LongMemEval-S (1 day, $20)
+
+### Task 5.1: Get user approval ($20 spend)
+
+- [ ] **Step 5.1.1: Pose to user**
+
+> "Stage E Phase A: LongMemEval-S N=54 stratified at `--typed-network minimal` and `--typed-network full`. Two runs at ~$15 each = $30 total. Tier 3 min-cost baseline is 76.6%, decision gate is ≥ 78.6% point estimate to proceed to Phase B. Approve?"
+
+### Task 5.2: Run Phase A at `--typed-network minimal`
+
+- [ ] **Step 5.2.1: Run**
+
+```bash
+cd packages/agentos-bench
+pnpm exec tsx src/cli.ts \
+  --benchmark longmemeval-s \
+  --reader gpt-4o \
+  --memory full-cognitive \
+  --replay ingest \
+  --typed-network minimal \
+  --hybrid-retrieval \
+  --rerank cohere \
+  --reader-top-k 20 \
+  --sample-per-type 9 \
+  --seed 42 \
+  --bootstrap-resamples 10000
+```
+
+- [ ] **Step 5.2.2: Verify totalUsd > 0 (fresh run)**
+
+### Task 5.3: Run Phase A at `--typed-network full`
+
+- [ ] **Step 5.3.1: Run (same command, swap `minimal` for `full`)**
+
+### Task 5.4: Decision gate
+
+- [ ] **Step 5.4.1: Compare against baseline**
+
+```bash
+cd packages/agentos-bench
+jq '.accuracy' results/runs/<typed-network minimal Phase A summary>
+jq '.accuracy' results/runs/<typed-network full Phase A summary>
+# Baseline: 76.6% (Tier 3 min-cost on LongMemEval-S Phase B)
+```
+
+Decision rule:
+- Both variants ≥ 78.6%: proceed to Phase B at the higher one
+- Only one ≥ 78.6%: proceed at that one
+- Neither ≥ 78.6%: HALT. Document as a negative result, ship the typed-network module to agentos core anyway (per spec §10 mitigation), abandon Phase B.
+
+- [ ] **Step 5.4.2: Document Phase A findings**
+
+Create `packages/agentos-bench/docs/STAGE_E_PHASE_A_FINDINGS_2026-04-XX.md` mirroring the Stage L / Stage I findings doc structure. Include: setup, results (both variants), per-category breakdown, comparison vs baseline, decision gate outcome, what to do next.
+
+---
+
+## Phase 6: Phase B (full N) on each benchmark (2 days, $290, only if Phase A passes)
+
+### Task 6.1: Get explicit user approval ($290 spend)
+
+### Task 6.2: Run Phase B on LongMemEval-S N=500
+
+### Task 6.3: Run Phase B on LongMemEval-M N=500
+
+### Task 6.4: Run Phase B on LOCOMO N=1986
+
+### Task 6.5: Document Phase B findings + LEADERBOARD update + spec revision
+
+(Detailed sub-steps mirror v1 publication plan Phase 5 LEADERBOARD update.)
+
+---
+
+## Phase 7: v2 Publication (1 day, $0)
+
+If Phase B successful:
+
+### Task 7.1: Write v2 publication blog post
+
+**Files:**
+- Create: `apps/agentos-live-docs/blog/2026-05-XX-stage-e-hindsight-typed-network.md`
+
+Outline (1500-2500 words):
+1. The setup, v1 baseline (76.6% / 51.5% / 30.6%)
+2. Why we needed Stage E, Stage L + Stage I both negative; precision-bound categories at M scale
+3. The 4 typed networks, World, Experience, Opinion, Observation (verbatim from Hindsight paper)
+4. The 6-step extraction pipeline + JSON schema
+5. The retrieval, typed spreading activation + 4-way RRF
+6. Phase A → Phase B, the decision gate + measurements
+7. Comparison vs Hindsight (vendor-bias caveat: Gemini judge)
+8. What this means: third negative result OR new shipping default OR new opt-in tier (depends on Phase B)
+
+### Task 7.2: Cross-link with v1 publication and findings docs
+
+---
+
+## Self-review checklist
+
+1. **Spec coverage**: every spec §4-§9 deliverable maps to a Phase 1-7 task. Verified.
+2. **No placeholders**: every `<FILL>` has a corresponding `jq` or `jq` produces it.
+3. **TDD discipline**: Phase 1-3 follow strict failing-test-first. Phase 4 wiring tests propagate via the contract test pattern.
+4. **Cost tracked**: Phase 0-3 ($1) + Phase 4 ($5) + Phase 5 ($30) + Phase 6 ($290) = $326. Cushion to $500-800.
+5. **Constraints honored**: no commits without user approval, no subagents, no worktrees with submodules, no AI in commit messages, no em dashes.
+6. **Verification before completion**: every Phase 5/6 run has totalUsd > 0 check.
+7. **Decision gate enforced**: Phase 5 → Phase 6 only on positive Phase A. Negative Phase A → ship to core + abandon Phase B (per spec §10).
+
+---
+
+## Open decisions for the user (ask before starting)
+
+1. **Approve the spec architecturally** (4 networks, RRF fusion, $500-800 budget, 2-3 weeks)?
+2. **Phase A budget** ($30 for 2 variants), approve?
+3. **Phase B budget** ($290 across 3 benchmarks), approve in advance, or pause for re-approval after Phase A?
+4. **Observer model**: gpt-5-mini default. Ablate at gpt-4o (+$200) or skip?
+5. **CharHashEmbedder vs OpenAIEmbedder for Phase A**: per spec §10 risk #5, consider running BOTH. Adds $30. Recommend yes, typed-network may need semantic embeddings to compete.
+
+---
+
+## End of plan
