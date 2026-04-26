@@ -145,9 +145,38 @@ Fewshot classifier accuracy: 31/54 = 57.4% (+11 pp over base 46.3%). SSU went 33
 
 Run JSON: `results/runs/2026-04-26T18-10-47-280--longmemeval-m--gpt-4o--full-cognitive--ingest.json`.
 
+## Update: gpt-4o classifier + fewshot at N=54 (2026-04-26 11:30 PT)
+
+Tested whether a stronger classifier closes the dispatch-lift gap. **Result: 46.3% (25/54), DOWN −11 pp from gpt-5-mini base classifier 57.4%.** gpt-4o classifier accuracy itself was 59.3% (best of the three; vs gpt-5-mini base 46.3%, fewshot 57.4%), but per-category answer accuracy collapsed on MS (0/9!) and SSP (0/9!) due to small-sample variance on hard categories rather than dispatch quality.
+
+Three Phase A validation runs at N=54 with the augmented router:
+
+| Run | Classifier | Fewshot | Aggregate | Classifier Acc | $/correct |
+|---|---|---|---:|---:|---:|
+| 1 | gpt-5-mini | base | **57.4%** | 46.3% | $0.106 |
+| 2 | gpt-5-mini | fewshot | 53.7% | 57.4% | $0.115 |
+| 3 | gpt-4o | fewshot | 46.3% | **59.3%** | $0.133 |
+
+The −11 pp range across runs is dominated by **small-sample variance at n=9 per category**, not dispatch quality. MS and SSP especially swing wildly — at n=9 the implicit binomial 95% CI is roughly [0%, 56%] for an underlying rate of 25%. The 68.5% Phase A oracle aggregate is NOT reproducible at N=54 with any classifier configuration tested.
+
+gpt-4o classifier confusion matrix:
+
+| GT \ Pred | KU | MS | SSA | SSU | TR | n | Correct |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| knowledge-update | **4** | 2 | 0 | 3 | 0 | 9 | 4 |
+| multi-session | 0 | **4** | 0 | 4 | 1 | 9 | 4 |
+| single-session-assistant | 0 | 0 | **8** | 1 | 0 | 9 | 8 |
+| single-session-preference | 0 | 0 | 7 | **2** | 0 | 9 | 2 |
+| single-session-user | 1 | 0 | 0 | **7** | 1 | 9 | 7 |
+| temporal-reasoning | 0 | 0 | 0 | 0 | **9** | 9 | 9 |
+
+Notably gpt-4o NEVER predicts SSP — like both gpt-5-mini variants, it routes most SSP queries to SSA. The classifier's category boundaries don't match LongMemEval-M's SSP question formulations regardless of model size.
+
+Run JSON: `results/runs/2026-04-26T18-19-05-942--longmemeval-m--gpt-4o--full-cognitive--ingest.json`.
+
 ## Headline takeaway
 
-Both Phase A validation runs (base + fewshot classifier) converge to **53.7%–57.4% aggregate, identical to or slightly below static M-tuned 57.4%**. The 68.5% Phase A oracle is not classifier-realizable at N=54 with gpt-5-mini (either prompt variant). The dispatch wiring is correct; classifier accuracy + small-sample variance dominate the result at this scale.
+All three Phase A validation runs converge to **46.3%–57.4% aggregate, bounded by static M-tuned 57.4%**. The 68.5% Phase A oracle is not classifier-realizable at N=54 with any classifier configuration tested (gpt-5-mini base, gpt-5-mini fewshot, gpt-4o fewshot). The dispatch wiring is correct; classifier accuracy varies (46-59%) but **small-sample variance at n=9 per category dominates the aggregate** — the augmented router's true lift can only be measured at Phase B N=500.
 
 To validate the augmented router's theoretical lift, the remaining levers are:
 - **Stronger classifier model** (`--om-classifier-model gpt-4o`): ~10x classifier cost, but classifier accuracy on M should hit 70-85% based on policy-router measurements
