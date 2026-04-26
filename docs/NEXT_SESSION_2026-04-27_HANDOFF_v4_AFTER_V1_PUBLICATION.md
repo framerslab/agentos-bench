@@ -8,33 +8,36 @@ supersedes: NEXT_SESSION_2026-04-26_HANDOFF_v3_AFTER_STAGE_LIJ_MEASUREMENTS.md
 
 **Supersedes:** [NEXT_SESSION_2026-04-26_HANDOFF_v3_AFTER_STAGE_LIJ_MEASUREMENTS.md](NEXT_SESSION_2026-04-26_HANDOFF_v3_AFTER_STAGE_LIJ_MEASUREMENTS.md)
 
-**Status at handoff:** v1 publication shipped. PLUS a major late-session finding: the M-tuned config (`--rerank-candidate-multiplier 5 --reader-top-k 50 --hyde`) lifts LongMemEval-M from **30.6% → 57.4%** at Phase A N=54 (+26.8 pp), with full ablation matrix attributing the lift per flag and per category. Cross-validation on S confirms the config doesn't game S aggregate but trades off per-category. RetrievalConfigRouter primitive shipped to agentos core (23/23 tests) with calibration-driven per-category dispatch table from the ablations. Stage E typed-network primitives shipped (59/59 tests), bench wiring scaffolded.
+**Status at handoff:** v1 publication shipped. **M-tuned Phase B at N=500 finished 2026-04-26: 45.4% [41.2%, 49.8%]** (227/500), $30.59 LLM, $0.1348/correct, avg 40.3s latency, **+14.8 pp validated** over Tier 1 canonical 30.6% Phase B baseline. Phase A's 57.4% N=54 result compressed −12 pp at full N=500 because `--sample-per-type 9` overweighted easy categories (multi-session: Phase A 66.7% N=9 → Phase B 26.2% [18.5%, 33.8%] N=130; temporal-reasoning: 33.3% N=9 → 22.6% [15.8%, 30.1%] N=133). Per-category Phase B with bootstrap CIs: SSA 91.1% [82.1%, 98.2%], SSU 78.6% [68.6%, 87.1%], KU 62.8% [52.6%, 73.1%], SSP 28.6% [14.3%, 46.4%], MS 26.2% [18.5%, 33.8%], TR 22.6% [15.8%, 30.1%]. **RetrievalConfigRouter productionization shipped end-to-end** (Phase 1 agentos primitives `MINIMIZE_COST_AUGMENTED_TABLE`+`selectAugmentedDispatch`, Phase 2 `MemoryRouter.decideAugmented`+`decideAndDispatchAugmented`, Phase 3 bench `--retrieval-config-router minimize-cost-augmented` flag + per-case dispatch hook in `LongMemEvalS.runCase`). 65 new memory-router tests + 516 bench tests pass. Stage E typed-network primitives shipped (75 tests), bench wiring scaffolded.
 
-**Mission for next session:** Validate the M-tuned 57.4% lift at Phase B N=500 on remote hardware (local 17 GB Mac OOMs on the semantic-embedder + 500-session-haystack pipeline), THEN launch Stage E (Hindsight 4-network typed observer) deep adapter integration + Phase A measurement. The RetrievalConfigRouter implementation is ready for productionization once Phase B validates the per-category accuracy points.
+**Mission for next session:** Validate the per-category dispatch lift at full N=500 by running hyde-only and topk-only Phase B ablations (each ~$30, ~5 hours) so the augmented-router dispatch can be measured against static M-tuned at scale. The 68.5% Phase A per-category-oracle forecast was inflated by the same N=9-per-category small-sample variance that compressed M-tuned from 57.4% Phase A to 45.4% Phase B; the Phase B dispatch lift over static combined will likely be smaller than +11 pp. Then launch Stage E Phase A measurement on S (~$3-5) to test whether typed-network fact retrieval lifts S over canonical baseline.
 
 ---
 
 ## 0. The 60-second briefing
 
-### 0.1 The M-tuned discovery (late-session, 2026-04-26 evening)
+### 0.1 The M-tuned headline (Phase B validated 2026-04-26)
 
-Three opt-in CLI flags lift LongMemEval-M from 30.6% (Phase B N=500 baseline) to 57.4% (Phase A N=54): `--rerank-candidate-multiplier 5` (250-chunk rerank pool vs default 60), `--reader-top-k 50` (vs default 20), `--hyde`. Combined cost-per-correct $0.0558 (32% cheaper than baseline despite more retrieval candidates). Per-category lifts up to +50 pp (single-session-assistant) and +49 pp (multi-session — the precision-bound bottleneck the v1 publication framed as "needs Stage E").
+Three opt-in CLI flags lift LongMemEval-M from 30.6% (Phase B N=500 baseline) to **45.4% [41.2%, 49.8%] at full Phase B N=500 (+14.8 pp validated)**: `--rerank-candidate-multiplier 5` (250-chunk rerank pool vs default 60), `--reader-top-k 50` (vs default 20), `--hyde`. Phase B cost-per-correct $0.1348 (vs Tier 1 baseline $0.0818, +65% cost-per-correct because the wider pool + HyDE add per-call cost; total run cost still falls $40.86 → $30.59 = −25%).
 
-**Full ablation matrix at LongMemEval-M Phase A N=54 stratified, seed=42, gpt-4o reader, gpt-4o-2024-08-06 judge:**
+Phase A → Phase B compression: Phase A at N=54 stratified measured 57.4%; full Phase B at N=500 measures 45.4% (−12 pp). The drop was driven by `--sample-per-type 9` overweighting easy categories — SSA/KU/SSU were 33% of N=54 vs 41% of N=500, and the true distribution is dominated by MS+TR (53% of N=500 cases, the hardest categories). Phase A N=9 implicit CIs on the hard categories were ~[33%, 100%] for MS — the small-sample number was always going to compress.
 
-| Config | Accuracy | $/correct | Total cost | Avg latency |
-|---|---:|---:|---:|---:|
-| Baseline (Tier 1 canonical, N=500 Phase B) | 30.6% | $0.0818 | $40.86 | 10 564 ms |
-| `--rerank-candidate-multiplier 5` only | 33.3% | $0.0416 | $0.75 | 2 291 ms |
-| `--reader-top-k 50` only | 48.1% | $0.1351 | $3.51 | 3 638 ms |
-| `--hyde` only | 46.3% | **$0.0369** | $0.92 | 3 546 ms |
-| `--rerank-multi 5 + topk 50` (no HyDE) | 51.9% | $0.1230 | $3.44 | 3 255 ms |
-| `--hyde --reader-top-k 50` (no multiplier) | 50.0% | $0.1390 | $3.75 | 3 869 ms |
-| **All three (M-tuned combined)** | **57.4%** | $0.0558 | $1.73 | (re-measure)[^lat] |
+**LongMemEval-M ablation matrix:**
 
-[^lat]: First combined run logged 313 s/case, but the bench was contending with a parallel Track A process for memory at the time. Ablation runs (no contention) measured 2-4 s/case. True combined-config latency on a clean run is closer to 3-4 s/case; recommend re-measuring at the Phase B run on remote hardware.
+| Config | Stage | Accuracy | $/correct | Total cost | Avg latency |
+|---|---|---:|---:|---:|---:|
+| Baseline (Tier 1 canonical) | Phase B N=500 | 30.6% | $0.0818 | $40.86 | 10 564 ms |
+| `--rerank-candidate-multiplier 5` only | Phase A N=54 | 33.3% | $0.0416 | $0.75 | 2 291 ms |
+| `--reader-top-k 50` only | Phase A N=54 | 48.1% | $0.1351 | $3.51 | 3 638 ms |
+| `--hyde` only | Phase A N=54 | 46.3% | **$0.0369** | $0.92 | 3 546 ms |
+| `--rerank-multi 5 + topk 50` (no HyDE) | Phase A N=54 | 51.9% | $0.1230 | $3.44 | 3 255 ms |
+| `--hyde --reader-top-k 50` (no multiplier) | Phase A N=54 | 50.0% | $0.1390 | $3.75 | 3 869 ms |
+| All three (M-tuned combined) | Phase A N=54 | 57.4% | $0.0558 | $1.73 | _Phase A_ |
+| **All three (M-tuned combined)** | **Phase B N=500** | **45.4% [41.2%, 49.8%]** | $0.1348 | $30.59 | 40 271 ms |
 
-Cross-validation of the M-tuned config on LongMemEval-S N=54: **72.2% accuracy, $0.0833/correct, avg 3540 ms**. Apples-to-apples vs Tier 1 canonical S baseline 73.2% (Phase B N=500): −1.0 pp within N=54 noise. The M-tuned config regresses MS −28 pp + SSP −19 pp on S because Tier 3 min-cost on S routes those categories to OM-v11 (which the M-tuned config doesn't use). Conclusion: **M-tuned config is M-helpful, S-neutral overall, per-category trade-offs differ between scales**. The right shipping integration is per-query LLM-as-judge dispatch via the new {@link RetrievalConfigRouter} primitive — not a static always-on M-tuned default.
+The all-three-combined row at Phase B N=500 is the validated headline. Phase A ablation singletons remain Phase A-only and need Phase B N=500 runs to validate the per-flag attribution at scale. **Phase B per-category breakdown** (with bootstrap CIs from 10k Mulberry32 resamples): SSA 91.1% [82.1%, 98.2%] (n=56), SSU 78.6% [68.6%, 87.1%] (n=70), KU 62.8% [52.6%, 73.1%] (n=78), SSP 28.6% [14.3%, 46.4%] (n=28), MS 26.2% [18.5%, 33.8%] (n=130), TR 22.6% [15.8%, 30.1%] (n=133). Phase B run JSON: `results/runs/2026-04-26T16-50-33-693--longmemeval-m--gpt-4o--full-cognitive--ingest.json`.
+
+Cross-validation of the M-tuned config on LongMemEval-S N=54 (Phase A): **72.2% accuracy, $0.0833/correct, avg 3540 ms**. Apples-to-apples vs Tier 1 canonical S baseline 73.2% (Phase B N=500): −1.0 pp within N=54 noise. The M-tuned config regresses MS −28 pp + SSP −19 pp on S because Tier 3 min-cost on S routes those categories to OM-v11 (which the M-tuned config doesn't use). Conclusion: **M-tuned config is M-helpful, S-neutral overall, per-category trade-offs differ between scales**. The right shipping integration is per-query LLM-as-judge dispatch via the new `RetrievalConfigRouter` primitive (now productionized as `--retrieval-config-router minimize-cost-augmented`) — not a static always-on M-tuned default.
 
 ### 0.2 Per-category attribution (ablation insight)
 
