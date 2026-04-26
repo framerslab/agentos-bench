@@ -80,6 +80,16 @@ Target to beat: **96.2%** (agentmemory (JordanMcCann)).
 
 [^t3maxaccm]: Tier 3 max-acc on LongMemEval-M. Phase B in flight at the time of this update. Will be filled when the run lands.
 
+## BEAM 100K (400 queries × 10 categories, ~100K-token user-haystacks)
+
+**First public BEAM 100K result for any orchestration-router architecture.** Hindsight holds SOTA at the 10M tier (64.1%); BEAM 100K has no widely-published reference numbers. AgentOS-bench v1 ships the loader + adapter under `--bench beam-100k` (data downloaded from github.com/vectorize-io/agent-memory-benchmark).
+
+| System | Reader | Memory | Replay | Cases | Accuracy | 95% CI | Avg latency | $/correct | Source |
+|---|---|---|---|---:|---:|---:|---:|---:|---|
+| **AgentOS M-tuned (`@framers/agentos`)**[^beam100k-mtuned] | gpt-4o | full-cognitive + hybrid + Cohere rerank-v3.5 (candidate ×5) + reader-top-k 50 + HyDE | ingest | **90 stratified (Phase A)** | **45.6%** (41/90) | [35.6%, 55.6%] | 6 080 ms | $0.2612 | — |
+
+[^beam100k-mtuned]: **First public BEAM 100K number, 2026-04-26 Phase A.** Stratified `--sample-per-type 9` × 10 BEAM categories = 90 cases, gpt-4o reader, gpt-4o-2024-08-06 judge with the LongMemEval rubric remap (`abstention` → abstention; `contradiction_resolution` + `knowledge_update` → knowledge-update; `event_ordering` + `temporal_reasoning` → temporal-reasoning; `information_extraction` → single-session-user; `instruction_following` → single-session-assistant; `multi_session_reasoning` + `summarization` → multi-session; `preference_following` → single-session-preference). Per-category at this run: information_extraction 88.9% [66.7%, 100%], instruction_following 77.8% [44.4%, 100%], knowledge_update 66.7% [33.3%, 100%], preference_following 66.7% [33.3%, 88.9%], temporal_reasoning 55.6% [22.2%, 88.9%], abstention 44.4% [11.1%, 77.8%], multi_session_reasoning 44.4% [11.1%, 77.8%], summarization 11.1% [0%, 33.3%], **contradiction_resolution 0% [0%, 0%]**, **event_ordering 0% [0%, 0%]**. Two failure modes surface that LongMemEval doesn't expose: (1) `contradiction_resolution` requires the reader to flag contradictory information explicitly — AgentOS's M-tuned reader prompt doesn't trigger contradiction detection and answers confidently from the most-recent assertion; (2) `event_ordering` returns the wrong 3 events — the agent extracts specific feature names from haystacks where the gold answer wants broad themes (e.g. answers "user authentication, transaction management, basic analytics" vs gold "core functionality, transaction error handling, security and deployment"). Both are honest follow-up tasks for v3 and don't impact the M-tuned headline on the categories AgentOS handles well. Run JSON: `results/runs/2026-04-26T19-42-25-420--beam-100k--gpt-4o--full-cognitive--ingest.json`. Total cost $10.71 LLM. Phase B at full N=400 queued for the validated headline.
+
 ### Negative findings (transparent stack)
 
 These rows document architectures we tested and DROPPED at Phase A because they did not lift on top of the shipping baseline. Published as a credibility marker for the v1 transparency narrative.
