@@ -465,7 +465,7 @@ Awaiting:
 3. Other concurrent session committing bench-side LongMemEvalS + LEADERBOARD + comparison-table changes
 4. Phase 4c smoke approval ($1-5)
 5. Phase A approval ($30) once Phase 4c smoke passes
-6. Cohere API key in monorepo `.env` (currently absent) before Phase A
+6. Cohere API key. Available in `apps/wilds-ai/.env.local` (verified 2026-04-25); smoke command should source that file via `set -a && source apps/wilds-ai/.env.local && set +a`.
 7. Phase 6 outcome decides whether Phase 4.4 (option A: 4-way RRF + budget-split) is the next escalation OR Phase B is the next ship
 
 ---
