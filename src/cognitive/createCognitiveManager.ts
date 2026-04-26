@@ -303,6 +303,25 @@ export async function createCognitiveManager(
     );
   }
 
+  // Stage E: build the typed-network LLM adapter once (used by both the
+  // manager-config path below and the side-channel return-value exposures
+  // for any consumer that wants direct access).
+  const typedNetworkLLM: ITypedExtractionLLM | undefined = opts.typedNetwork
+    ? {
+        invoke: async ({ system, user }) =>
+          opts.typedNetwork!.llmInvoker(system, user),
+      }
+    : undefined;
+  // Map the bench's broader variant set (minimal | full | production) onto
+  // the manager-config's narrower set (minimal | full). 'production' falls
+  // back to 'full' inside the manager; the production-only causal-extraction
+  // path still runs in the bench adapter via the side-channel.
+  const managerVariant: 'minimal' | 'full' | undefined = opts.typedNetwork
+    ? opts.typedNetwork.variant === 'minimal'
+      ? 'minimal'
+      : 'full'
+    : undefined;
+
   const manager = new CognitiveMemoryManager();
   await manager.initialize({
     workingMemory,
@@ -328,6 +347,13 @@ export async function createCognitiveManager(
     consolidation: { enabled: false } as unknown as import('@framers/agentos').CognitiveMemoryConfig['consolidation'],
     // Step 13: opt-in to graph activation wire-up.
     enableGraphActivation: opts.enableGraphActivation ?? false,
+    // Stage E: wire typed-network into the manager when --typed-network is set.
+    // The manager owns the lifecycle: encode() routes through observer.extract,
+    // retrieve() runs spreading-activation when the variant supports it.
+    typedNetwork:
+      typedNetworkLLM && managerVariant
+        ? { variant: managerVariant, observerLLM: typedNetworkLLM }
+        : undefined,
   });
 
   let closed = false;
@@ -352,30 +378,17 @@ export async function createCognitiveManager(
       })
     : undefined;
 
-  // Stage E: wire typed-network observer + store when --typed-network
-  // is passed. Per-case state — lives as long as the handle. The
-  // adapter is responsible for invoking observer.extract on session
-  // text at ingest and feeding the spreading-activation primitive at
-  // retrieval; the factory just constructs the empty store + observer.
-  let typedNetworkStore: TypedNetworkStore | undefined;
-  let typedNetworkObserver: TypedNetworkObserver | undefined;
-  let typedNetworkSpreadingActivation: TypedSpreadingActivation | undefined;
-  let typedNetworkVariant: 'minimal' | 'full' | 'production' | undefined;
-  if (opts.typedNetwork) {
-    typedNetworkVariant = opts.typedNetwork.variant;
-    typedNetworkStore = new TypedNetworkStore();
-    // Adapt the (system, user) → string invoker to the observer's
-    // ITypedExtractionLLM shape (single object arg with system, user,
-    // maxTokens, temperature). The bench's other invokers use the
-    // legacy two-arg form; the typed-network observer was designed
-    // post-the-shape-cleanup and uses the single-arg shape.
-    const llm: ITypedExtractionLLM = {
-      invoke: async ({ system, user }) =>
-        opts.typedNetwork!.llmInvoker(system, user),
-    };
-    typedNetworkObserver = new TypedNetworkObserver({ llm });
-    typedNetworkSpreadingActivation = new TypedSpreadingActivation({ decay: 0.5 });
-  }
+  // Stage E: expose the manager's typed-network components via the return
+  // value for any consumer that wants direct access (e.g. a bench adapter
+  // running the production-variant causal-extraction path or inspecting
+  // intermediate state). The manager owns the lifecycle for the
+  // minimal/full variants; the side-channel returns the same instances so
+  // there's no state divergence.
+  const typedNetworkStore = manager.getTypedNetworkStore() ?? undefined;
+  const typedNetworkObserver = manager.getTypedNetworkObserver() ?? undefined;
+  const typedNetworkSpreadingActivation =
+    manager.getTypedSpreadingActivation() ?? undefined;
+  const typedNetworkVariant = opts.typedNetwork?.variant;
 
   return {
     manager,
