@@ -348,8 +348,11 @@ export async function createCognitiveManager(
     // Step 13: opt-in to graph activation wire-up.
     enableGraphActivation: opts.enableGraphActivation ?? false,
     // Stage E: wire typed-network into the manager when --typed-network is set.
-    // The manager owns the lifecycle: encode() routes through observer.extract,
-    // retrieve() runs spreading-activation when the variant supports it.
+    // The manager owns retrieve() lifecycle (delegates to TypedNetworkRetriever).
+    // extractAtEncode is intentionally LEFT OFF (default false): the bench
+    // adapter (LongMemEvalS) drives extraction at session boundaries, and
+    // setting extractAtEncode=true would double-extract on every encode call,
+    // burning N+1 LLM roundtrips per session for no benefit.
     typedNetwork:
       typedNetworkLLM && managerVariant
         ? { variant: managerVariant, observerLLM: typedNetworkLLM }
