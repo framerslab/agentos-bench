@@ -227,22 +227,33 @@ const BENCHMARKS: BenchEntry[] = [
       new Locomo({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled, observationalMemoryEnabled }),
   },
   {
+    id: 'beam-100k',
+    family: 'external',
+    description:
+      'BEAM 100K tier (Beyond a Million Tokens, ICLR 2026): 400 queries × 10 categories over 170 documents per user-haystack, 2.6M total tokens. Source: github.com/vectorize-io/agent-memory-benchmark.',
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled }) =>
+      new Beam({ reader, tier: '100k', embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled }),
+  },
+  {
     id: 'beam-500k',
     family: 'external',
-    description: 'BEAM 500k tier (placeholder — upstream schema not yet public)',
-    build: ({ reader }) => new Beam({ reader, tier: '500k' }),
+    description: 'BEAM 500K tier (download upstream first; 100K-tier-equivalent adapter wired)',
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled }) =>
+      new Beam({ reader, tier: '500k', embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled }),
   },
   {
     id: 'beam-1m',
     family: 'external',
-    description: 'BEAM 1M tier (placeholder — upstream schema not yet public)',
-    build: ({ reader }) => new Beam({ reader, tier: '1m' }),
+    description: 'BEAM 1M tier (download upstream first; queued for remote-machine execution due to memory budget)',
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled }) =>
+      new Beam({ reader, tier: '1m', embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled }),
   },
   {
     id: 'beam-10m',
     family: 'external',
-    description: 'BEAM 10M tier — frontier, Hindsight SOTA (placeholder until schema is published)',
-    build: ({ reader }) => new Beam({ reader, tier: '10m' }),
+    description: 'BEAM 10M tier — frontier, Hindsight SOTA (download upstream first; remote-machine only)',
+    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled }) =>
+      new Beam({ reader, tier: '10m', embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled }),
   },
 ];
 
@@ -360,10 +371,12 @@ function defaultCaseCountForBenchmark(id: string): number {
     case 'locomo':
       // 10 conversations × ~200 QA pairs each in the upstream dump.
       return 2_000;
+    case 'beam-100k':
+      return 400;
     case 'beam-500k':
     case 'beam-1m':
     case 'beam-10m':
-      return 100;
+      return 400;
     default:
       return 100;
   }
