@@ -1,0 +1,55 @@
+{
+  "maxProbes": 100,
+  "samplesProbed": 100,
+  "fpr": 0.02,
+  "ci": [
+    0,
+    0.05
+  ],
+  "byCaseType": {
+    "multi-session": {
+      "rate": 0,
+      "ciLo": 0,
+      "ciHi": 0,
+      "n": 24
+    },
+    "knowledge-update": {
+      "rate": 0,
+      "ciLo": 0,
+      "ciHi": 0,
+      "n": 17
+    },
+    "single-session-assistant": {
+      "rate": 0,
+      "ciLo": 0,
+      "ciHi": 0,
+      "n": 14
+    },
+    "single-session-user": {
+      "rate": 0,
+      "ciLo": 0,
+      "ciHi": 0,
+      "n": 13
+    },
+    "temporal-reasoning": {
+      "rate": 0.041666666666666664,
+      "ciLo": 0,
+      "ciHi": 0.125,
+      "n": 24
+    },
+    "single-session-preference": {
+      "rate": 0.125,
+      "ciLo": 0,
+      "ciHi": 0.375,
+      "n": 8
+    }
+  },
+  "synthModel": "gpt-5-mini-2025-08-07",
+  "judgeModel": "gpt-4o",
+  "rubricVersion": "2026-04-18.1",
+  "synthTokensIn": 17125,
+  "synthTokensOut": 2039,
+  "judgeTokensIn": 17208,
+  "judgeTokensOut": 144,
+  "elapsedMs": 184330
+}

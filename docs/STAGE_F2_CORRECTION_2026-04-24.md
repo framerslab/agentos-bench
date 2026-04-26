@@ -92,6 +92,8 @@ Stage F-3 ablation results:
 | `--no-abstention` alone (K=10 default) | 1986 | **42.1%** | [40.0%, 44.3%] | $0.0082 | Prompt change in isolation: aggregate REGRESSES by −7.8pp vs baseline |
 | K=20 + `--no-abstention` (Stage F-2 corrected) | 1986 | **47.3%** | [45.2%, 49.5%] | $0.0107 | Both knobs; K=20 partially mitigates the prompt damage |
 
+Cost provenance for K=20 alone: the post-fix Stage F-3 Run A artifact is a full cache hit (`totalUsd=$0`) because it reuses the pre-fix Stage F-2 case cache. The published $0.0099/correct cost comes from the paid pre-fix Stage F-2 artifact, which had the same effective runtime configuration: K=20 with the v9 abstention prompt.
+
 Per-category for the prompt-only ablation (`--no-abstention` at K=10) tells the cleanest story:
 
 | Category | n | Stage F-1 (v9 abstention) | Stage F-3 Run B (--no-abstention only) | Δ |

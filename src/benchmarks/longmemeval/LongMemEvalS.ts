@@ -1318,7 +1318,7 @@ async function runBaseMemoryCase(
     ctx.scratchDir,
     `bench-${c.id.replace(/[^a-zA-Z0-9-_]/g, '_')}.sqlite`,
   );
-  const mem = await Memory.create({ path: brainPath, selfImprove: false });
+  const mem = await Memory.createSqlite({ path: brainPath, selfImprove: false });
   try {
     const replayStats = await replayViaIngest(c.haystack, mem);
     const recalled = await mem.recall(c.question, {
@@ -1415,7 +1415,7 @@ interface FullCognitiveOutput {
 /**
  * Run one case through the full-cognitive path:
  *   1. Open a scratch `CognitiveMemoryManager` (SQLite brain +
- *      SqliteKnowledgeGraph + InMemoryVectorStore + CharHashEmbedder).
+ *      SqlKnowledgeGraph + InMemoryVectorStore + CharHashEmbedder).
  *   2. Replay the haystack. `observe` drives per-turn
  *      {@link CognitiveMemoryManager.observe} (exercises the observer /
  *      reflector / working-memory pipeline). `ingest` drives the more
@@ -1565,6 +1565,35 @@ export async function runFullCognitiveCase(
     };
   }
 
+  // Stage E: typed-network observer config. When --typed-network is
+  // set, instantiate the LLM invoker (gpt-5-mini, same cost-tracking
+  // pattern as fact-graph) so the createCognitiveManager factory can
+  // wire up the typed-network observer + store.
+  let typedNetworkConfig:
+    | { variant: 'minimal' | 'full' | 'production'; llmInvoker: (systemPrompt: string, userPrompt: string) => Promise<string> }
+    | undefined;
+  const typedNetworkVariant = ctx.config.typedNetwork;
+  if (typedNetworkVariant) {
+    const observerReader = createReader('gpt-5-mini');
+    const llmInvoker = async (systemPrompt: string, userPrompt: string) => {
+      const resp = await observerReader.invoke({
+        system: systemPrompt,
+        user: userPrompt,
+        maxTokens: 4096,
+        temperature: 0,
+      });
+      ctx.costTracker.record({
+        category: 'reader',
+        model: resp.model,
+        tokensIn: resp.tokensIn,
+        tokensOut: resp.tokensOut,
+        tag: `typed-network-observer:${c.id}`,
+      });
+      return resp.text;
+    };
+    typedNetworkConfig = { variant: typedNetworkVariant, llmInvoker };
+  }
+
   const handle = await createCognitiveManager({
     brainPath,
     embedder,
@@ -1585,6 +1614,7 @@ export async function runFullCognitiveCase(
     observerReflectorLlmInvoker,
     factExtractorLlmInvoker,
     enableGraphActivation: graphActivationEnabled,
+    typedNetwork: typedNetworkConfig,
   });
   try {
     // Step 3: construct per-case HybridRetriever if enabled. The
@@ -2200,6 +2230,26 @@ async function replayForCognitive(
           // back to raw chunks + dense + BM25.
         }
       }
+      // Stage E: typed-network session boundary. Extract typed facts
+      // (World/Experience/Opinion/Observation) via the 6-step LLM
+      // observer and upsert into the per-case TypedNetworkStore.
+      // Errors non-critical; retrieval falls back to canonical pool.
+      if (handle.typedNetworkObserver && handle.typedNetworkStore) {
+        try {
+          const sessionText = sessionAsText(session);
+          if (sessionText.length > 0) {
+            const facts = await handle.typedNetworkObserver.extract(
+              sessionText,
+              session.sessionId,
+            );
+            for (const fact of facts) {
+              handle.typedNetworkStore.addFact(fact);
+            }
+          }
+        } catch {
+          // Typed-network extraction errors non-critical.
+        }
+      }
     }
   } else {
     for (const session of c.haystack) {
@@ -2307,6 +2357,27 @@ async function replayForCognitive(
           }
         } catch {
           // Fact-graph extraction errors non-critical.
+        }
+      }
+      // Stage E: typed-network session boundary (ingest branch). Mirrors
+      // the observe branch — call the 6-step LLM observer over the
+      // session text, addFact each typed fact into the per-case
+      // TypedNetworkStore. Errors non-critical; the canonical retrieval
+      // pool stays in place as the primary source.
+      if (handle.typedNetworkObserver && handle.typedNetworkStore) {
+        try {
+          const sessionText = sessionAsText(session);
+          if (sessionText.length > 0) {
+            const facts = await handle.typedNetworkObserver.extract(
+              sessionText,
+              session.sessionId,
+            );
+            for (const fact of facts) {
+              handle.typedNetworkStore.addFact(fact);
+            }
+          }
+        } catch {
+          // Typed-network extraction errors non-critical.
         }
       }
     }

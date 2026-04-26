@@ -199,6 +199,9 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     // Stage I: --entity-linking weight for Mem0-v3-style post-retrieval
     // re-rank. Pinned by tests/resolveRunConfigContract.spec.ts.
     entityLinking: cfg.entityLinking,
+    // Stage E: --typed-network variant for the Hindsight 4-network
+    // typed observer. Pinned by tests/resolveRunConfigContract.spec.ts.
+    typedNetwork: cfg.typedNetwork,
   };
 }
 
@@ -647,6 +650,17 @@ export function computeCaseRunKeyParts(
   // Bump the `:v1` suffix if the EntityRetrievalRanker scoring changes.
   if (typeof config.entityLinking === 'number' && config.entityLinking > 0) {
     const tag = `stage-i-entity-linking:w${config.entityLinking}:v1`;
+    runKeyParts.push(tag);
+    resultKeyParts.push(tag);
+  }
+
+  // Stage E: typed-network variant fingerprint. Conditional so runs
+  // without the flag hit existing cached case-results cleanly. Bump
+  // the `:v1` suffix when the typed-network module's extraction
+  // prompt or fusion math changes (versioning the architecture, not
+  // the LLM model — observer-model bumps are separate).
+  if (config.typedNetwork) {
+    const tag = `stage-e-typed-network:${config.typedNetwork}:v1`;
     runKeyParts.push(tag);
     resultKeyParts.push(tag);
   }

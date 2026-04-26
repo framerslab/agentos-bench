@@ -704,6 +704,22 @@ export interface RunConfig {
    * Default: undefined (no re-rank). Opt-in behind `--entity-linking [w]`.
    */
   entityLinking?: number;
+
+  /**
+   * Stage E: Hindsight 4-network typed observer variant. When set,
+   * the bench wires the typed-network module (4 banks of typed facts
+   * + spreading activation + 4-way RRF fusion) into the retrieval
+   * path. Variants: `minimal` (4-bank routing only), `full` (4-bank +
+   * spreading + 4-way RRF), `production` (full + LLM-driven causal
+   * extraction at extraction-time). Spec:
+   * `packages/agentos-bench/docs/specs/2026-04-26-hindsight-4network-observer-design.md`.
+   *
+   * Cache fingerprint: `stage-e-typed-network:<variant>:v1`.
+   *
+   * Default: undefined (no typed-network). Opt-in behind
+   * `--typed-network <variant>`.
+   */
+  typedNetwork?: 'minimal' | 'full' | 'production';
 }
 
 /**
@@ -795,6 +811,7 @@ export const OPTIONAL_RUN_CONFIG_KEYS = [
   'sessionLevelNdcgTopK',
   'noAbstention',
   'entityLinking',
+  'typedNetwork',
 ] as const;
 /**
  * Compile-time guard: ensure every entry in {@link OPTIONAL_RUN_CONFIG_KEYS}

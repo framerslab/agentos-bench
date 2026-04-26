@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-04-24T22:16:15.916Z",
+  "updatedAt": "2026-04-25T10:56:55.587Z",
   "latest": {
     "decay-fidelity|claude-sonnet-4-6|none|ingest": {
       "runFile": "micro/2026-04-19T06-11-20-814--decay-fidelity--claude-sonnet-4-6--none--ingest.json",
@@ -267,6 +267,72 @@
       "totalUsd": 6.826799999999994,
       "costPerCorrect": 0.008156272401433684,
       "startedAt": "2026-04-24T22:10:48.759Z"
+    },
+    "longmemeval-m|gpt-4o|full-cognitive|ingest": {
+      "runFile": "runs/2026-04-25T10-14-43-207--longmemeval-m--gpt-4o--full-cognitive--ingest.json",
+      "benchmarkId": "longmemeval-m",
+      "benchmarkVersion": "1.0.0",
+      "reader": "gpt-4o",
+      "memoryMode": "full-cognitive",
+      "replayMode": "ingest",
+      "totalCases": 500,
+      "accuracy": 0.306,
+      "avgScore": 0.306,
+      "avgLatencyMs": 10563.768,
+      "totalUsd": 12.515732500000013,
+      "costPerCorrect": 0.08180217320261446,
+      "startedAt": "2026-04-25T10:14:43.207Z",
+      "retrievalMetrics": {
+        "meanRecallAtK": 0.2930193720774883,
+        "meanPrecisionAtK": 0.032765531062124285,
+        "meanNdcgAtK": 0.2904970479088237,
+        "meanMrr": 0.3408229156726151,
+        "k": 20,
+        "sampleSize": 499
+      },
+      "stratifiedAccuracy": {
+        "weightedOverall": 0.33471177944862157,
+        "unweightedOverall": 0.306
+      },
+      "latencyBreakdown": {
+        "encode": {
+          "p50": 0.4083204930662558,
+          "p95": 3.8952826908189393,
+          "p99": 8.87819119662553,
+          "n": 499
+        },
+        "retrieve": {
+          "p50": 1054,
+          "p95": 15184.599999999984,
+          "p99": 40628.679999999964,
+          "n": 499
+        },
+        "vectorSearch": {
+          "p50": 2,
+          "p95": 22,
+          "p99": 84.2199999999998,
+          "n": 499
+        },
+        "scoring": {
+          "p50": 1,
+          "p95": 9.599999999999966,
+          "p99": 26,
+          "n": 245
+        },
+        "replay": {
+          "p50": 1562,
+          "p95": 15022.999999999984,
+          "p99": 38551.01999999998,
+          "n": 499
+        }
+      },
+      "memoryFootprint": {
+        "meanBrainBytes": 19734380.248496994,
+        "p95BrainBytes": 20480000,
+        "meanTraceCount": 2482.689378757515,
+        "maxPeakWorkingMemorySlots": 7,
+        "totalEncodeCalls": 1238862
+      }
     }
   }
 }

@@ -1,0 +1,137 @@
+---
+title: v1 Comprehensive Evaluation Matrix — Transparency Notes
+date: 2026-04-26
+companion: comparison-table.md
+methodology_anchor: ../../docs/SOTA_CITED_EVIDENCE_2026-04-25.md
+---
+
+# v1 Evaluation Matrix — Transparency Notes
+
+These notes accompany [comparison-table.md](comparison-table.md). They document the methodology behind every cell, the judge integrity probe per benchmark, the two negative architecture findings, the BEAM coverage status, and the v2 ambitions.
+
+The publishable claim is not "AgentOS beats every vendor on every benchmark." It is: every cell has a published bootstrap CI, a published judge false-positive rate, a per-case run JSON at seed 42, and a transparent matched-reader caveat for every cross-vendor comparison. No memory-library publisher in our SOTA-cited audit (Mem0, Mastra, Supermemory, Zep, Emergence, Letta, Hindsight) ships that full transparency stack.
+
+## 1. Methodology
+
+| Knob | Value | Notes |
+|---|---|---|
+| Reader | `gpt-4o` | Temperature 0, max tokens 256 (reader), 1024 (observer). |
+| Judge | `gpt-4o-2024-08-06` | Wrapped in `LongMemEvalJudge`. Empty system prompt. |
+| Rubric | `2026-04-18.1` | Stricter than LOCOMO's default. Explicit 0/1 binary on each rubric category. |
+| Seed | 42 | Mulberry32 PRNG for sampling, splitting, and bootstrap. |
+| Bootstrap | 10,000 resamples | Percentile method, 95% CI. |
+| Per-case artifacts | One run JSON per cell | Saved to `results/runs/<timestamp>--<benchmark>--gpt-4o--full-cognitive--ingest.json`. LongMemEval-M run JSONs exceed 100 MB; the matching `--summary.json` is committed and the full run JSON is gitignored. |
+| Cost tracking | `totalUsd` = full pipeline (ingest + reader + judge + reranker) | `costPerCorrect` = `totalUsd / passedCases`. |
+| Single-provider reproducibility | Classifiers and judges all on OpenAI | No Claude or Gemini dependency for any shipping configuration. Cohere only for the rerank stage. |
+| Embedder | `CharHashEmbedder` (lexical FNV-1a hash) on shipping configurations; `openai:text-embedding-3-small` on the Stage L paired baseline only | The Stage L paired baseline tested OpenAI semantic embeddings; CharHash is the bench's stable shipping default and produces the headline 76.6% LongMemEval-S number. |
+| Reranker | Cohere `rerank-v3.5` | Cross-encoder over the merged BM25 + dense pool. Required for every Tier 1+ row. |
+| `reader-top-k` | 20 | Top 20 chunks after rerank fed to the reader. |
+
+### 1.1 Methodology cross-reference
+
+Every cited methodology choice maps to a verbatim primary source in [SOTA_CITED_EVIDENCE_2026-04-25.md](../../docs/SOTA_CITED_EVIDENCE_2026-04-25.md). The audit covers:
+
+- §2 Hindsight typed-network observer (reference for v2 Stage E)
+- §3 Mem0 v3 architecture (single-pass ADD-only + entity-linking hybrid; managed-platform 93.4% caveat)
+- §4 Mastra Observational Memory (gemini-2.5-flash observer caveat on the headline 84.23%)
+- §5 Anthropic Contextual Retrieval (verbatim cookbook recipe; Stage L reference)
+- §6 Emergence Simple Fast (k=42 magic number, Calvin Ku critique)
+- §7 LOCOMO architecture issues (Penfield Labs 6.4% answer-key error rate, 62.81% judge FPR)
+- §8 BEAM benchmark spec (10 abilities, GPT-4.1-mini judge)
+- §9 LongMemEval-M (1.5 M tokens, 500 sessions per haystack)
+
+## 2. Judge false-positive rate per benchmark
+
+The Stage G judge-adversarial probe synthesizes topically-adjacent wrong answers via `gpt-5-mini` and sends them to the same judge that scores real answers. The acceptance rate is the judge's effective false-positive rate on the wrong-but-topical class of error. Below, every benchmark column is footnoted with its measured FPR.
+
+| Benchmark | Judge FPR | 95% CI | n probed | Source |
+|---|---:|---:|---:|---|
+| LongMemEval-S | 1% | [0%, 3%] | 100 | [Stage G, 2026-04-24](../../docs/SESSION_2026-04-24_TRANSPARENT_NEGATIVES.md) |
+| LongMemEval-M | **2%** | **[0%, 5%]** | 100 | [Stage G-M, 2026-04-26](../../docs/STAGE_G_LONGMEMEVAL_M_FINDINGS_2026-04-26.md) |
+| LOCOMO | 0% | [0%, 0%] | 100 | [Stage G-LOCOMO, 2026-04-24](../../docs/STAGE_G_LOCOMO_JUDGE_FPR_PROBE_2026-04-24.md) |
+| BEAM 100K | unprobed | — | — | Deferred to v2 (BEAM adapter not yet implemented). |
+
+Comparison anchor: Penfield Labs measured **62.81%** FPR on LOCOMO's default `gpt-4o-mini` judge with the original LOCOMO rubric. The 63 pp gap vs our 0% is a judge-model + rubric-strictness artifact, not an intrinsic property of LOCOMO's gold answers. Any vendor publishing a LOCOMO number measured with the default judge inherits up to 63 pp of accepted-wrong-answer noise.
+
+### 2.1 Why we did not re-run the LOCOMO probe at `--entity-linking 0.5`
+
+The v1 publication plan (`docs/plans/2026-04-26-v1-publication-plan.md` §1.2) called for a second LOCOMO probe at the new `--entity-linking 0.5` config. We do not run it. Judge FPR is a property of `(judge model, rubric, dataset cases)`, not of the retrieval architecture under test. The probe synthesizes wrong-but-topical answers from gold via `gpt-5-mini`, then sends them to the judge. The retrieval pipeline never enters the loop.
+
+The existing 0% LOCOMO FPR therefore applies to every retrieval configuration on LOCOMO, including `--entity-linking 0.5`. Spending another $0.05 to confirm a tautology would burn the v1 transparency budget on signal we already have.
+
+## 3. Two negative architecture findings
+
+The v1 spec ([2026-04-25-comprehensive-evaluation-matrix-design.md](../../docs/specs/2026-04-25-comprehensive-evaluation-matrix-design.md)) named six candidate architectures. Two were tested and dropped at Phase A. Both are documented as production primitives in agentos core anyway, since consumers building different pipelines may see different results. The negative findings are the credibility differentiator vs vendors who only publish wins.
+
+### 3.1 Stage L: Anthropic Contextual Retrieval `summarized` executor
+
+**Result: −3.7 pp aggregate on LongMemEval-S, −33.3 pp on temporal-reasoning.** Per-session summary prepended to every chunk before embedding. The architecture, the hypothesis, the per-category breakdown, the architectural-fit explanation: see [STAGE_L_PHASE_A_FINDINGS_2026-04-25.md](../../docs/STAGE_L_PHASE_A_FINDINGS_2026-04-25.md).
+
+Why it didn't translate from documents to conversational memory:
+
+1. **Topic homogeneity.** Document chunks within a chapter or codebase file are heterogeneous. Conversational sessions are topically homogeneous. Adding a session summary to every chunk reduces per-chunk uniqueness rather than adding discriminating context.
+2. **Cohere rerank already covers semantic match.** The rerank cross-encoder operates on raw text; it subsumes the dense-recall lift the contextual prepend would provide.
+3. **Temporal-anchor obscuration.** Per-turn timestamps embedded in chunk content carry the temporal signal. A 50-token summary prefix obscures these anchors during embedding similarity, hurting temporal-reasoning specifically.
+
+Anthropic's published 35% retrieval-failure reduction is real on documents. It does not generalize to conversational memory under our specific pipeline. The agentos primitive (`SummarizedIngestExecutor`, shipping in 0.2.12) is still useful for consumers building document-mode pipelines.
+
+### 3.2 Stage I: Mem0-v3-style entity-linking re-rank
+
+**Result: −4.0 pp aggregate on LOCOMO, −20 pp on multi-hop.** Post-retrieval entity-overlap re-rank applied after Cohere's cross-encoder. Per-category breakdown in [STAGE_I_PHASE_A_FINDINGS_2026-04-25.md](../../docs/STAGE_I_PHASE_A_FINDINGS_2026-04-25.md).
+
+Why it didn't lift on top of Cohere rerank:
+
+1. **The cross-encoder already does the work.** Cohere `rerank-v3.5` performs full cross-encoder semantic matching. Entity overlap is a strict subset of that signal; adding it as a second-stage re-rank introduces redundancy, not new information.
+2. **Entity name variants confuse a regex matcher.** LOCOMO questions reference entities by partial name or pronoun ("the dog" vs "Maxwell"); regex extraction can't bridge these.
+3. **Multi-hop suffers most.** Multi-hop questions span sessions where the relevant entities don't all appear in any single session. Re-ranking by per-candidate entity overlap penalizes the partial-match candidates that multi-hop reasoning actually needs.
+
+Mem0 v3's published 91.6% LOCOMO is a managed-platform claim with proprietary optimizations. Their own blog ([State of AI Agent Memory 2026](https://mem0.ai/blog/state-of-ai-agent-memory-2026)) reports **66.9%** for the production stack on LOCOMO, which is closer to the architecture we tested. The agentos primitives (`EntityExtractor`, `EntityLinkingIngestExecutor`, `EntityRetrievalRanker`, shipping in 0.2.13) are still useful for consumers replicating Mem0-v3-style pipelines.
+
+### 3.3 The pattern
+
+Two consecutive negatives for lightweight signal additions on top of our hybrid + Cohere rerank stack. Both architectures duplicate work the rerank stage already does (Stage L) or introduce signals the cross-encoder already considers (Stage I). To push aggregate accuracy further, the next architectural push needs to be substantial — typed graph traversal, not signal stacking. Stage E (Hindsight 4-network typed observer) is the v2 candidate.
+
+## 4. BEAM 100K coverage
+
+The bench's BEAM adapter ([packages/agentos-bench/src/benchmarks/beam/Beam.ts](../../src/benchmarks/beam/Beam.ts)) is a `BeamUnimplementedError` placeholder. The v1 spec descoped full multi-tier BEAM (100K + 500K + 1M + 10M at full N) to v2 paired with Stage E. The v1 publication does not include BEAM measurements.
+
+BEAM context for the cross-vendor comparison rows:
+
+- Hindsight 64.1% at BEAM 10M is the open SOTA.
+- Honcho 40.6%; LIGHT (BEAM paper proposal) 26.6%; RAG baseline 24.9%.
+- Mem0 has not published BEAM scores despite founding the BEAM blog post.
+
+The v2 publication will pair Stage E implementation with BEAM 100K + 500K + 1M tier measurements. Markmhendrickson's published critique ([agent-memory-breaks-before-retrieval](https://markmhendrickson.com/posts/agent-memory-breaks-before-retrieval)) argues that "state integrity degrades at 500K to 2M tokens"; the 100K-1M range is therefore more architecturally discriminating than the 10M tier and worth measuring at full N before the 10M splurge.
+
+## 5. Cross-vendor comparison caveats
+
+Every reference row in [comparison-table.md](comparison-table.md) §"Reference rows" is footnoted with the judge-harness, observer-model, and managed-vs-OSS caveats from [SOTA_CITED_EVIDENCE_2026-04-25.md](../../docs/SOTA_CITED_EVIDENCE_2026-04-25.md). The summary table:
+
+| Reference system | LongMemEval-S | Caveat |
+|---|---:|---|
+| Full-context `gpt-4o` baseline | 60.2% | LongMemEval paper. No memory architecture; whole conversation in context. |
+| Mastra Observational Memory | 84.2% (`gpt-4o`) | Observer is `gemini-2.5-flash`. Reader is `gpt-4o`. Cross-provider; not single-provider reproducible. |
+| Mem0 v3 (managed platform) | 93.4% | Managed-platform-only number with proprietary optimizations. Mem0's own production-stack number (LOCOMO) is 66.9% per their State of AI Agent Memory 2026 blog. |
+| Hindsight Gemini-3-pro | 91.4% | Reader is `gemini-3-pro`. Bench harness uses Gemini judge (`vectorize-io/agent-memory-benchmark`). Apples-to-apples for our `gpt-4o` reader is OSS-20B 83.6% / OSS-120B 89.0%. |
+| Hindsight OSS-120B | 89.0% | Same Gemini-judge harness caveat. |
+| Hindsight OSS-20B | 83.6% | Same Gemini-judge harness caveat. |
+| Supermemory (`gpt-4o`) | 81.6% | Own harness; full methodology disclosed in [supermemory.ai/research/](https://supermemory.ai/research/). |
+| Zep self-reported | 71.2% | Independent reproduction at [arxiv:2512.13564](https://arxiv.org/abs/2512.13564) measured 63.8% on the same benchmark. |
+
+Numbers in the headline accuracy table that are NOT footnoted with a vendor caveat are AgentOS measurements at the methodology in §1.
+
+## 6. v2 ambitions (publication next)
+
+The v2 publication will add the following work, on top of the v1 baseline:
+
+1. **Stage E (Hindsight 4-network typed observer)** — full implementation in agentos core, Phase A decision gate at +2 pp baseline, Phase B at full N on LongMemEval-S, LongMemEval-M, LOCOMO. Spec: [2026-04-26-hindsight-4network-observer-design.md](../../docs/specs/2026-04-26-hindsight-4network-observer-design.md). Plan: [2026-04-26-hindsight-4network-observer-plan.md](../../docs/plans/2026-04-26-hindsight-4network-observer-plan.md). Budget $500-800. Duration 2-3 weeks.
+2. **Full multi-tier BEAM** — adapter implementation, 100K + 500K + 1M tiers at full N, GPT-4.1-mini judge for direct comparability with Hindsight 64.1% / Honcho 40.6%, plus our `gpt-4o-2024-08-06` judge for the FPR delta. Markmhendrickson's "state integrity breaks at 500K" critique drives the tier choice.
+3. **CharHash vs OpenAI embedder ablation** — Stage L's paired baseline showed CharHash 76.6% vs OpenAI 74.1% on LongMemEval-S. Worth measuring properly with full Phase B at both embedders before changing the shipping default.
+4. **Cross-vendor reproductions** — Hindsight's `vectorize-io/agent-memory-benchmark` repo as a parallel harness with the Gemini judge, published with the FPR delta vs our judge.
+5. **MemoryArena** — defer to v3 publication. Per the survey, LoCoMo near-perfect systems drop to 40-60% on MemoryArena.
+
+## 7. What this matrix is, and what it isn't
+
+This matrix is a methodology-grade snapshot of one orchestration-router architecture (`@framers/agentos/memory-router` with three shipping presets) across three conversational benchmarks at one reader, one judge, one seed. It is not an accuracy leaderboard claim against vendors using different harnesses, different judges, or proprietary-platform-only configurations.
+
+The differentiator we publish is the transparency stack itself: every cell has a bootstrap CI, a probed judge FPR, a per-case run JSON, a matched-reader caveat for every comparison, a documented cache fingerprint, and two honest negative results. The numbers are what they are. The discipline around producing them is the publishable artifact.
