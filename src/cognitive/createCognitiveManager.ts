@@ -44,7 +44,7 @@ import {
   TypedNetworkStore,
   TypedSpreadingActivation,
   type ITypedExtractionLLM,
-} from '@framers/agentos/memory/retrieval/typed-network';
+} from '@framers/agentos/memory';
 
 /** Neutral HEXACO traits — every dimension at 0.5. */
 export const NEUTRAL_TRAITS: HexacoTraits = {
