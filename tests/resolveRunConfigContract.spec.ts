@@ -93,6 +93,8 @@ const SAMPLES: Record<(typeof OPTIONAL_RUN_CONFIG_KEYS)[number], unknown> = {
   sessionLevelNdcg: true,
   sessionLevelNdcgTopK: 5,
   noAbstention: true,
+  entityLinking: 0.5,
+  typedNetwork: 'minimal',
 };
 
 describe('resolveRunConfig contract: every OPTIONAL_RUN_CONFIG_KEY round-trips', () => {

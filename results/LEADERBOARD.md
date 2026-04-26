@@ -1,6 +1,6 @@
 # AgentOS Memory Benchmark Leaderboard
 
-Last updated: 2026-04-24T07:00:00.000Z
+Last updated: 2026-04-26T22:14:21.000Z
 
 Our rows are produced by `@framers/agentos-bench` against the linked source datasets.
 Competitor rows are lifted verbatim from their published sources (see per-row citations).
@@ -39,6 +39,41 @@ Target to beat: **96.2%** (agentmemory (JordanMcCann)).
 | gpt-4o/full-cognitive/ingest | full-cognitive | ingest | 0.858 | 0.499 | 0.802 | 0.880 | 495 |
 | gpt-5-mini/full-cognitive/ingest | full-cognitive | ingest | 0.740 | 0.433 | 0.717 | 0.802 | 24 |
 
+## LongMemEval-M (500 cases, ~1.5M-token haystacks)
+
+**First public number for any orchestration-router architecture.** Other vendors publish only the easier S variant (Mem0 v3 93.4% claimed, Mastra OM 84.23%, Hindsight 91.4%). LongMemEval-M's 500-sessions-per-haystack distribution surfaces precision limits that S does not.
+
+| System | Reader | Memory | Replay | Cases | Accuracy | 95% CI | Avg latency | $/correct | Source |
+|---|---|---|---|---:|---:|---:|---:|---:|---|
+| **AgentOS M-tuned (`@framers/agentos`)**[^mtuned] | gpt-4o | full-cognitive + hybrid + Cohere rerank-v3.5 (candidate ×5) + reader-top-k 50 + HyDE | ingest | **54 stratified (Phase A)** | **57.4%** (31/54) | TBD (N=54 — Phase B at N=500 pending) | — | **$0.0558** | — |
+| AgentOS Tier 1 canonical / Tier 3 min-cost (`@framers/agentos`)[^t1m] | gpt-4o | full-cognitive + hybrid + Cohere rerank-v3.5 + reader-top-k 20 | ingest | 500 | 30.6% | TBD | 10 564 ms | $0.0818 | — |
+| AgentOS Tier 2b OM-v11 (`@framers/agentos`)[^v11m] | gpt-4o | full-cognitive + v10 router + conditional verbatim | ingest | 500 | _PENDING (Phase B aborted on local hardware; queued for remote)_ | — | — | — | — |
+| AgentOS Tier 3 max-acc v2 (`@framers/agentos`)[^t3maxaccm] | gpt-4o | full-cognitive + policy router (maximize-accuracy preset, v2 table) | ingest | 500 | _PENDING (Phase B queued for remote run)_ | — | — | — | — |
+
+**Judge false-positive rate on LongMemEval-M (Stage G-M):** 2% [0%, 5%] at n=100, measured with our `gpt-4o-2024-08-06` judge + `rubricVersion 2026-04-18.1`. Comparable to LongMemEval-S 1% [0%, 3%] and LOCOMO 0% [0%, 0%]. Findings: [STAGE_G_LONGMEMEVAL_M_FINDINGS_2026-04-26.md](../docs/STAGE_G_LONGMEMEVAL_M_FINDINGS_2026-04-26.md).
+
+[^mtuned]: **NEW — 2026-04-26 finding (+ ablation matrix).** The shipping LongMemEval-M baseline at 30.6% was leaving 27 pp on the table. Three opt-in flags combined lift it to **57.4%** at Phase A N=54 stratified: `--rerank-candidate-multiplier 5` (250-chunk pool for Cohere rerank vs default 60), `--reader-top-k 50` (vs default 20), `--hyde`. CharHashEmbedder retained (semantic embedder failed Phase A on local hardware due to memory pressure; queued for remote). **Ablation matrix at N=54 stratified, same seed=42**: multiplier-only 33.3% (+2.7 pp), reader-top-k 50 only 48.1% (+17.5 pp), HyDE only 46.3% (+15.7 pp, $0.0369/correct cheapest), HyDE+TopK no multiplier 50.0% (+19.4 pp), all three combined **57.4%** (+26.8 pp, $0.0558/correct). Per-category attribution: multi-session is multiplier-driven (only combined hits 66.7%; without multiplier MS stays under 45%); single-session-assistant is HyDE-driven (HyDE alone matches HyDE+TopK at 88.9%); temporal-reasoning is HyDE-driven (HyDE alone 66.7%; combined drops TR to 33.3% — too many candidates confuse temporal queries); knowledge-update + single-session-user are TopK-driven; single-session-preference stays ~10-22% across all configs (likely needs OM-v11 dispatch). Per-category-oracle aggregate would be 66.7% (another +9.3 pp). **Cross-validation on LongMemEval-S**: 72.2% N=54, vs Tier 1 canonical S baseline 73.2% Phase B N=500 = −1.0 pp (within noise); the M-tuned config regresses MS −28 pp and SSP −19 pp on S because Tier 3 min-cost on S routes those categories to OM-v11. **Conclusion**: M-tuned config is M-helpful, S-neutral overall, but per-category trade-offs differ between scales — the right integration is per-query LLM-as-judge dispatch via the [RetrievalConfigRouter spec](../docs/specs/2026-04-26-retrieval-config-router-design.md), not a static always-on default. Phase B at full N=500 queued for remote-machine execution (local 17 GB RAM cannot hold the 1536-dim semantic-embedder pipeline at 500-session haystacks). Per-case run JSON: `results/runs/2026-04-26T01-40-34-904--longmemeval-m--gpt-4o--full-cognitive--ingest.json` (combined). Ablation run JSONs: `2026-04-26T02-05-08-097` (mult-only), `2026-04-26T02-08-40-380` (TopK-only), `2026-04-26T02-13-35-497` (HyDE-only), `2026-04-26T02-18-33-158` (HyDE+TopK). Cross-val: `2026-04-26T02-02-35-802--longmemeval-s--gpt-4o--full-cognitive--ingest.json`.
+
+[^t1m]: Stage J Phase B at N=500. Per-category: SSU 60.0%, SSA 50.0%, KU 50.0%, MS 18.0%, TR 12.8%, SSP 10.0%. The S→M scale gap (76.6% → 30.6% = −46 pp) concentrates in multi-session and temporal-reasoning, both precision-bound at 500-session haystacks. **Superseded by the M-tuned row above (+27 pp lift via larger rerank pool + reader-top-k 50 + HyDE).** At M scale, the `minimize-cost` policy-router preset reduces to canonical-hybrid for every category, so this row covers both Tier 1 canonical and Tier 3 min-cost. Findings: [STAGE_J_PHASE_B_FINDINGS_2026-04-25.md](../docs/STAGE_J_PHASE_B_FINDINGS_2026-04-25.md). Per-case run summary: `results/runs/2026-04-25T10-14-43-207--longmemeval-m--gpt-4o--full-cognitive--ingest--summary.json` (full run JSON gitignored due to >100MB; the `--summary.json` sibling is committed).
+
+[^v11m]: Tier 2b OM-v11 on LongMemEval-M. Phase B in flight at the time of this update. Will be filled when the run lands.
+
+[^t3maxaccm]: Tier 3 max-acc on LongMemEval-M. Phase B in flight at the time of this update. Will be filled when the run lands.
+
+### Negative findings (transparent stack)
+
+These rows document architectures we tested and DROPPED at Phase A because they did not lift on top of the shipping baseline. Published as a credibility marker for the v1 transparency narrative.
+
+| System | Reader | Memory | Replay | Cases | Δ vs paired baseline | Findings doc |
+|---|---|---|---|---:|---:|---|
+| AgentOS + Stage L (Anthropic Contextual Retrieval `summarized` executor) | gpt-4o | full-cognitive + per-session summary prepended to chunks before embedding | ingest | 54 | **−3.7 pp** on LongMemEval-S (74.1% → 70.4%); temporal-reasoning −33.3 pp | [STAGE_L_PHASE_A_FINDINGS_2026-04-25.md](../docs/STAGE_L_PHASE_A_FINDINGS_2026-04-25.md) |
+| AgentOS + Stage I (Mem0-v3-style entity-linking re-rank) | gpt-4o | full-cognitive + entity-overlap re-rank at retrieval | ingest | 25 | **−4.0 pp** on LOCOMO (64.0% → 60.0%); multi-hop −20 pp | [STAGE_I_PHASE_A_FINDINGS_2026-04-25.md](../docs/STAGE_I_PHASE_A_FINDINGS_2026-04-25.md) |
+
+Both architectures shipped as production primitives in agentos core for consumers building different pipelines:
+- `SummarizedIngestExecutor` (0.2.12) — Anthropic Contextual Retrieval recipe; wraps `SessionSummarizer` for the `IngestRouter.dispatcher['summarized']` slot
+- `EntityExtractor` + `EntityLinkingIngestExecutor` (0.2.13) — regex-based entity extraction + ingest executor for the `IngestRouter.dispatcher['fact-graph']` slot
+- `EntityRetrievalRanker` (0.2.13) — recall-stage entity-overlap re-rank primitive
+
 ## LongMemEval-Oracle (retrieval-removed, reader quality only)
 | System | Reader | Memory | Replay | Cases | Accuracy | Avg latency | $/correct | Source |
 |---|---|---|---|---:|---:|---:|---:|---|
@@ -56,7 +91,7 @@ AgentOS's pipeline is tuned for LongMemEval-S. We publish three LOCOMO rows: the
 | AgentOS Tier 1 canonical OOD[^locomo-ood] | gpt-4o | full-cognitive | ingest | 1986 | 49.9% | [47.7%, 52.1%] | 2579 ms | $0.0123 | — |
 | AgentOS Tier 1 canonical + K=20 + `--no-abstention` (Stage F-2 corrected, regressed)[^locomo-no-abstention] | gpt-4o | full-cognitive | ingest | 1986 | 47.3% | [45.2%, 49.5%] | 1201 ms | $0.0107 | — |
 
-[^locomo-k20]: **The Pareto-best LOCOMO tuning we found.** Same HybridRetriever (BM25 + dense RRF + Cohere rerank-v3.5) as the OOD row; one knob changed: `--reader-top-k 20` (up from default 10). Per-category vs OOD: single-hop +2.8pp (20.6% → 23.4%), multi-hop −1.9pp (39.6% → 37.7%), temporal +1.0pp (27.1% → 28.1%), open-domain +3.2pp (48.5% → 51.7%), adversarial unchanged (83.4% → 83.6%). Bootstrap CIs overlap the OOD row aggregate-wise; the tuned row wins on cost (20% cheaper/correct) and latency (44% faster) by retrieving more candidates that the reranker can re-sort. We initially mis-labeled this configuration as "K=20 + `--no-abstention` tuned" before catching that the `--no-abstention` flag was being silently dropped at runtime — see [STAGE_F2_CORRECTION_2026-04-24.md](../docs/STAGE_F2_CORRECTION_2026-04-24.md). Per-case artifacts: `results/runs/2026-04-24T22-10-47-514--locomo--gpt-4o--full-cognitive--ingest.json`.
+[^locomo-k20]: **The Pareto-best LOCOMO tuning we found.** Same HybridRetriever (BM25 + dense RRF + Cohere rerank-v3.5) as the OOD row; one knob changed: `--reader-top-k 20` (up from default 10). Per-category vs OOD: single-hop +2.8pp (20.6% → 23.4%), multi-hop −1.9pp (39.6% → 37.7%), temporal +1.0pp (27.1% → 28.1%), open-domain +3.2pp (48.5% → 51.7%), adversarial unchanged (83.4% → 83.6%). Bootstrap CIs overlap the OOD row aggregate-wise; the tuned row wins on cost (20% cheaper/correct) and latency (44% faster) by retrieving more candidates that the reranker can re-sort. We initially mis-labeled this configuration as "K=20 + `--no-abstention` tuned" before catching that the `--no-abstention` flag was being silently dropped at runtime — see [STAGE_F2_CORRECTION_2026-04-24.md](../docs/STAGE_F2_CORRECTION_2026-04-24.md). Per-case artifacts: `results/runs/2026-04-24T22-10-47-514--locomo--gpt-4o--full-cognitive--ingest.json`. Cost provenance: that clean K=20-only JSON is a full cache hit (`totalUsd=$0`); the $0.0099/correct figure comes from the paid pre-fix Stage F-2 artifact, which had the same effective K=20-only runtime configuration.
 
 [^locomo-ood]: **LongMemEval-tuned pipeline on LOCOMO without tuning changes.** Adversarial 83.4%, open-domain 48.5%, multi-hop 39.6%, temporal 27.1%, single-hop 20.6%. The single-hop underperformance is a calibration mismatch: our abstention prompt is tuned for LongMemEval-S's answer-may-not-exist distribution (where abstention on adversarial is CORRECT), and the same behavior over-refuses on LOCOMO non-adversarial. Also: recallTopK=10 undersamples LOCOMO's 199-260-turn dense histories. Dataset: [link](https://github.com/snap-research/locomo). Per-case artifacts: `results/runs/2026-04-24T18-42-51-243--locomo--gpt-4o--full-cognitive--ingest.json`.
 

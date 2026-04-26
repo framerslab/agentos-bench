@@ -549,7 +549,7 @@ export function buildCli(): Command {
     )
     .option(
       '--graph-activation',
-      'Enable Step-13 graph activation wire-up. Heuristic regex entity extraction (zero LLM) at ingest populates trace.entities and creates co-occurrence edges in SqliteKnowledgeGraph. At retrieve, Anderson spreading activation seeded from query entities computes the sixth composite-score signal (weight 0.10 in RetrievalPriorityScorer, previously hardcoded to 0). Additive, deterministic, dodges the n=8 LLM-mediated-content RED pattern by construction.',
+      'Enable Step-13 graph activation wire-up. Heuristic regex entity extraction (zero LLM) at ingest populates trace.entities and creates co-occurrence edges in SqlKnowledgeGraph. At retrieve, Anderson spreading activation seeded from query entities computes the sixth composite-score signal (weight 0.10 in RetrievalPriorityScorer, previously hardcoded to 0). Additive, deterministic, dodges the n=8 LLM-mediated-content RED pattern by construction.',
     )
     .option(
       '--two-call-reader',
@@ -691,6 +691,18 @@ export function buildCli(): Command {
       '--entity-linking [weight]',
       'Stage I: post-retrieval re-rank by Mem0-v3-style entity-overlap. Weight in [0,1] sets the entity signal blend in combinedScore = (1-w)*semanticScore + w*entityOverlapRatio. Default when flag is supplied without a value: 0.5. Cache fingerprint: stage-i-entity-linking:w<weight>:v1.',
       (val: string | true) => (val === true ? 0.5 : Number(val)),
+    )
+    .option(
+      '--typed-network <variant>',
+      'Stage E: Hindsight 4-network typed observer (arxiv:2512.12818). Variants: minimal (4-bank routing only), full (4-bank + spreading + 4-way RRF), production (full + LLM-driven causal extraction). Wires the typed-network module from @framers/agentos/memory/retrieval/typed-network into the retrieval path. Cache fingerprint: stage-e-typed-network:<variant>:v1.',
+      (value: string) => {
+        if (value !== 'minimal' && value !== 'full' && value !== 'production') {
+          throw new Error(
+            `--typed-network must be 'minimal' | 'full' | 'production', got "${value}"`,
+          );
+        }
+        return value;
+      },
     )
     .option(
       '--seed <n>',
@@ -845,6 +857,15 @@ export function buildCli(): Command {
           typeof opts.entityLinking === 'number' && opts.entityLinking > 0
             ? opts.entityLinking
             : undefined,
+        // Stage E: --typed-network <variant> enables the Hindsight 4-network
+        // typed observer at retrieval time. Variant validated by the option
+        // parser above; undefined when flag is absent so cache fingerprint
+        // stays off and existing cached results are reusable.
+        typedNetwork: opts.typedNetwork as
+          | 'minimal'
+          | 'full'
+          | 'production'
+          | undefined,
       };
 
       // Tier 3 policy router validation: mutually exclusive with the v10

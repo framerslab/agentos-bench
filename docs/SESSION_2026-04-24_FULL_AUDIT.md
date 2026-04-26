@@ -88,6 +88,8 @@ Four runs at LOCOMO N=1986, gpt-4o reader, gpt-4o-2024-08-06 judge + rubricVersi
 | K=20 + `--no-abstention` (Stage F-2 corrected) | 47.3% | [45.2%, 49.5%] | $0.0107 | 1.20s | −2.6pp |
 | `--no-abstention` alone at K=10 (Stage F-3 Run B) | 42.1% | [40.0%, 44.3%] | $0.0082 | 1.19s | **−7.8pp** |
 
+Cost provenance: the post-fix K=20-alone artifact is a full cache hit (`totalUsd=$0`) because the pre-fix Stage F-2 run had the same effective runtime config. The $0.0099/correct figure is the paid cost from that pre-fix artifact, reused only because the bug made it a valid K=20-only measurement.
+
 Mechanism story: when `--no-abstention` is actually applied, adversarial accuracy collapses from 83.4% to 54.3% (-29.1pp) because the reader is told "every question has an answer." Temporal +13.5pp and open-domain +6.7pp gain meaningfully — the prompt directive helps where evidence exists. But adversarial is 22.5% of LOCOMO cases, so the loss outweighs the gains in aggregate.
 
 The Pareto-best LOCOMO tuning is K=20 alone (51.5%, +1.6pp at lower cost + lower latency). The combined config is a -2.6pp regression. `--no-abstention` is a category-specific trade-off, not a Pareto improvement.

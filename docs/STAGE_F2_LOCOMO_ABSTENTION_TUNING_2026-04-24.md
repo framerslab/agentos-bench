@@ -34,7 +34,7 @@ Unchanged from Stage F-1 and Phase B shipping numbers:
 Configurations tested (after the `noAbstention` resolveRunConfig fix shipped):
 - Stage F-1: K=10 default, v9 abstention prompt — the OOD baseline.
 - Stage F-2 corrected: `--reader-top-k 20 --no-abstention` — both knobs truly applied.
-- Stage F-3 Run A: `--reader-top-k 20` alone — isolated retrieval effect (cache-hit from the pre-fix corrupt Stage F-2, which was silently the same configuration).
+- Stage F-3 Run A: `--reader-top-k 20` alone — isolated retrieval effect (cache-hit from the pre-fix corrupt Stage F-2, which was silently the same configuration). Its JSON records `totalUsd=$0`; the cost row below uses the paid pre-fix artifact because that run had the same effective K=20-only prompt and cache key.
 - Stage F-3 Run B: `--no-abstention` alone at K=10 default — isolated prompt effect.
 
 ## 3. Implementation (what shipped, post-correction)
@@ -72,7 +72,7 @@ Prompt text substituted when `noAbstention=true`:
 
 ### 4.2 Per-category
 
-| Category | n | F-1 baseline | K=20 alone | --no-absention K=10 | K=20 + --no-abstention |
+| Category | n | F-1 baseline | K=20 alone | --no-abstention K=10 | K=20 + --no-abstention |
 |---|---:|---:|---:|---:|---:|
 | single-hop | 282 | 20.6% | 23.4% (+2.8) | 19.5% (−1.1) | 22.3% (+1.7) |
 | multi-hop | 321 | 39.6% | 37.7% (−1.9) | 37.4% (−2.2) | 41.1% (+1.5) |
@@ -103,7 +103,7 @@ When the prompt directive actually reaches the reader, adversarial DOES collapse
 
 ### 5.2 The Pareto-best LOCOMO tuning is K=20 alone
 
-51.5% [49.2%, 53.7%] at $0.0099/correct, 1.45s avg latency. +1.6pp aggregate vs OOD baseline; CIs overlap, but cost-per-correct is 20% lower and latency is 44% lower. We retract the previously-published claim that "K=20 + `--no-abstention` is the tuned configuration": that combination is a regression on aggregate, despite winning on temporal and open-domain at the per-category level.
+51.5% [49.2%, 53.7%] at $0.0099/correct, 1.45s avg latency. +1.6pp aggregate vs OOD baseline; CIs overlap, but cost-per-correct is 20% lower and latency is 44% lower. The K=20-only ablation JSON is a cache hit, so its `totalUsd` is $0; the $0.0099/correct figure comes from the paid pre-fix Stage F-2 artifact, which was actually K=20 alone at runtime. We retract the previously-published claim that "K=20 + `--no-abstention` is the tuned configuration": that combination is a regression on aggregate, despite winning on temporal and open-domain at the per-category level.
 
 If a workload is dominated by temporal and/or open-domain Q's and contains NO adversarial Q's, `--no-abstention` could still be net-positive — the per-category measurements support that. But on LOCOMO's distribution (22.5% adversarial), the flag is net-negative.
 

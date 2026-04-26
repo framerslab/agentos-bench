@@ -59,7 +59,7 @@
     "@framers/agentos": "workspace:*",
     "@types/node": "^20.12.12",
     "@types/stream-json": "^1.7.8",
-    "better-sqlite3": "^12.6.2",
+    "better-sqlite3": "^12.9.0",
     "rimraf": "^5.0.7",
     "typescript": "^5.5.0",
     "vitest": "^1.6.0"

@@ -396,7 +396,7 @@ async function runBaseMemoryCase(
     ctx.scratchDir,
     `locomo-${c.id.replace(/[^a-zA-Z0-9-_]/g, '_')}.sqlite`,
   );
-  const mem = await Memory.create({ path: brainPath, selfImprove: false });
+  const mem = await Memory.createSqlite({ path: brainPath, selfImprove: false });
   try {
     const replayStats = await replayViaIngest(c.haystack, mem);
     const recalled = await mem.recall(c.question, {

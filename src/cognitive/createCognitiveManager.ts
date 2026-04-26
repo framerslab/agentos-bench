@@ -4,10 +4,10 @@
  * with minimal dependencies suitable for benchmark runs.
  *
  * Dependencies:
- *   - `SqliteBrain` (in-temp-file) — durable backing for the knowledge
+ *   - `Brain` (in-temp-file) — durable backing for the knowledge
  *     graph and memory graph. The benchmark writes one brain file per
  *     case under `ctx.scratchDir`, then deletes it.
- *   - `SqliteKnowledgeGraph(brain)` — real IKnowledgeGraph (not a mock).
+ *   - `SqlKnowledgeGraph(brain)` — real IKnowledgeGraph (not a mock).
  *   - `InMemoryVectorStore` — fast, dependency-free vector store for
  *     hot-path retrieval. Ephemeral by design — the benchmark does not
  *     need cross-run persistence for the vector index.
@@ -24,8 +24,8 @@
 import { promises as fs } from 'node:fs';
 import {
   CognitiveMemoryManager,
-  SqliteBrain,
-  SqliteKnowledgeGraph,
+  Brain,
+  SqlKnowledgeGraph,
   FactExtractor,
   FactStore,
 } from '@framers/agentos';
@@ -39,6 +39,12 @@ import {
 } from '@framers/agentos/rag/reranking';
 import { CharHashEmbedder, CHAR_HASH_DIM } from './charHashEmbedder.js';
 import { MinimalWorkingMemoryBacking } from '../micro/support/MinimalWorkingMemoryBacking.js';
+import {
+  TypedNetworkObserver,
+  TypedNetworkStore,
+  TypedSpreadingActivation,
+  type ITypedExtractionLLM,
+} from '@framers/agentos/memory/retrieval/typed-network';
 
 /** Neutral HEXACO traits — every dimension at 0.5. */
 export const NEUTRAL_TRAITS: HexacoTraits = {
@@ -156,6 +162,26 @@ export interface CreateCognitiveManagerOptions {
    * Default: false. Bench sets this when `--graph-activation` is passed.
    */
   enableGraphActivation?: boolean;
+
+  /**
+   * Stage E: Hindsight 4-network typed observer variant. When set, the
+   * factory instantiates a {@link TypedNetworkObserver} +
+   * {@link TypedNetworkStore} on the returned handle so the bench
+   * adapter can extract typed facts at ingest and run typed spreading
+   * activation + 4-way RRF at retrieval. Variant choice drives which
+   * features the adapter wires up:
+   * - `minimal`: 4-bank routing only (no spreading, no fusion).
+   * - `full`: 4-bank + spreading activation + 4-way RRF.
+   * - `production`: full + LLM-driven causal-edge extraction.
+   *
+   * Leave undefined to skip typed-network instantiation (bench default).
+   * Activated by the `--typed-network <variant>` CLI flag.
+   */
+  typedNetwork?: {
+    variant: 'minimal' | 'full' | 'production';
+    /** LLM invoker for the 6-step extraction prompt. Typically gpt-5-mini. */
+    llmInvoker: (systemPrompt: string, userPrompt: string) => Promise<string>;
+  };
 }
 
 /**
@@ -166,7 +192,7 @@ export interface BenchCognitiveHandle {
   /** The manager ready for `encode` / `observe` / `retrieve`. */
   manager: CognitiveMemoryManager;
   /** Brain instance — exposed so callers can read low-level state. */
-  brain: SqliteBrain;
+  brain: Brain;
   /**
    * Close the manager and delete the underlying SQLite brain file.
    * Idempotent — safe to call multiple times.
@@ -184,6 +210,37 @@ export interface BenchCognitiveHandle {
    * {@link factStore} when the LLM invoker is provided.
    */
   factExtractor?: FactExtractor;
+
+  /**
+   * Stage E: per-case {@link TypedNetworkStore}. Populated when
+   * {@link CreateCognitiveManagerOptions.typedNetwork} is set. The
+   * adapter inserts typed facts at session-ingest time and queries it
+   * at retrieve via spreading activation + 4-way RRF.
+   */
+  typedNetworkStore?: TypedNetworkStore;
+
+  /**
+   * Stage E: per-case {@link TypedNetworkObserver}. Wired with the
+   * configured LLM invoker. The adapter calls
+   * `observer.extract(sessionText, sessionId)` per session at ingest.
+   */
+  typedNetworkObserver?: TypedNetworkObserver;
+
+  /**
+   * Stage E: per-case {@link TypedSpreadingActivation}. Pre-constructed
+   * with default decay (0.5) and the typed-edge multipliers from
+   * Hindsight §2.4.1. The adapter calls `spreading.spread(store, seedIds, options)`
+   * at retrieval time.
+   */
+  typedNetworkSpreadingActivation?: TypedSpreadingActivation;
+
+  /**
+   * Stage E: variant in use ('minimal' | 'full' | 'production'). The
+   * adapter uses this to gate which retrieval features run (minimal
+   * does just bank routing; full adds spreading + 4-way RRF;
+   * production adds LLM causal-edge extraction).
+   */
+  typedNetworkVariant?: 'minimal' | 'full' | 'production';
 }
 
 /**
@@ -193,9 +250,9 @@ export interface BenchCognitiveHandle {
 export async function createCognitiveManager(
   opts: CreateCognitiveManagerOptions,
 ): Promise<BenchCognitiveHandle> {
-  const brain = await SqliteBrain.open(opts.brainPath);
+  const brain = await Brain.openSqlite(opts.brainPath);
 
-  const knowledgeGraph = new SqliteKnowledgeGraph(brain);
+  const knowledgeGraph = new SqlKnowledgeGraph(brain);
   await knowledgeGraph.initialize();
 
   const vectorStore = new InMemoryVectorStore();
@@ -295,5 +352,40 @@ export async function createCognitiveManager(
       })
     : undefined;
 
-  return { manager, brain, close, factStore, factExtractor };
+  // Stage E: wire typed-network observer + store when --typed-network
+  // is passed. Per-case state — lives as long as the handle. The
+  // adapter is responsible for invoking observer.extract on session
+  // text at ingest and feeding the spreading-activation primitive at
+  // retrieval; the factory just constructs the empty store + observer.
+  let typedNetworkStore: TypedNetworkStore | undefined;
+  let typedNetworkObserver: TypedNetworkObserver | undefined;
+  let typedNetworkSpreadingActivation: TypedSpreadingActivation | undefined;
+  let typedNetworkVariant: 'minimal' | 'full' | 'production' | undefined;
+  if (opts.typedNetwork) {
+    typedNetworkVariant = opts.typedNetwork.variant;
+    typedNetworkStore = new TypedNetworkStore();
+    // Adapt the (system, user) → string invoker to the observer's
+    // ITypedExtractionLLM shape (single object arg with system, user,
+    // maxTokens, temperature). The bench's other invokers use the
+    // legacy two-arg form; the typed-network observer was designed
+    // post-the-shape-cleanup and uses the single-arg shape.
+    const llm: ITypedExtractionLLM = {
+      invoke: async ({ system, user }) =>
+        opts.typedNetwork!.llmInvoker(system, user),
+    };
+    typedNetworkObserver = new TypedNetworkObserver({ llm });
+    typedNetworkSpreadingActivation = new TypedSpreadingActivation({ decay: 0.5 });
+  }
+
+  return {
+    manager,
+    brain,
+    close,
+    factStore,
+    factExtractor,
+    typedNetworkStore,
+    typedNetworkObserver,
+    typedNetworkSpreadingActivation,
+    typedNetworkVariant,
+  };
 }
