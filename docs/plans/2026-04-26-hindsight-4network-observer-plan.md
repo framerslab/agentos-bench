@@ -1,19 +1,62 @@
 ---
-title: Stage E: Hindsight 4-Network Typed Observer (Implementation Plan)
-date: 2026-04-26
+title: Stage E: Hindsight 4-Network Typed Observer (Implementation Plan v3)
+date: 2026-04-26 (v1), 2026-04-25 revision v2 (phasing rewrite + bench-vs-core), 2026-04-25 revision v3 (rebased after concurrent shipping of Phase 4.1-4.3 + TypedNetworkRetriever)
 spec: ../specs/2026-04-26-hindsight-4network-observer-design.md
-estimated_cost: $500-800 LLM total
-estimated_duration: 13-15 working days
+estimated_cost: $321-371 LLM (ex-shipping) plus $500-800 with cushion
+estimated_duration: ~5-7 working days remaining (Phases 1-3, 4.1, 4.2, 4.3 + TypedNetworkRetriever shipped)
 execution_mode: inline (no subagents per user preference)
 ---
 
 # Stage E: Hindsight 4-Network Typed Observer Plan
 
-**Goal:** Implement the typed-network observer architecture in agentos core, wire into the bench, and run Phase A measurement with a decision gate before any Phase B spend.
+**Goal:** Run the Phase 4c smoke against the shipped option-B baseline (TypedNetworkRetriever appending to canonical pool), measure Phase A on LongMemEval-S N=54, gate on the +2pp criterion. If Phase A passes, ship to Phase B. If Phase A is +0 to +2pp, escalate to Phase 4.4 (4-way RRF + budget-split prompt blocks per spec §4.2.B). If Phase A negatives, publish as third negative result and ship the typed-network primitives as opt-in core (already shipped in agentos@0.4.0).
 
-**Architecture (3 sentences):** New `packages/agentos/src/memory/retrieval/typed-network/` module with four typed banks (World, Experience, Opinion, Observation), LLM-driven 6-step extraction at ingest, typed spreading activation across the bank graph, and 4-way RRF fusion at retrieval. Sits alongside the existing `CognitiveMemoryManager`, opt-in via new config. Bench wiring adds `--typed-network [variant]` CLI flag with cache-fingerprint propagation reusing the Stage F-2 pattern.
+**Architecture (3 sentences):** Phase 4.1 (config + manager wiring), 4.2 (encode runs observer), 4.3 MVP (retrieve runs spreading activation + surfaces top-10 in `diagnostics.retrievedTypedFacts`), and TypedNetworkRetriever (canonical-shaped adapter) all SHIPPED in agentos@0.4.0. Bench-side LongMemEvalS uses TypedNetworkRetriever to append typed facts to the canonical retrieval pool with bank-prefixed content (option B per spec §4.2.A). Phase 4.4 (conditional, gated on Phase 6 outcome) replaces the seed-then-spread MVP with 4-signal RRF inside `manager.retrieve()` and adds a `[Typed memory]` reader-prompt block at the configured `budgetSplit` fraction (option A per spec §4.2.B).
 
-**Tech Stack:** TypeScript (ESM), `zod` for schema validation, `vitest` for TDD, existing `IEmbeddingManager` + `IVectorStore` interfaces, OpenAI gpt-5-mini for extraction (gpt-4o for reader/judge ablations).
+**Tech Stack:** TypeScript (ESM), `zod` for schema validation, `vitest` for TDD, existing `IEmbeddingManager` (typed-fact embeddings inherit the manager's embedder per spec §4.2.2), OpenAI gpt-5-mini for extraction (gpt-4o for reader/judge ablations).
+
+## Status as of 2026-04-25 v3 (read this before starting Phase 4c)
+
+**SHIPPED in `framersai/agentos@230c6aea` (package version 0.4.0):**
+
+| Phase | Commit | What |
+|---|---|---|
+| 1 | `ebdf5654` | Pure-code primitives: `types.ts`, `TypedNetworkStore.ts`, `TemporalIntervalOverlap.ts` |
+| 2 | `ee8f4632` | `TypedNetworkObserver.ts` + 6-step extraction prompt + zod schema |
+| 3 | `d8678495` | `TypedSpreadingActivation.ts` (Eq. 12) + `FourWayRrf.ts` |
+| 4.1 | `cac63c2` | `CognitiveMemoryConfig.typedNetwork` field + manager wiring + accessors |
+| 4.2 | `a604d86` | `manager.encode()` runs observer + addFact, errors logged via stderr |
+| 4.3 | `d0ab11c5` | `manager.retrieve()` MVP: collect seed entities, spread, top-10 facts via `diagnostics.retrievedTypedFacts` |
+| (export) | `db9ea8b9` | Subpath export for typed-network module |
+| (fix) | `64a5e69` | retrievedTypedFacts inside diagnostics + ScoredMemoryTrace import |
+| (fix) | `cf045fa2` | Unblock CI build (TS errors in 0.3.4) |
+| (release) | `99a8bb51` | 0.4.0 |
+| 4-adapter | `230c6aea` | `TypedNetworkRetriever`: ScoredMemoryTrace[] adapter, 15 unit tests |
+
+**Tests as of HEAD `230c6aea`:** 75/75 typed-network tests passing in agentos.
+
+**SHIPPED in monorepo commit `ef65cbf9e` (v1 publication, earlier this week):**
+- `packages/agentos-bench/src/cli.ts:696-701`: `--typed-network <variant>` flag
+- `packages/agentos-bench/src/core/IBenchmark.ts:707-722, :814`: `RunConfig.typedNetwork` + `OPTIONAL_RUN_CONFIG_KEYS`
+- `packages/agentos-bench/src/core/BenchmarkRunner.ts:202-204, :657-663`: `resolveRunConfig` propagation + cache fingerprint
+- `packages/agentos-bench/tests/resolveRunConfigContract.spec.ts:97`: SAMPLES update
+- `packages/agentos-bench/src/cognitive/createCognitiveManager.ts:387-401`: handle.typedNetworkStore / Observer / SpreadingActivation are passthrough accessors backed by `manager.getTypedNetworkStore()` etc. (the elegant bridge the other session built)
+- `packages/agentos-bench/src/benchmarks/longmemeval/LongMemEvalS.ts:1568-1617`: typed-network config
+
+**UNCOMMITTED in working tree (other session, do NOT touch):**
+- `packages/agentos-bench/src/benchmarks/longmemeval/LongMemEvalS.ts:1730-1762`: bench retrieval integration via TypedNetworkRetriever
+- `packages/agentos-bench/docs/NEXT_SESSION_2026-04-27_HANDOFF_v4_AFTER_V1_PUBLICATION.md`: "0.3a Stage E retrieval integration COMPLETE" section
+- `packages/agentos-bench/results/LEADERBOARD.md`
+- `packages/agentos-bench/results/eval-matrix-v1/comparison-table.md`
+
+**Pre-flight: bench tests = 515/515 passing; agentos typed-network tests = 75/75 passing (verified 2026-04-25 22:36).**
+
+**NOT SHIPPED (this plan's targets):**
+- 5-case smoke run at `--typed-network full` against shipped option-B baseline (Phase 4c)
+- Phase A measurement on LongMemEval-S N=54 stratified at minimal + full (Phase 5)
+- Phase 4.4 (4-way RRF + budget-split prompt blocks) as conditional escalation per Phase 6
+- Locomo adapter mirror (deferred to Phase 7)
+- COHERE_API_KEY in monorepo `.env` (blocks Phase A)
 
 **Pre-flight constraints (NON-NEGOTIABLE):**
 - Branch: `master`
@@ -377,8 +420,8 @@ export function rankByTemporalOverlap(
 }
 
 function scoreOverlap(fact: TypedFact, queryMs: number): number {
-  const start = fact.temporal.start ? Date.parse(fact.temporal.start) : NaN;
-  const end = fact.temporal.end ? Date.parse(fact.temporal.end) : NaN;
+  const start = fact.temporal.start ? Date.parse(fact.temporal.start): NaN;
+  const end = fact.temporal.end ? Date.parse(fact.temporal.end): NaN;
   const mention = Date.parse(fact.temporal.mention);
 
   if (!Number.isNaN(start) && !Number.isNaN(end)) {
@@ -770,130 +813,274 @@ export function fourWayRrf(
 
 ---
 
-## Phase 4: Integration with CognitiveMemoryManager + bench wiring (2 days, $5)
+## Phase 4.1, 4.2, 4.3 + TypedNetworkRetriever (SHIPPED, no action)
 
-### Task 4.1: Add typed-network config to CognitiveMemoryManager
+Per the Status header, all of the following landed in agentos@0.4.0 (HEAD `230c6aea`) and the bench-side LongMemEvalS integration is uncommitted in another concurrent session's working tree:
 
-**Files:**
-- Modify: `packages/agentos/src/memory/CognitiveMemoryManager.ts` (add optional `typedNetwork` to config)
-- Modify: `packages/agentos/src/memory/config.ts` (add `TypedNetworkConfig` type)
+- Phase 4.1 (`cac63c2`): `CognitiveMemoryConfig.typedNetwork` field + manager wiring + accessors `getTypedNetworkStore()` / `getTypedNetworkObserver()` / `getTypedNetworkSpreadingActivation()`
+- Phase 4.2 (`a604d86`): `manager.encode()` calls observer.extract + addFact, errors logged via stderr
+- Phase 4.3 (`d0ab11c5`): `manager.retrieve()` MVP runs spreading activation, surfaces top-10 facts via `diagnostics.retrievedTypedFacts` (no 4-way RRF; no composite score fusion)
+- TypedNetworkRetriever (`230c6aea`): adapter producing `ScoredMemoryTrace[]` for the bench's canonical pool; `extractQueryEntities` + `typedFactToScoredTrace` helpers; 15 contract tests
+- Bench wiring at `LongMemEvalS:1730-1762` (uncommitted): instantiates `TypedNetworkRetriever`, appends top-K typed traces to canonical pool
 
-- [ ] **Step 4.1.1: Read current config to find insertion point**
-
-```bash
-grep -n "interface CognitiveMemoryConfig" packages/agentos/src/memory/config.ts
-```
-
-- [ ] **Step 4.1.2: Add the optional config type**
-
-In `config.ts`:
-
-```ts
-export interface TypedNetworkConfig {
-  enabled: boolean;
-  variant: 'minimal' | 'full' | 'production';
-  llm?: ITypedExtractionLLM;
-  decay?: number;
-  edgeMultipliers?: Record<EdgeKind, number>;
-  rrfK?: number;
-}
-```
-
-In `CognitiveMemoryConfig` interface, add:
-
-```ts
-typedNetwork?: Partial<TypedNetworkConfig>;
-```
-
-- [ ] **Step 4.1.3: Wire the module into `CognitiveMemoryManager.initialize()`**
-
-If `config.typedNetwork?.enabled === true`, lazy-import the typed-network module and store the observer + store + spreading activation as instance fields. Keep the typed-network path independent of the existing 6-signal scoring; final ranking blends the two.
-
-### Task 4.2: Bench `--typed-network` CLI flag
-
-**Files:**
-- Modify: `packages/agentos-bench/src/cli.ts` (add `--typed-network [variant]`)
-- Modify: `packages/agentos-bench/src/core/IBenchmark.ts` (add to RunConfig + OPTIONAL_RUN_CONFIG_KEYS)
-- Modify: `packages/agentos-bench/src/core/BenchmarkRunner.ts` (propagate in `resolveRunConfig`, add cache fingerprint tag)
-- Modify: `packages/agentos-bench/src/cognitive/createCognitiveManager.ts` (wire when set)
-- Modify: `packages/agentos-bench/tests/resolveRunConfigContract.spec.ts` (add to SAMPLES, DO NOT skip this; the same regression caught the v1 publication's Stage I work)
-
-- [ ] **Step 4.2.1: Add to RunConfig + OPTIONAL_RUN_CONFIG_KEYS in IBenchmark.ts**
-
-```ts
-// In RunConfig interface
-typedNetwork?: 'minimal' | 'full' | 'production';
-
-// In OPTIONAL_RUN_CONFIG_KEYS array
-'typedNetwork',
-```
-
-- [ ] **Step 4.2.2: Add to SAMPLES in contract test FIRST (TDD discipline)**
-
-Per spec §4.3 explicit note + the v1 publication Phase 0 regression: add the sample BEFORE running the contract test, otherwise it fails immediately.
-
-```ts
-// resolveRunConfigContract.spec.ts SAMPLES record
-typedNetwork: 'minimal',
-```
-
-- [ ] **Step 4.2.3: Propagate in resolveRunConfig**
-
-Per Stage F-2 contract pattern (mirrored from `entityLinking` at `BenchmarkRunner.ts:201`):
-
-```ts
-// In resolveRunConfig
-typedNetwork: cfg.typedNetwork,
-```
-
-- [ ] **Step 4.2.4: Add cache fingerprint tag**
-
-Per Stage F-2 pattern:
-
-```ts
-// In cache fingerprint composer
-if (config.typedNetwork) {
-  fingerprintTags.push(`stage-e-typed-network:${config.typedNetwork}:v1`);
-}
-```
-
-- [ ] **Step 4.2.5: Wire CLI flag**
-
-```ts
-// cli.ts
-.option('--typed-network <variant>', 'Stage E typed network observer (minimal/full/production)')
-```
-
-- [ ] **Step 4.2.6: Verify all bench tests pass**
-
-```bash
-cd packages/agentos-bench
-pnpm test 2>&1 | tail -10
-```
-
-Expected: 514+ tests pass, 0 fail.
-
-- [ ] **Step 4.2.7: Smoke test end-to-end ($5)**
-
-```bash
-cd packages/agentos-bench
-pnpm exec tsx src/cli.ts \
-  --benchmark longmemeval-s \
-  --reader gpt-4o \
-  --memory full-cognitive \
-  --replay ingest \
-  --typed-network minimal \
-  --sample-per-type 1 \
-  --seed 42
-```
-
-Expected: $5, 6 cases (1 per type), at least non-error completion. Validate that typed facts are actually being extracted (check the run JSON for typed-network metadata).
+NO ACTION required in this plan for Phases 4.1-4.3 + adapter. The Phase 4c smoke and Phase A measurement run against this shipped option-B baseline.
 
 ---
 
-## Phase 5: Phase A measurement on LongMemEval-S (1 day, $20)
+## Phase 4.4 (CONDITIONAL escalation, gated on Phase 6): 4-way RRF + budget-split prompt blocks (2 days, $0)
 
-### Task 5.1: Get user approval ($20 spend)
+Per spec §4.2.B + the d0ab11c5 commit message: "Phase 4.3 IS AN MVP. Fusion (4-way RRF + weighted merge with the existing scored list) lands in a follow-up iteration once Phase 4.4 wires the bench reader to consume typed facts directly."
+
+Activated only if Phase 6 outcome is +0 to +2pp (Phase A on shipped option B does not clear the +2pp gate). Skipped if Phase A clears (proceed directly to Phase 7 / Phase B). Skipped if Phase A negatives below baseline (publish 3rd negative result, ship typed-network as opt-in primitive, abandon Phase 4.4).
+
+### Task 4.4.1: Extend `TypedNetworkConfig` with Phase 4.4 fields
+
+**Files:**
+- Modify: `packages/agentos/src/memory/core/config.ts` (add `edgeMultipliers`, `rrfK`, `activationThreshold`, `budgetSplit`, `extractionMaxTokens`, `extractionTemperature`, `retrievalMode` fields per spec §4.2.1)
+
+- [ ] **Step 4.4.1.1: TDD: write failing test for the extended config**
+
+```ts
+// packages/agentos/src/memory/__tests__/typed-network-config-v44.test.ts
+import { describe, it, expect } from 'vitest';
+import type { CognitiveMemoryConfig } from '../core/config.js';
+
+describe('TypedNetworkConfig v3 + Phase 4.4 fields', () => {
+  it('accepts the extended Phase 4.4 surface', () => {
+    const cfg: Partial<CognitiveMemoryConfig> = {
+      typedNetwork: {
+        variant: 'full',
+        observerLLM: { invoke: async () => '{"facts":[]}' },
+        edgeMultipliers: { entity: 1, causal: 1, temporal: 0.7, semantic: 0.6 },
+        rrfK: 60,
+        activationThreshold: 0.05,
+        budgetSplit: { traces: 0.5, typedFacts: 0.5 },
+        extractionMaxTokens: 4096,
+        extractionTemperature: 0,
+        retrievalMode: 'budget-split',
+      },
+    };
+    expect(cfg.typedNetwork?.retrievalMode).toBe('budget-split');
+    expect(cfg.typedNetwork?.budgetSplit?.traces).toBe(0.5);
+  });
+
+  it('validates budgetSplit fractions sum to 1.0', () => {
+    // The validator (introduced in Task 4.4.2) throws on bad budgetSplit
+    // (e.g. {traces: 0.3, typedFacts: 0.5} = 0.8). Specific test runs in 4.4.2.
+  });
+});
+```
+
+- [ ] **Step 4.4.1.2: Implement extended fields per spec §4.2.1 Phase 4.4 additions block**
+
+- [ ] **Step 4.4.1.3: Run test, expect PASS; commit (await user approval)**
+
+### Task 4.4.2: Add `validateTypedNetworkConfig(cfg)` runtime validator
+
+**Files:**
+- Create: `packages/agentos/src/memory/retrieval/typed-network/validation.ts`
+- Create: `packages/agentos/src/memory/retrieval/typed-network/__tests__/validation.test.ts`
+
+- [ ] **Step 4.4.2.1: TDD: write failing test for validator**
+
+Tests cover:
+- `budgetSplit` fractions sum to 1.0 (within 1e-6 epsilon); throws `BudgetSplitError` otherwise
+- `decay`, `activationThreshold`, `extractionTemperature` ∈ valid ranges
+- `rrfK > 0`, `maxDepth >= 1`, `extractionMaxTokens >= 1`
+- `retrievalMode` is one of the literal values
+
+- [ ] **Step 4.4.2.2: Implement validator**
+
+- [ ] **Step 4.4.2.3: Wire validator call into `manager.initialize()` when `config.typedNetwork` is set**
+
+- [ ] **Step 4.4.2.4: Run tests, commit**
+
+### Task 4.4.3: Replace seed-then-spread MVP with 4-signal RRF inside `manager.retrieve()`
+
+**Files:**
+- Modify: `packages/agentos/src/memory/CognitiveMemoryManager.ts` (replace lines ~777-813, the Phase 4.3 MVP block, with the 4-signal pipeline guarded by `retrievalMode === 'budget-split'`; preserve seed-then-spread MVP for `retrievalMode === 'pool-append'` back-compat)
+
+- [ ] **Step 4.4.3.1: TDD: write failing test for 4-signal pipeline**
+
+```ts
+// packages/agentos/src/memory/__tests__/typed-network-retrieve-rrf.test.ts
+describe('CognitiveMemoryManager.retrieve 4-way RRF (Phase 4.4)', () => {
+  it('runs 4-signal RRF when retrievalMode=budget-split + variant=full', async () => {
+    // Pre-populate store with 5 facts in different banks + entity overlaps.
+    // Issue retrieve('Berlin docker'); expect diagnostics.retrievedTypedFacts
+    // ordered by RRF fusion of (semantic, BM25, graph, temporal).
+  });
+
+  it('preserves shipped seed-then-spread MVP when retrievalMode=pool-append', async () => {
+    // Same fixture. Verify back-compat behavior is unchanged.
+  });
+
+  it('minimal variant returns top-N by semantic only, both retrievalModes', async () => {
+    // ...
+  });
+});
+```
+
+- [ ] **Step 4.4.3.2: Implement: add private helpers `rankBySemantic`, `rankByBm25` (in-memory), gate the new pipeline behind `config.typedNetwork?.retrievalMode === 'budget-split'`. Preserve the existing seed-then-spread block for the default `pool-append` mode.**
+
+- [ ] **Step 4.4.3.3: Run tests, commit**
+
+### Task 4.4.4: Bench formats `[Typed memory]` reader-prompt block
+
+**Files:**
+- Create: `packages/agentos-bench/src/benchmarks/longmemeval/formatTypedFactsBlock.ts` (helper)
+- Modify: `packages/agentos-bench/src/benchmarks/longmemeval/LongMemEvalS.ts` (gate `[Typed memory]` block behind `retrievalMode === 'budget-split'`; preserve TypedNetworkRetriever pool-append for `pool-append` mode)
+- Create: `packages/agentos-bench/tests/formatTypedFactsBlock.spec.ts`
+
+- [ ] **Step 4.4.4.1: TDD: write failing test for formatter**
+
+Test cases:
+- Formats facts as `- [BANK | confidence=N.NN] <text> (entities: ...; participants: ...; <ISO temporal>)`
+- Truncates to a token budget (use existing token estimator if present; else `Math.floor(budget * 4)` chars)
+- Empty facts → empty string
+- Wraps in `[Typed memory]
+<formatted>
+[/Typed memory]` markers
+
+- [ ] **Step 4.4.4.2: Implement the formatter**
+
+- [ ] **Step 4.4.4.3: Wire bench reader prompt:**
+
+When `config.typedNetwork?.retrievalMode === 'budget-split'`:
+1. Skip the TypedNetworkRetriever pool-append at LongMemEvalS:1730-1762 (the other session's wiring)
+2. Compute `tracesBudget = totalMemoryBudget * config.typedNetwork.budgetSplit.traces`
+3. Compute `typedFactsBudget = totalMemoryBudget * config.typedNetwork.budgetSplit.typedFacts`
+4. Truncate the existing trace context to `tracesBudget`
+5. Append `formatTypedFactsBlock(retrieval.diagnostics.retrievedTypedFacts ?? [], typedFactsBudget)`
+
+- [ ] **Step 4.4.4.4: Run bench tests, expect all pass + 3 new = 518 tests**
+
+- [ ] **Step 4.4.4.5: Commit**
+
+### Task 4.4.5: Re-run Phase 4c smoke at `--typed-network full --retrieval-mode budget-split`
+
+Same procedure as the original Phase 4c (below), but with the Phase 4.4 path active. Verify:
+- 4-way RRF fusion produces a different ranking than seed-then-spread MVP
+- Reader prompt visibly contains `[Typed memory]` block
+- Run JSON metadata reflects `stage-e-typed-network:full:retrieval-mode-budget-split:v44`
+
+### Task 4.4.6: Re-run Phase A at `--typed-network full --retrieval-mode budget-split`
+
+Same procedure as the original Phase 5 (below). Compare:
+- Phase A result vs original Phase A on shipped option B
+- Per-category breakdown (which categories benefit from RRF + budget-split)
+
+If Phase A on Phase 4.4 clears +2pp gate, proceed to Phase B. If not, publish two negative-result paths (option B + option A) and ship both as opt-in primitives.
+
+---
+
+## Phase 4c: Smoke ($1-5, 30 min)
+
+Gated on EXPLICIT user approval before run. Targets the SHIPPED option-B baseline (Phase 4.1, 4.2, 4.3 + TypedNetworkRetriever pool-append). Re-run on Phase 4.4 path is Task 4.4.5 above (only if Phase 6 escalates).
+
+### Task 4c.1: Pose to user
+
+> "Stage E Phase 4c smoke: 6 LongMemEval-S cases (one per category) at `--typed-network full`, single seed, gpt-5-mini observer + gpt-4o reader. Estimated cost $1-5. Verifies typed facts extracted, spreading activation runs, TypedNetworkRetriever appends typed facts to canonical pool with `sourceType: 'typed_network'`, run JSON metadata reflects the `stage-e-typed-network:full:v1` cache fingerprint. Approve?"
+
+### Task 4c.2: Run the smoke
+
+- [ ] **Step 4c.2.1: Verify env keys**
+
+```bash
+grep -E "^OPENAI_API_KEY=" /Users/johnn/Documents/git/super-cloud-mcps/.env | head -1
+# COHERE_API_KEY not required for smoke (no rerank); needed for Phase A.
+```
+
+- [ ] **Step 4c.2.2: Run with `--sample-per-type 1` (6 cases) for one per LongMemEval-S category**
+
+```bash
+NODE_OPTIONS="--max-old-space-size=8192" pnpm --dir packages/agentos-bench exec tsx src/cli.ts run longmemeval-s \
+  --reader gpt-4o \
+  --memory full-cognitive \
+  --replay ingest \
+  --typed-network full \
+  --hybrid-retrieval \
+  --sample-per-type 1 \
+  --seed 42 \
+  --concurrency 1
+```
+
+- [ ] **Step 4c.2.3: Verify the run JSON**
+
+```bash
+ls -lt packages/agentos-bench/results/runs/*--longmemeval-s--*--ingest.json | head -1
+# In the latest, check:
+# - totalUsd > 0 (fresh run, not full cache hit)
+# - retrievedEvidence (or similar) contains entries with sourceType: 'typed_network'
+# - case metadata contains entries with content prefixed `[WORLD]` / `[EXPERIENCE]` / etc.
+# - cache fingerprint includes 'stage-e-typed-network:full:v1'
+```
+
+- [ ] **Step 4c.2.4: Document outcome**
+
+Append to `packages/agentos-bench/docs/STAGE_E_PHASE_4C_SMOKE_<DATE>.md` (new doc):
+- Cases run, totalUsd, accuracy (informational; smoke not statistically meaningful)
+- Sample of typed facts extracted by `TypedNetworkObserver` per session
+- Sample of spreading-activation result from `manager.retrieve()` `diagnostics.retrievedTypedFacts`
+- Sample of `ScoredMemoryTrace[]` produced by `TypedNetworkRetriever` (note `[BANK]` content prefixes)
+- Pass/fail per spec §8 smoke gate
+
+- [ ] **Step 4c.2.5: If smoke passes, request Phase A approval**
+
+```
+"Stage E Phase 4c smoke passed. Approve $30 Phase A on LongMemEval-S N=54 stratified at minimal + full variants?"
+```
+
+- [ ] **Step 4c.2.6: If smoke fails, debug and re-run**
+
+Fail signals: empty typedFacts, observer extraction errors, BM25 returning empty rankings on populated data, fused ranking collapsed to a single duplicated fact, etc.
+
+---
+
+## Phase 4d (parallel, optional): M-tuned Phase B at LongMemEval-M N=500 ($50, 1 day)
+
+Independent of Stage E. Runs at the existing M-tuned config (`--rerank-candidate-multiplier 5 --reader-top-k 50 --hyde`) at full N=500 to ship a v2 publication data point regardless of Stage E outcome.
+
+Gated on Cohere key + remote machine + explicit user approval.
+
+### Task 4d.1: Pose to user
+
+> "M-tuned Phase B: full N=500 on LongMemEval-M with `--rerank-candidate-multiplier 5 --reader-top-k 50 --hyde`. Estimated $50. Independent of Stage E; ships v2 publication data point either way. Requires Cohere key + remote 32 GB+ machine. Approve?"
+
+### Task 4d.2: Verify Cohere key + machine
+
+```bash
+grep -E "^COHERE_API_KEY=" /Users/johnn/Documents/git/voice-chat-assistant/.env || echo "MISSING. surface to user"
+# Check disk + RAM headroom on target machine
+```
+
+### Task 4d.3: Run
+
+```bash
+pnpm --dir packages/agentos-bench exec tsx src/cli.ts \
+  --benchmark longmemeval-m \
+  --reader gpt-4o \
+  --memory full-cognitive \
+  --replay ingest \
+  --hybrid-retrieval \
+  --rerank cohere \
+  --rerank-candidate-multiplier 5 \
+  --reader-top-k 50 \
+  --hyde \
+  --seed 42 \
+  --bootstrap-resamples 10000 \
+  --concurrency 1
+```
+
+### Task 4d.4: Update LEADERBOARD + comparison-table with the Phase B number
+
+Replace the M-tuned row's `_PENDING_` cells with the measured Phase B accuracy + 95% CI + per-category breakdown.
+
+---
+
+## Phase 5: Phase A measurement on LongMemEval-S (1 day, $30)
+
+### Task 5.1: Get user approval ($30 spend)
 
 - [ ] **Step 5.1.1: Pose to user**
 
@@ -904,9 +1091,7 @@ Expected: $5, 6 cases (1 per type), at least non-error completion. Validate that
 - [ ] **Step 5.2.1: Run**
 
 ```bash
-cd packages/agentos-bench
-pnpm exec tsx src/cli.ts \
-  --benchmark longmemeval-s \
+NODE_OPTIONS="--max-old-space-size=8192" pnpm --dir packages/agentos-bench exec tsx src/cli.ts run longmemeval-s \
   --reader gpt-4o \
   --memory full-cognitive \
   --replay ingest \
@@ -916,7 +1101,8 @@ pnpm exec tsx src/cli.ts \
   --reader-top-k 20 \
   --sample-per-type 9 \
   --seed 42 \
-  --bootstrap-resamples 10000
+  --bootstrap-resamples 10000 \
+  --concurrency 1
 ```
 
 - [ ] **Step 5.2.2: Verify totalUsd > 0 (fresh run)**
@@ -925,45 +1111,50 @@ pnpm exec tsx src/cli.ts \
 
 - [ ] **Step 5.3.1: Run (same command, swap `minimal` for `full`)**
 
-### Task 5.4: Decision gate
+### Task 5.4: Decision gate (spec §8)
 
 - [ ] **Step 5.4.1: Compare against baseline**
 
 ```bash
-cd packages/agentos-bench
-jq '.accuracy' results/runs/<typed-network minimal Phase A summary>
-jq '.accuracy' results/runs/<typed-network full Phase A summary>
+jq '.accuracy' packages/agentos-bench/results/runs/<typed-network minimal Phase A summary>
+jq '.accuracy' packages/agentos-bench/results/runs/<typed-network full Phase A summary>
 # Baseline: 76.6% (Tier 3 min-cost on LongMemEval-S Phase B)
 ```
 
-Decision rule:
-- Both variants ≥ 78.6%: proceed to Phase B at the higher one
-- Only one ≥ 78.6%: proceed at that one
-- Neither ≥ 78.6%: HALT. Document as a negative result, ship the typed-network module to agentos core anyway (per spec §10 mitigation), abandon Phase B.
+Decision rule (per spec §8 v3):
+- **Either variant ≥ 78.6%**: proceed to Phase 6 (Phase B) at the higher one. Skip Phase 4.4.
+- **Best variant +0 to +2pp (i.e. 76.6%-78.6%)**: ESCALATE to Phase 4.4 (4-way RRF + budget-split). Implement Phase 4.4 per Tasks 4.4.1-4.4.4 above, run smoke (Task 4.4.5), then re-run Phase A (Task 4.4.6). If the Phase 4.4 Phase A clears 78.6%, proceed to Phase 6. If not, publish two-path negative result and ship typed-network as opt-in primitive.
+- **Best variant ≤ baseline**: HALT. Publish as third negative result, ship typed-network primitives as opt-in core (already shipped). Abandon Phase 4.4 + Phase B.
 
 - [ ] **Step 5.4.2: Document Phase A findings**
 
-Create `packages/agentos-bench/docs/STAGE_E_PHASE_A_FINDINGS_2026-04-XX.md` mirroring the Stage L / Stage I findings doc structure. Include: setup, results (both variants), per-category breakdown, comparison vs baseline, decision gate outcome, what to do next.
+Create `packages/agentos-bench/docs/STAGE_E_PHASE_A_FINDINGS_<DATE>.md` mirroring the Stage L / Stage I findings doc structure. Include: setup, results (both variants), per-category breakdown, comparison vs baseline, decision gate outcome, what to do next.
 
 ---
 
-## Phase 6: Phase B (full N) on each benchmark (2 days, $290, only if Phase A passes)
+## Phase 7: Phase B (full N) on each benchmark (2 days, $290, only if Phase A or Phase 4.4 Phase A passes)
 
-### Task 6.1: Get explicit user approval ($290 spend)
+(Numbering matches spec §5 Phase 7. Plan v2 had this as Phase 6; renumbered in v3 for consistency with the spec.)
 
-### Task 6.2: Run Phase B on LongMemEval-S N=500
+### Task 7.1: Get explicit user approval ($290 spend)
 
-### Task 6.3: Run Phase B on LongMemEval-M N=500
+### Task 7.2: Run Phase B on LongMemEval-S N=500
 
-### Task 6.4: Run Phase B on LOCOMO N=1986
+### Task 7.3: Run Phase B on LongMemEval-M N=500
 
-### Task 6.5: Document Phase B findings + LEADERBOARD update + spec revision
+### Task 7.4: Run Phase B on LOCOMO N=1986
+
+### Task 7.5: Document Phase B findings + LEADERBOARD update + spec revision
 
 (Detailed sub-steps mirror v1 publication plan Phase 5 LEADERBOARD update.)
 
+### Task 7.6: Locomo adapter mirror
+
+Add typed-network retrieval integration to `packages/agentos-bench/src/benchmarks/locomo/Locomo.ts`, mirroring LongMemEvalS:1730-1762 (TypedNetworkRetriever pool-append) plus, if Phase 4.4 was activated, the budget-split formatter wiring.
+
 ---
 
-## Phase 7: v2 Publication (1 day, $0)
+## Phase 8: v2 Publication (1 day, $0)
 
 If Phase B successful:
 
@@ -986,25 +1177,31 @@ Outline (1500-2500 words):
 
 ---
 
-## Self-review checklist
+## Self-review checklist (v3)
 
-1. **Spec coverage**: every spec §4-§9 deliverable maps to a Phase 1-7 task. Verified.
-2. **No placeholders**: every `<FILL>` has a corresponding `jq` or `jq` produces it.
-3. **TDD discipline**: Phase 1-3 follow strict failing-test-first. Phase 4 wiring tests propagate via the contract test pattern.
-4. **Cost tracked**: Phase 0-3 ($1) + Phase 4 ($5) + Phase 5 ($30) + Phase 6 ($290) = $326. Cushion to $500-800.
-5. **Constraints honored**: no commits without user approval, no subagents, no worktrees with submodules, no AI in commit messages, no em dashes.
-6. **Verification before completion**: every Phase 5/6 run has totalUsd > 0 check.
-7. **Decision gate enforced**: Phase 5 → Phase 6 only on positive Phase A. Negative Phase A → ship to core + abandon Phase B (per spec §10).
+1. **Spec coverage**: every spec §4-§10 deliverable maps to a plan task. Phases 1-3 + 4.1-4.3 + TypedNetworkRetriever shipped (no plan action). Phase 4c smoke + Phase 5 Phase A + Phase 6 decision (in Task 5.4) + Phase 7 Phase B + Phase 8 publication remaining. Phase 4.4 (4-way RRF + budget-split) is conditional on Phase 6 outcome.
+2. **No placeholders**: no `<FILL>` markers, no `TBD`. The phase status table uses TODO/OPTIONAL/DONE explicitly.
+3. **TDD discipline**: Phases 1-3 + 4.1-4.3 + TypedNetworkRetriever followed failing-test-first (shipped, 75 tests). Phase 4.4 tasks 4.4.1 / 4.4.2 / 4.4.3 / 4.4.4 each have a failing-test step BEFORE the implementation step. Phase 4c smoke + Phase 5 Phase A are verification-only (no new code).
+4. **Cost tracked**: shipped ($0) + 4c ($1-5) + 4d ($50, optional) + 5 ($30) + 4.4 ($0 + extra Phase A re-measure $30 if escalated) + 7 ($290) = $321-406. Cushion to $500-800.
+5. **Constraints honored**: no commits without user approval, no subagents, no worktrees with submodules, no AI in commit messages, no em dashes (verified via grep), agentos commits in submodule then bump pointer in monorepo with `--no-verify`.
+6. **Verification before completion**: every Phase 5/7 run has totalUsd > 0 check; Phase 4c smoke has explicit verification of typed-fact extraction + spreading-activation result + TypedNetworkRetriever pool-append visibility in run JSON.
+7. **Decision gate enforced**: Phase 4c → Phase 5 gated on smoke pass. Phase 5 → {Phase 7, Phase 4.4 escalation, halt} gated on Phase A point estimate per spec §8 v3. Phase 4.4 → Phase 7 gated on Phase 4.4 Phase A re-measure ≥ 78.6%. Phase 7 → opt-in ship gated on aggregate ≥ 78.6% with CI lower bound ≥ 76.6%. Opt-in → flip-default gated on Pareto-dominance over Tier 3 min-cost on ≥ 3 of 6 categories AND cost-per-correct ≤ $0.0580.
+8. **Universal-default policy**: typed-network OFF by default until both flip-default criteria pass at Phase 7. Today's Tier 3 min-cost (76.6% LongMemEval-S) shipping default unchanged.
+9. **Embedder coherence**: shipped Phase 4.2 + Phase 4.4 retrieval inherit the manager's `IEmbeddingManager` for typed-fact embeddings. No separate embedder configuration footgun.
+10. **Concurrent-session safety**: this plan does NOT touch files owned by the other concurrent session (LongMemEvalS:1730-1762, v4 handoff, LEADERBOARD, comparison-table) until those are committed. Phase 4.4 Task 4.4.4 will modify LongMemEvalS but only after the other session lands their changes.
 
 ---
 
 ## Open decisions for the user (ask before starting)
 
-1. **Approve the spec architecturally** (4 networks, RRF fusion, $500-800 budget, 2-3 weeks)?
-2. **Phase A budget** ($30 for 2 variants), approve?
-3. **Phase B budget** ($290 across 3 benchmarks), approve in advance, or pause for re-approval after Phase A?
-4. **Observer model**: gpt-5-mini default. Ablate at gpt-4o (+$200) or skip?
-5. **CharHashEmbedder vs OpenAIEmbedder for Phase A**: per spec §10 risk #5, consider running BOTH. Adds $30. Recommend yes, typed-network may need semantic embeddings to compete.
+The shipped state (Phase 4.1, 4.2, 4.3 + TypedNetworkRetriever + bench retrieval pool-append) is the option-B baseline. Live decisions for v3:
+
+1. **Phase 4c smoke**: $1-5 spend, 6 cases (one per LongMemEval-S category) at `--typed-network full`. Approve to run as soon as the other concurrent session commits their bench-side LongMemEvalS changes?
+2. **Phase 4d M-tuned parallel run**: $50 at Cohere key + remote machine. Independent of Stage E; ships v2 publication data point regardless of Stage E outcome. Run now (after Cohere key in env), after Phase 4c, or skip?
+3. **Phase 5 Phase A**: $30 LongMemEval-S N=54 stratified at `--typed-network minimal` and `--typed-network full`. Approve when 4c smoke passes? (Requires Cohere key.)
+4. **Phase 4.4 escalation**: pre-approve the 4-way RRF + budget-split implementation if Phase A on shipped option B is +0 to +2pp? Or pause for re-approval at Phase 5.4 decision gate?
+5. **Observer-model ablation**: gpt-5-mini default. Add gpt-4o ablation at +$200 if Phase A negatives at gpt-5-mini? (Default: yes, cheaper to find out at Phase A than at Phase 7.)
+6. **CharHash vs OpenAI embedder**: typed-fact embeddings inherit the manager's embedder per spec §4.2.2. Phase A primary at CharHash (shipping config); paired OpenAI ablation at +$10 if Phase A negatives. Approve the conditional ablation?
 
 ---
 
