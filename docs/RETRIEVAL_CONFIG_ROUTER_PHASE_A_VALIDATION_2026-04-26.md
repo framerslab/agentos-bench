@@ -107,11 +107,58 @@ The agentos primitives (`MINIMIZE_COST_AUGMENTED_TABLE`, `selectAugmentedDispatc
 
 `results/runs/2026-04-26T17-59-13-511--longmemeval-m--gpt-4o--full-cognitive--ingest.json`
 
+## Update: --om-classifier-fewshot run (2026-04-26 11:16 PT)
+
+Re-ran the augmented router with `--om-classifier-fewshot` to test whether the fewshot classifier prompt closes the dispatch-lift gap. **Result: 53.7% (29/54), DOWN −3.7 pp from base classifier.** Classifier accuracy lifted 46.3% → 57.4% (+11 pp), but dispatch accuracy didn't follow.
+
+| Metric | Base classifier | Fewshot classifier | Δ |
+|---|---:|---:|---:|
+| Aggregate accuracy | 57.4% | 53.7% | −3.7 pp |
+| Classifier accuracy | 46.3% | 57.4% | +11.1 pp |
+| Cost / correct | $0.1061 | $0.1147 | +8% |
+
+Per-category dispatch outcomes (n=9 each):
+
+| Category | Base answer | Fewshot answer | Δ |
+|---|---:|---:|---:|
+| knowledge-update | 77.8% | **88.9%** | +11.1 pp ✅ |
+| single-session-preference | 11.1% | **22.2%** | +11.1 pp ✅ |
+| single-session-assistant | 88.9% | 77.8% | −11.1 pp ❌ |
+| single-session-user | 77.8% | 66.7% | −11.1 pp ❌ |
+| multi-session | 33.3% | 33.3% | 0 |
+| temporal-reasoning | **55.6%** | 33.3% | −22.3 pp ❌ |
+
+**Why fewshot hurts at the aggregate:** the fewshot prompt's SSU disambiguation examples are aggressive — they pulled most KU questions to SSU (KU classifier accuracy collapsed 55.6% → 11.1%). Despite the classifier confusion, KU answers still lifted because misroutes still get dispatched to a calibrated config (SSU dispatch is `hyde-topk50-mult5`; KU dispatch is `topk50`; both work for KU). TR answers regressed because fewshot kept TR classifier perfect at 9/9 but the n=9 fresh re-run hit different judge non-determinism (HyDE-only TR at Phase A measured 66.7% in original ablations; this re-run got 33.3% — wide n=9 CIs).
+
+Fewshot confusion matrix (gt → predicted):
+
+| GT \ Pred | KU | MS | SSA | SSP | SSU | TR | n | Correct |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| knowledge-update | **1** | 1 | 0 | 0 | 7 | 0 | 9 | 1 |
+| multi-session | 2 | **3** | 0 | 0 | 4 | 0 | 9 | 3 |
+| single-session-assistant | 0 | 0 | **7** | 0 | 2 | 0 | 9 | 7 |
+| single-session-preference | 0 | 0 | 2 | **2** | 5 | 0 | 9 | 2 |
+| single-session-user | 0 | 0 | 0 | 0 | **9** | 0 | 9 | 9 |
+| temporal-reasoning | 0 | 0 | 0 | 0 | 0 | **9** | 9 | 9 |
+
+Fewshot classifier accuracy: 31/54 = 57.4% (+11 pp over base 46.3%). SSU went 33% → 100% but at the cost of KU 56% → 11%.
+
+Run JSON: `results/runs/2026-04-26T18-10-47-280--longmemeval-m--gpt-4o--full-cognitive--ingest.json`.
+
+## Headline takeaway
+
+Both Phase A validation runs (base + fewshot classifier) converge to **53.7%–57.4% aggregate, identical to or slightly below static M-tuned 57.4%**. The 68.5% Phase A oracle is not classifier-realizable at N=54 with gpt-5-mini (either prompt variant). The dispatch wiring is correct; classifier accuracy + small-sample variance dominate the result at this scale.
+
+To validate the augmented router's theoretical lift, the remaining levers are:
+- **Stronger classifier model** (`--om-classifier-model gpt-4o`): ~10x classifier cost, but classifier accuracy on M should hit 70-85% based on policy-router measurements
+- **Phase B at N=500**: settles small-sample per-category variance
+- **Re-derive calibration from Phase B per-category accuracies**: the current `M_PHASE_A_PER_CATEGORY_ACCURACY` table is sourced from the Phase A ablation runs that Phase B revealed were small-sample-noisy on MS/TR
+
 ## Next steps
 
-1. Few-shot classifier re-run at N=54 (queued, ~$3-5) — directly tests whether classifier accuracy is the bottleneck.
-2. If few-shot lifts aggregate above 57.4%, queue Phase B at N=500 with augmented router (~$30, ~5h).
-3. Hyde-only and topk-only Phase B ablations at N=500 (each ~$30) to validate per-category dispatch lift over static at scale, independent of classifier accuracy (uses Phase B-measured per-category accuracies for the calibration table).
+1. **gpt-4o classifier + fewshot at N=54** (~$5-10): tests classifier-accuracy lever in isolation.
+2. If gpt-4o classifier moves the aggregate above 60%, queue Phase B at N=500 with augmented router + gpt-4o classifier (~$30-50, ~5h).
+3. Hyde-only and topk-only Phase B ablations at N=500 (each ~$30) to re-derive the calibration from Phase B per-category accuracies. The current Phase A calibration table likely overstates dispatch lift on the hard categories.
 
 ## Anchor in publication narrative
 
