@@ -636,8 +636,14 @@ export function computeCaseRunKeyParts(
   // name uniquely identifies the calibrated mapping; bump `:v1` if the
   // MINIMIZE_COST_AUGMENTED_TABLE calibration in agentos core changes
   // (e.g. after a Phase B re-derivation tightens the per-category picks).
+  // Includes the classifier prompt variant + classifier model id because
+  // the augmented router's dispatch quality is bounded by classifier
+  // accuracy — a fewshot vs base classifier produces materially
+  // different per-case dispatch decisions and must cache independently.
   if (config.retrievalConfigRouter) {
-    const tag = `stage-rcr:${config.retrievalConfigRouter}:v1`;
+    const fewshot = config.omClassifierFewshot ? 'fs' : 'base';
+    const classifierModel = config.omClassifierModel ?? 'gpt-5-mini';
+    const tag = `stage-rcr:${config.retrievalConfigRouter}:${classifierModel}:${fewshot}:v1`;
     runKeyParts.push(tag);
     resultKeyParts.push(tag);
   }
