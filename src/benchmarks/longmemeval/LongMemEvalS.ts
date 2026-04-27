@@ -1691,25 +1691,48 @@ export async function runFullCognitiveCase(
   const typedNetworkVariant = ctx.config.typedNetwork;
   if (typedNetworkVariant) {
     const observerReader = createReader('gpt-5-mini');
+    let observerCallCounter = 0;
     const llmInvoker = async (systemPrompt: string, userPrompt: string) => {
-      const resp = await observerReader.invoke({
-        system: systemPrompt,
-        user: userPrompt,
-        maxTokens: 4096,
-        temperature: 0,
-      });
-      ctx.costTracker.record({
-        category: 'reader',
-        model: resp.model,
-        tokensIn: resp.tokensIn,
-        tokensOut: resp.tokensOut,
-        tag: `typed-network-observer:${c.id}`,
-      });
-      return resp.text;
+      const callId = ++observerCallCounter;
+      const t0 = Date.now();
+      // Verbose stderr trace gated on AGENTOS_BENCH_TRACE_STAGE_E so it's
+      // only emitted when explicitly debugging Stage E hangs. Each line is
+      // a single LLM round-trip with elapsed-ms; the final case's last
+      // logged START with no matching DONE localizes the hung call.
+      if (process.env.AGENTOS_BENCH_TRACE_STAGE_E) {
+        process.stderr.write(`[stage-e-trace] case=${c.id} obs#${callId} START sys-len=${systemPrompt.length} user-len=${userPrompt.length}\n`);
+      }
+      try {
+        const resp = await observerReader.invoke({
+          system: systemPrompt,
+          user: userPrompt,
+          maxTokens: 4096,
+          temperature: 0,
+        });
+        ctx.costTracker.record({
+          category: 'reader',
+          model: resp.model,
+          tokensIn: resp.tokensIn,
+          tokensOut: resp.tokensOut,
+          tag: `typed-network-observer:${c.id}`,
+        });
+        if (process.env.AGENTOS_BENCH_TRACE_STAGE_E) {
+          process.stderr.write(`[stage-e-trace] case=${c.id} obs#${callId} DONE elapsed=${Date.now() - t0}ms tokensOut=${resp.tokensOut}\n`);
+        }
+        return resp.text;
+      } catch (err) {
+        if (process.env.AGENTOS_BENCH_TRACE_STAGE_E) {
+          process.stderr.write(`[stage-e-trace] case=${c.id} obs#${callId} ERROR elapsed=${Date.now() - t0}ms err=${err instanceof Error ? err.message : String(err)}\n`);
+        }
+        throw err;
+      }
     };
     typedNetworkConfig = { variant: typedNetworkVariant, llmInvoker };
   }
 
+  if (process.env.AGENTOS_BENCH_TRACE_STAGE_E) {
+    process.stderr.write(`[stage-e-trace] case=${c.id} STAGE=createCognitiveManager-START\n`);
+  }
   const handle = await createCognitiveManager({
     brainPath,
     embedder,
@@ -1757,6 +1780,9 @@ export async function runFullCognitiveCase(
       });
     }
 
+    if (process.env.AGENTOS_BENCH_TRACE_STAGE_E) {
+      process.stderr.write(`[stage-e-trace] case=${c.id} STAGE=createCognitiveManager-DONE; replayForCognitive-START sessions=${c.haystack.length}\n`);
+    }
     const replayStats = await replayForCognitive(
       c,
       handle,
@@ -1769,6 +1795,10 @@ export async function runFullCognitiveCase(
       factGraphIngestEnabled,
       graphActivationEnabled,
     );
+
+    if (process.env.AGENTOS_BENCH_TRACE_STAGE_E) {
+      process.stderr.write(`[stage-e-trace] case=${c.id} STAGE=replayForCognitive-DONE\n`);
+    }
 
     // Build a per-call weight override when --ablate-signal is set.
     // Undefined → agentos uses DEFAULT_SCORING_WEIGHTS.
