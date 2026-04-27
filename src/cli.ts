@@ -871,6 +871,11 @@ export function buildCli(): Command {
         retrievalConfigRouter: opts.retrievalConfigRouter as
           | 'minimize-cost-augmented'
           | undefined,
+        // Loadbearing: drives the case-run + case-result cache
+        // fingerprint so CharHash and semantic-embedder runs don't
+        // share cached answers (which they should NOT — semantic
+        // embeddings produce materially different retrieval orderings).
+        embedderModel: opts.embedderModel as string | undefined,
         sessionLevelNdcg: Boolean(opts.sessionLevelNdcg) || undefined,
         sessionLevelNdcgTopK: opts.sessionLevelNdcgTopK as number | undefined,
         // Stage F-2: commander's --no-abstention sets opts.abstention === false

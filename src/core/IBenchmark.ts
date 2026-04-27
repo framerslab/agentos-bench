@@ -670,6 +670,24 @@ export interface RunConfig {
   retrievalConfigRouter?: 'minimize-cost-augmented';
 
   /**
+   * Embedding model id used by the full-cognitive ingest path
+   * (e.g. `text-embedding-3-small`, `openai:text-embedding-3-large`,
+   * `ollama:nomic-embed-text`). When omitted the bench falls back to
+   * the CharHashEmbedder lexical-hash stub — a sane default for
+   * smoke tests but NOT what real consumers wiring `@framers/agentos`
+   * primitives use in deployment. Published headline numbers should
+   * specify a real embedder; the leaderboard caveats which embedder
+   * each row used.
+   *
+   * **Cache fingerprint:** load-bearing — different embedders produce
+   * different retrieval orderings, so case-run + case-result caches
+   * MUST partition by embedder. A run without this field shares cache
+   * with all prior CharHash-fallback runs; a run WITH this field
+   * partitions per model id.
+   */
+  embedderModel?: string;
+
+  /**
    * Stage C / Tier 4a: session-level NDCG retrieval post-process.
    * After the canonical HybridRetriever returns top-K traces, group them by
    * sessionId, compute NDCG per session from trace ranks, pick the top-K
@@ -835,6 +853,7 @@ export const OPTIONAL_RUN_CONFIG_KEYS = [
   'policyRouterBudgetPerQuery',
   'policyRouterBudgetMode',
   'retrievalConfigRouter',
+  'embedderModel',
   'sessionLevelNdcg',
   'sessionLevelNdcgTopK',
   'noAbstention',

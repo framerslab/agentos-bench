@@ -91,6 +91,7 @@ const SAMPLES: Record<(typeof OPTIONAL_RUN_CONFIG_KEYS)[number], unknown> = {
   policyRouterBudgetPerQuery: 0.05,
   policyRouterBudgetMode: 'soft',
   retrievalConfigRouter: 'minimize-cost-augmented',
+  embedderModel: 'text-embedding-3-small',
   sessionLevelNdcg: true,
   sessionLevelNdcgTopK: 5,
   noAbstention: true,
