@@ -193,6 +193,10 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     // axis). Calibrated from 2026-04-26 LongMemEval-M Phase A N=54
     // ablation matrix.
     retrievalConfigRouter: cfg.retrievalConfigRouter,
+    // Embedder model id used at ingest. Loadbearing for cache
+    // fingerprint partitioning - different embedders produce different
+    // retrieval orderings, so cached case-runs MUST partition by it.
+    embedderModel: cfg.embedderModel,
     // Stage C / Tier 4a: session-level NDCG retrieval post-process
     // (Emergence-style). Applies to canonical path only.
     sessionLevelNdcg: cfg.sessionLevelNdcg,
@@ -345,6 +349,20 @@ export function computeCaseRunKeyParts(
     const topKTag = `topk:${config.readerTopK}`;
     runKeyParts.push(topKTag);
     resultKeyParts.push(topKTag);
+  }
+
+  // Embedder fingerprint (2026-04-27) — load-bearing for retrieval
+  // orderings. Different embedders produce wildly different recall +
+  // NDCG (CharHash 76.6% vs text-embedding-3-small 83.2% on
+  // LongMemEval-S Tier 3 min-cost), so case-run + case-result caches
+  // MUST partition by embedder. Conditional append: omit when
+  // embedderModel is undefined so prior CharHash-fallback runs keep
+  // their cache hashes (those runs predate this fingerprint and
+  // semantically used the CharHash stub).
+  if (config.embedderModel) {
+    const embedderTag = `embedder:${config.embedderModel}`;
+    runKeyParts.push(embedderTag);
+    resultKeyParts.push(embedderTag);
   }
 
   // Session-level retrieval fingerprint (Step 2): conditional append
