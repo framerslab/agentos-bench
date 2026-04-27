@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-04-25T10:56:55.587Z",
+  "updatedAt": "2026-04-27T03:30:00.000Z",
   "latest": {
     "decay-fidelity|claude-sonnet-4-6|none|ingest": {
       "runFile": "micro/2026-04-19T06-11-20-814--decay-fidelity--claude-sonnet-4-6--none--ingest.json",
@@ -269,70 +269,125 @@
       "startedAt": "2026-04-24T22:10:48.759Z"
     },
     "longmemeval-m|gpt-4o|full-cognitive|ingest": {
-      "runFile": "runs/2026-04-25T10-14-43-207--longmemeval-m--gpt-4o--full-cognitive--ingest.json",
+      "runFile": "runs/2026-04-26T16-50-33-693--longmemeval-m--gpt-4o--full-cognitive--ingest.json",
       "benchmarkId": "longmemeval-m",
       "benchmarkVersion": "1.0.0",
       "reader": "gpt-4o",
       "memoryMode": "full-cognitive",
       "replayMode": "ingest",
       "totalCases": 500,
-      "accuracy": 0.306,
-      "avgScore": 0.306,
-      "avgLatencyMs": 10563.768,
-      "totalUsd": 12.515732500000013,
-      "costPerCorrect": 0.08180217320261446,
-      "startedAt": "2026-04-25T10:14:43.207Z",
+      "accuracy": 0.454,
+      "avgScore": 0.454,
+      "avgLatencyMs": 40271.302,
+      "totalUsd": 30.593735000000024,
+      "costPerCorrect": 0.13477416299559483,
+      "startedAt": "2026-04-26T16:50:33.693Z",
       "retrievalMetrics": {
-        "meanRecallAtK": 0.2930193720774883,
-        "meanPrecisionAtK": 0.032765531062124285,
-        "meanNdcgAtK": 0.2904970479088237,
-        "meanMrr": 0.3408229156726151,
-        "k": 20,
-        "sampleSize": 499
+        "meanRecallAtK": 0.45090909090909087,
+        "meanPrecisionAtK": 0.021575757575757467,
+        "meanNdcgAtK": 0.42390710553303523,
+        "meanMrr": 0.4743488633731955,
+        "k": 50,
+        "sampleSize": 495
       },
       "stratifiedAccuracy": {
-        "weightedOverall": 0.33471177944862157,
-        "unweightedOverall": 0.306
+        "byType": {
+          "single-session-assistant": {
+            "n": 56,
+            "accuracy": 0.9107142857142857,
+            "prior": 0.14285714285714285
+          },
+          "single-session-user": {
+            "n": 70,
+            "accuracy": 0.7857142857142857,
+            "prior": 0.14285714285714285
+          },
+          "unknown": {
+            "n": 5,
+            "accuracy": 0,
+            "prior": 0.14285714285714285
+          },
+          "multi-session": {
+            "n": 130,
+            "accuracy": 0.26153846153846155,
+            "prior": 0.14285714285714285
+          },
+          "knowledge-update": {
+            "n": 78,
+            "accuracy": 0.6282051282051282,
+            "prior": 0.14285714285714285
+          },
+          "temporal-reasoning": {
+            "n": 133,
+            "accuracy": 0.22556390977443608,
+            "prior": 0.14285714285714285
+          },
+          "single-session-preference": {
+            "n": 28,
+            "accuracy": 0.2857142857142857,
+            "prior": 0.14285714285714285
+          }
+        },
+        "weightedOverall": 0.4424929080944118,
+        "unweightedOverall": 0.454,
+        "missingTypes": []
       },
       "latencyBreakdown": {
         "encode": {
-          "p50": 0.4083204930662558,
-          "p95": 3.8952826908189393,
-          "p99": 8.87819119662553,
-          "n": 499
+          "p50": 0.3204930662557781,
+          "p95": 213.71253522548,
+          "p99": 223.21026059227253,
+          "n": 495
         },
         "retrieve": {
-          "p50": 1054,
-          "p95": 15184.599999999984,
-          "p99": 40628.679999999964,
-          "n": 499
+          "p50": 1448,
+          "p95": 2598.9999999999936,
+          "p99": 10160.240000000002,
+          "n": 495
         },
         "vectorSearch": {
-          "p50": 2,
-          "p95": 22,
-          "p99": 84.2199999999998,
-          "n": 499
+          "p50": 7,
+          "p95": 172,
+          "p99": 309.32000000000005,
+          "n": 495
         },
         "scoring": {
-          "p50": 1,
-          "p95": 9.599999999999966,
-          "p99": 26,
-          "n": 245
+          "p50": 3,
+          "p95": 75,
+          "p99": 133.79999999999995,
+          "n": 481
         },
         "replay": {
-          "p50": 1562,
-          "p95": 15022.999999999984,
-          "p99": 38551.01999999998,
-          "n": 499
+          "p50": 1218,
+          "p95": 524393.1999999997,
+          "p99": 560694.3,
+          "n": 495
         }
       },
       "memoryFootprint": {
-        "meanBrainBytes": 19734380.248496994,
-        "p95BrainBytes": 20480000,
-        "meanTraceCount": 2482.689378757515,
+        "meanBrainBytes": 21748270.545454547,
+        "p95BrainBytes": 33495449.6,
+        "meanTraceCount": 2482.4383838383837,
         "maxPeakWorkingMemorySlots": 7,
-        "totalEncodeCalls": 1238862
-      }
+        "totalEncodeCalls": 1228807
+      },
+      "note": "M-tuned config (--rerank-candidate-multiplier 5 --reader-top-k 50 --hyde) is the validated M headline. Later TopK50-only and HyDE-only Phase B runs share the same summary key but represent different configs; see results/LEADERBOARD.md and docs/PHASE_B_ABLATIONS_2026-04-26.md."
+    },
+    "beam-100k|gpt-4o|full-cognitive|ingest": {
+      "runFile": "runs/2026-04-26T19-42-25-420--beam-100k--gpt-4o--full-cognitive--ingest.json",
+      "benchmarkId": "beam-100k",
+      "benchmarkVersion": "1.0.0",
+      "reader": "gpt-4o",
+      "memoryMode": "full-cognitive",
+      "replayMode": "ingest",
+      "totalCases": 90,
+      "accuracy": 0.45555555555555555,
+      "avgScore": 0.45555555555555555,
+      "avgLatencyMs": 6080.4,
+      "totalUsd": 10.710032499999997,
+      "costPerCorrect": 0.2612203048780487,
+      "startedAt": "2026-04-26T19:42:25.420Z",
+      "note": "Phase A stratified N=90 (M-tuned config). The 2026-04-27T02:57Z full-N=400 attempt was aborted by a dist-rebuild race (284/400 cases hit ENOENT on @framers/agentos/dist/memory after a parallel npm publish); see LEADERBOARD ^beam100k-pb-aborted footnote. Phase B re-run queued for remote hardware."
     }
   }
 }
