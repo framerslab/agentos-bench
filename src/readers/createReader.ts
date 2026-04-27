@@ -20,6 +20,48 @@ import type { ReaderModel } from '../core/IBenchmark.js';
 import type { IReader, ReaderRequest, ReaderResponse } from './IReader.js';
 
 /**
+ * Per-request HTTP timeout in milliseconds for the bench's bare-fetch
+ * reader adapters. A hung TCP socket / unresponsive provider would
+ * otherwise deadlock long-running ingest pipelines indefinitely —
+ * Stage E was repeatedly observed hanging at 0% CPU for hours with
+ * established-but-idle sockets to OpenAI before this default landed.
+ *
+ * Override per-call via {@link ReaderRequest.timeoutMs} (not yet wired)
+ * or globally by setting `AGENTOS_BENCH_READER_TIMEOUT_MS` in the env.
+ * Defaults to 120 s so single slow gpt-4o calls (long contexts +
+ * reasoning) still complete; misbehaving connections fail fast.
+ */
+const DEFAULT_READER_TIMEOUT_MS = (() => {
+  const fromEnv = Number(process.env.AGENTOS_BENCH_READER_TIMEOUT_MS);
+  return Number.isFinite(fromEnv) && fromEnv > 0 ? fromEnv : 120_000;
+})();
+
+/**
+ * Wrap a fetch with an AbortController-backed timeout. On timeout,
+ * throws a clear error pointing at the URL + elapsed budget so the
+ * bench can attribute the failure to the right provider in case
+ * logs.
+ */
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number = DEFAULT_READER_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error(`agentos-bench reader: request to ${url} timed out after ${timeoutMs}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
  * Construct a reader for `model`. Chooses between OpenAI and Anthropic
  * based on the model name prefix.
  */
@@ -90,7 +132,7 @@ export class OpenAIHttpReader implements IReader {
       requestBody.temperature = req.temperature ?? 0;
     }
 
-    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+    const resp = await fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -137,7 +179,7 @@ export class AnthropicHttpReader implements IReader {
   async invoke(req: ReaderRequest): Promise<ReaderResponse> {
     const start = Date.now();
 
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    const resp = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
