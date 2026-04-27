@@ -19,10 +19,12 @@ Methodology, judge FPR per benchmark, two negative architecture findings, BEAM c
 
 | Architecture | LongMemEval-S | LongMemEval-M | LOCOMO | BEAM 100K |
 |---|---:|---:|---:|---:|
-| **🔥 M-tuned (rerank-candidate ×5 + reader-top-k 50 + HyDE) — Phase B validated** [^mtuned-m] | 72.2% (cross-val N=54, ~ neutral) | **45.4% [41.2%, 49.8%]** (Phase B N=500) | _PENDING_ | _PENDING_ |
-| Per-category dispatch (Phase A forecast — NOT Phase B-validated) [^pcd-m] | _to be measured_ | 68.5% (37/54 Phase A; needs hyde-only/topk-only Phase B ablations to validate) | _PENDING_ | _PENDING_ |
-| Tier 1 canonical-hybrid | 73.2% [69.2, 77.0] | 30.6% [^t1m] (superseded by M-tuned above) | 51.5% (K=20) [^t1locomo] | DEFERRED v2 |
-| Tier 2b OM-v11 | 75.4% [71.6, 79.0] | _PENDING (Phase B aborted on local hardware; queued for remote)_ | _baseline only_ | DEFERRED v2 |
+| **🔥 M-tuned (rerank-candidate ×5 + reader-top-k 50 + HyDE) — Phase B validated** [^mtuned-m] | 72.2% (cross-val N=54, ~ neutral) | **45.4% [41.2%, 49.8%]** (Phase B N=500) | _PENDING_ | **45.6% [35.6%, 55.6%]** (Phase A N=90 stratified) [^beam100k-pa] |
+| Per-category dispatch (Phase A forecast — NOT Phase B-validated; Phase B oracle measured 46.4%) [^pcd-m] | _to be measured_ | 68.5% Phase A oracle (Phase B oracle: **46.4%**, only +1pp over static M-tuned; small-sample variance dominated Phase A) | _PENDING_ | _PENDING_ |
+| HyDE-only (cost-efficient Pareto pick) [^hyde-only-pb-ct] | _PENDING_ | 35.6% [31.4%, 39.6%] (Phase B N=500); $0.0432/correct (3.1× cheaper than M-tuned) | _PENDING_ | _PENDING_ |
+| TopK50-only [^topk50-pb-ct] | _PENDING_ | 40.8% [36.6%, 45.2%] (Phase B N=500) | _PENDING_ | _PENDING_ |
+| Tier 1 canonical-hybrid | 73.2% [69.2, 77.0] | 30.6% [^t1m] (superseded by M-tuned above) | 51.5% (K=20) [^t1locomo] | _PENDING (Phase A baseline)_ |
+| Tier 2b OM-v11 | 75.4% [71.6, 79.0] | _PENDING (Phase B queued for remote)_ | _baseline only_ | DEFERRED v2 |
 | Tier 3 min-cost (shipping default) | **76.6% [72.8, 80.2]** | _≈ Tier 1 at M scale_ [^t3mincostm] | _baseline only_ | DEFERRED v2 |
 | Tier 3 max-acc | 75.6% [71.8, 79.2] | _PENDING (Phase B queued for remote)_ | _baseline only_ | DEFERRED v2 |
 | --- |
@@ -39,6 +41,12 @@ Methodology, judge FPR per benchmark, two negative architecture findings, BEAM c
 [^t1locomo]: Tier 1 canonical-hybrid at `--reader-top-k 20` is the Pareto-best LOCOMO tuning. Findings: [STAGE_F2_CORRECTION_2026-04-24.md](../../docs/STAGE_F2_CORRECTION_2026-04-24.md). Per-case artifacts: `results/runs/2026-04-24T22-10-47-514--locomo--gpt-4o--full-cognitive--ingest.json`.
 
 [^t3mincostm]: At LongMemEval-M scale, the `minimize-cost` policy-router preset reduces to canonical-hybrid for every category because OM-v11's per-case ingest cost on 500-session haystacks is dominated by retrieval precision, not architecture choice. Tier 3 min-cost on M is therefore architecturally identical to Tier 1 canonical-hybrid on M.
+
+[^hyde-only-pb-ct]: 2026-04-26 Phase B HyDE-only at N=500: 35.6% [31.4%, 39.6%] (178/500), $7.68 LLM, $0.0432/correct (3.1× cheaper than M-tuned), avg 4.4s. Per-category beats combined ONLY on TR (+3.7 pp); SSA/SSU/KU drop −23 to −29 pp without the wider rerank pool. Cost-efficient Pareto pick on the M frontier. Run JSON: `results/runs/2026-04-26T18-25-23-686--longmemeval-m--gpt-4o--full-cognitive--ingest.json`. See [LEADERBOARD ^hyde-only-pb](../LEADERBOARD.md#hyde-only-pb) and [PHASE_B_ABLATIONS_2026-04-26.md](../../docs/PHASE_B_ABLATIONS_2026-04-26.md).
+
+[^topk50-pb-ct]: 2026-04-26 Phase B TopK50-only at N=500: 40.8% [36.6%, 45.2%] (204/500), $28.14 LLM, $0.1379/correct, avg 4.1s. Doesn't beat combined on any category at Phase B (KU within CI: 61.5% vs 62.8%). Confirms the Phase A "topk50 best for KU" claim was small-sample-fragile and combined dispatch is the simpler default. Run JSON: `results/runs/2026-04-26T19-03-47-926--longmemeval-m--gpt-4o--full-cognitive--ingest.json`. See [LEADERBOARD ^topk50-pb](../LEADERBOARD.md#topk50-pb).
+
+[^beam100k-pa]: First public BEAM 100K Phase A measurement (2026-04-26). 90 stratified cases (`--sample-per-type 9` × 10 BEAM categories), M-tuned config, gpt-4o reader. Two real failure modes surfaced: contradiction_resolution 0/9 (agent answers confidently instead of flagging the contradiction; reader prompt doesn't trigger contradiction detection), event_ordering 0/9 (agent extracts wrong granularity of events vs gold). The other 8 categories scored 11.1% to 88.9%. Phase B at full N=400 attempted 2026-04-27 but aborted by a dist-rebuild race (284/400 cases hit ENOENT during a parallel npm publish); 116 cases that completed scored 45.7% matching Phase A 45.6%. Re-run queued for remote hardware. Run JSON: `results/runs/2026-04-26T19-42-25-420--beam-100k--gpt-4o--full-cognitive--ingest.json`. See [LEADERBOARD ^beam100k-mtuned](../LEADERBOARD.md#beam100k-mtuned) + [^beam100k-pb-aborted](../LEADERBOARD.md#beam100k-pb-aborted).
 
 [^stagel]: Stage L Phase A: Anthropic Contextual Retrieval `summarized` executor (per-session summary prepended to every chunk before embedding). Paired baseline at OpenAI semantic embedder: 74.1% → 70.4%. Temporal-reasoning collapsed −33.3 pp. Findings: [STAGE_L_PHASE_A_FINDINGS_2026-04-25.md](../../docs/STAGE_L_PHASE_A_FINDINGS_2026-04-25.md). Architecture shipped as `SummarizedIngestExecutor` in agentos 0.2.12 for consumers building document-mode pipelines.
 
@@ -126,7 +134,7 @@ The Stage G probe synthesizes topically-adjacent wrong answers via `gpt-5-mini` 
 | LongMemEval-S | 1% | [0%, 3%] | 100 | [Stage G, 2026-04-24](../../docs/SESSION_2026-04-24_TRANSPARENT_NEGATIVES.md) |
 | LongMemEval-M | **2%** | **[0%, 5%]** | 100 | [Stage G-M, 2026-04-26](../../docs/STAGE_G_LONGMEMEVAL_M_FINDINGS_2026-04-26.md) |
 | LOCOMO | 0% | [0%, 0%] | 100 | [Stage G-LOCOMO, 2026-04-24](../../docs/STAGE_G_LOCOMO_JUDGE_FPR_PROBE_2026-04-24.md) |
-| BEAM 100K | unprobed | — | — | Deferred to v2 (BEAM adapter not yet implemented). |
+| BEAM 100K | unprobed | — | — | Adapter shipped 2026-04-26 (commit d45cf9cd); judge FPR probe queued for v2 alongside the full Phase B re-run. |
 
 Anchor: Penfield Labs measured **62.81%** FPR on LOCOMO's default `gpt-4o-mini` judge with the original LOCOMO rubric. Our 0% LOCOMO FPR + the Penfield 62.81% number put a 63 pp gap between any LOCOMO score measured at our judge vs the original judge.
 
