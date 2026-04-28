@@ -688,6 +688,27 @@ export interface RunConfig {
   embedderModel?: string;
 
   /**
+   * Per-category reader-tier router preset id. When set, the bench builds an
+   * auxiliary reader pool (gpt-4o + gpt-5-mini) up front and dispatches the
+   * answer reader per case based on the {@link ./readerRouter.ts | calibrated
+   * mapping} of {predicted-category → reader-tier}. The same gpt-5-mini
+   * classifier already running for the policy router (or
+   * `retrievalConfigRouter`) supplies the predicted category, so adding
+   * `readerRouter` costs zero extra LLM calls per case.
+   *
+   * Mutually compatible with `policyRouter`, `retrievalConfigRouter`, and
+   * the legacy `omDynamicRouter`. The `--reader` CLI flag remains the
+   * fallback reader for any case where the classifier errors (the router
+   * is bypassed and `--reader` answers the case end-to-end).
+   *
+   * **Cache fingerprint:** load-bearing — different reader-router presets
+   * produce different per-case readers, so case-run + case-result caches
+   * MUST partition by preset id. A run without this field shares cache
+   * with all prior single-reader runs at the same `--reader`.
+   */
+  readerRouter?: string;
+
+  /**
    * Stage C / Tier 4a: session-level NDCG retrieval post-process.
    * After the canonical HybridRetriever returns top-K traces, group them by
    * sessionId, compute NDCG per session from trace ranks, pick the top-K
@@ -854,6 +875,7 @@ export const OPTIONAL_RUN_CONFIG_KEYS = [
   'policyRouterBudgetMode',
   'retrievalConfigRouter',
   'embedderModel',
+  'readerRouter',
   'sessionLevelNdcg',
   'sessionLevelNdcgTopK',
   'noAbstention',
