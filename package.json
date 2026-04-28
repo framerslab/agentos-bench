@@ -1,7 +1,7 @@
 {
   "name": "@framers/agentos-bench",
-  "version": "0.1.0",
-  "description": "Benchmark suite for AgentOS memory — LongMemEval, LOCOMO, BEAM, and cognitive-mechanism micro-benchmarks.",
+  "version": "0.2.0",
+  "description": "Benchmark suite for AgentOS memory — LongMemEval, LOCOMO, BEAM, and cognitive-mechanism micro-benchmarks. Includes per-category reader router calibration, vendor reproduction adapters, and full transparency stack (per-cell run JSONs, bootstrap CIs, judge FPR probes, negative findings).",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -64,12 +64,15 @@
     "typescript": "^5.5.0",
     "vitest": "^1.6.0"
   },
-  "license": "MIT",
+  "license": "Apache-2.0",
   "author": "Frame.dev",
   "repository": {
     "type": "git",
-    "url": "https://github.com/framersai/voice-chat-assistant.git",
-    "directory": "packages/agentos-bench"
+    "url": "https://github.com/framersai/agentos-bench.git"
+  },
+  "homepage": "https://github.com/framersai/agentos-bench#readme",
+  "bugs": {
+    "url": "https://github.com/framersai/agentos-bench/issues"
   },
   "publishConfig": {
     "access": "public"
