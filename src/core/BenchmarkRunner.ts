@@ -1134,6 +1134,18 @@ export class BenchmarkRunner {
         run = await benchmark.runCase(c, ctx);
       } catch (err: unknown) {
         errored = true;
+        // Preserve the case's ground-truth type in metadata even when the
+        // run errored. Without this, the aggregator's `caseType` lookup
+        // (`r.metadata?.caseType ?? 'unknown'`) buckets all errored cases
+        // as 'unknown' with 0% accuracy, which silently destroys the
+        // per-category breakdown when error rates are non-trivial. Bug
+        // surfaced 2026-04-28 on a LongMemEval-M Phase B run where 232/500
+        // cases hit transient OpenAI fetch failures + context-length
+        // errors and got mis-categorized, masking a real-category accuracy
+        // of 78.7% on the 268 attempted cases as a misleading 42.2%
+        // aggregate. The aggregator still treats errored cases as failed
+        // (score=0), but at least categorizes them correctly so per-type
+        // accuracy in the run JSON reflects what actually happened.
         run = {
           caseId: c.id,
           actualOutput: '',
@@ -1142,6 +1154,11 @@ export class BenchmarkRunner {
           tokensOut: 0,
           usd: 0,
           error: err instanceof Error ? err.message : String(err),
+          metadata: {
+            caseType: c.type,
+            type: c.type,
+            errored: true,
+          },
         };
       }
       // Only cache successful runs — errored ones retry next time so
