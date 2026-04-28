@@ -12,7 +12,7 @@ Currently covers [LongMemEval](https://github.com/xiaowu0162/LongMemEval) (S, M,
 | Tier 3 minimize-cost + sem-embed + reader router (Pareto-2) | 84.8% [81.6%, 87.8%] | $0.0410 | ~5,000 ms | 111,535 ms |
 | Tier 3 minimize-cost + sem-embed (gpt-4o-only baseline) | 83.2% [79.8%, 86.4%] | $0.0521 | — | — |
 
-For an open-source library at `gpt-4o` reader, **85.6%** is competitive with managed-platform-class numbers. Methodology, per-category breakdowns, and 8 documented negative architecture findings (stress-tests of adjacent configs that all regress) are at [`results/eval-matrix-v1/`](results/eval-matrix-v1/).
+For an open-source library at `gpt-4o` reader, **85.6%** is competitive with managed-platform-class numbers. Methodology, per-category breakdowns, and 10+ documented negative architecture findings (stress-tests of adjacent configs that all regress) are at [`results/eval-matrix-v1/`](results/eval-matrix-v1/). The validated consumer default classifier is `gpt-5-mini`; two independent Phase B runs confirmed that upgrading to `gpt-4o` classifier costs 12× more per query without lifting accuracy on this benchmark's category mix.
 
 ## What ships in agentos
 
