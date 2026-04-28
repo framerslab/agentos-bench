@@ -197,6 +197,11 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     // fingerprint partitioning - different embedders produce different
     // retrieval orderings, so cached case-runs MUST partition by it.
     embedderModel: cfg.embedderModel,
+    // Per-category reader-tier router preset. Loadbearing for cache
+    // fingerprint partitioning - different reader presets dispatch
+    // different reader models per case, so cached case-runs MUST
+    // partition by preset id.
+    readerRouter: cfg.readerRouter,
     // Stage C / Tier 4a: session-level NDCG retrieval post-process
     // (Emergence-style). Applies to canonical path only.
     sessionLevelNdcg: cfg.sessionLevelNdcg,
@@ -363,6 +368,19 @@ export function computeCaseRunKeyParts(
     const embedderTag = `embedder:${config.embedderModel}`;
     runKeyParts.push(embedderTag);
     resultKeyParts.push(embedderTag);
+  }
+
+  // Reader-router fingerprint (2026-04-28) — load-bearing because the
+  // active preset selects the per-case answer reader, which directly
+  // changes the LLM call that produces the cached actualOutput. Different
+  // presets pick different readers per category and therefore produce
+  // different answers; sharing a cache entry across them would silently
+  // mislabel runs. Conditional append: omit when readerRouter is undefined
+  // so single-reader runs (the default) keep their existing cache hashes.
+  if (config.readerRouter) {
+    const readerRouterTag = `reader-router:${config.readerRouter}`;
+    runKeyParts.push(readerRouterTag);
+    resultKeyParts.push(readerRouterTag);
   }
 
   // Session-level retrieval fingerprint (Step 2): conditional append

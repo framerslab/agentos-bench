@@ -66,6 +66,14 @@ interface BenchEntry {
    */
   build: (ctx: {
     reader: IReader;
+    /**
+     * Optional auxiliary reader pool for the per-category reader-tier
+     * router (`--reader-router`). When set, the bench dispatches the
+     * answer reader per case based on the gpt-5-mini classifier's
+     * predicted category. Falls back to {@link reader} when the
+     * dispatched tier isn't in the pool.
+     */
+    readerByTier?: Partial<Record<'gpt-4o' | 'gpt-5-mini', IReader>>;
     embedder?: IEmbeddingManager;
     /**
      * Optional session-level contextual-retrieval summarizer. When
@@ -202,15 +210,15 @@ const BENCHMARKS: BenchEntry[] = [
     id: 'longmemeval-s',
     family: 'external',
     description: 'LongMemEval-S (500 cases, ~115k-token haystacks)',
-    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled, observationalMemoryEnabled }) =>
-      new LongMemEvalS({ reader, variant: 's', embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled, observationalMemoryEnabled }),
+    build: ({ reader, readerByTier, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled, observationalMemoryEnabled }) =>
+      new LongMemEvalS({ reader, readerByTier, variant: 's', embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled, observationalMemoryEnabled }),
   },
   {
     id: 'longmemeval-m',
     family: 'external',
     description: 'LongMemEval-M (~500 sessions per haystack) — medium-difficulty variant',
-    build: ({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled, observationalMemoryEnabled }) =>
-      new LongMemEvalM({ reader, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled, observationalMemoryEnabled }),
+    build: ({ reader, readerByTier, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled, observationalMemoryEnabled }) =>
+      new LongMemEvalM({ reader, readerByTier, embedder, sessionSummarizer, sessionSummaryStore, sessionRetrievalTopSessions, sessionRetrievalChunksPerSession, hybridRetrievalEnabled, hydeEnabled, factSupersessionEnabled, splitAmbiguousThreshold, observerReflectorEnabled, observerReflectorReplaceEnabled, factGraphIngestEnabled, graphActivationEnabled, observationalMemoryEnabled }),
   },
   {
     id: 'longmemeval-oracle',
@@ -452,6 +460,18 @@ export function buildCli(): Command {
     .option(
       '--embedder-model <model>',
       'Embedder model for the full-cognitive path (e.g. openai:text-embedding-3-small). Falls back to the CharHash stub when omitted.',
+    )
+    .option(
+      '--reader-router <preset>',
+      "Per-category reader-tier router: dispatch the answer reader per case based on the gpt-5-mini classifier's predicted category. Only 'min-cost-best-cat-2026-04-28' is calibrated today (gpt-4o for TR/SSU, gpt-5-mini for SSP/SSA/KU/MS — oracle 87.0% on S Phase B vs 83.2% at either reader alone). When unset the bench uses the single --reader for every case.",
+      (value: string) => {
+        if (value !== 'min-cost-best-cat-2026-04-28') {
+          throw new Error(
+            `--reader-router must be 'min-cost-best-cat-2026-04-28', got '${value}'`,
+          );
+        }
+        return value;
+      },
     )
     .option('--retrieval-k <n>', 'K for retrieval-quality metrics (Recall/Precision/NDCG@K)', parseInteger, 10)
     .option('--stratified', 'Enable stratified sampling + weighted accuracy aggregation')
@@ -876,6 +896,11 @@ export function buildCli(): Command {
         // share cached answers (which they should NOT — semantic
         // embeddings produce materially different retrieval orderings).
         embedderModel: opts.embedderModel as string | undefined,
+        // Loadbearing: drives the case-run + case-result cache fingerprint
+        // so reader-router runs don't share cached answers with single-
+        // reader runs at the same --reader value (different reader
+        // dispatched per case = different actualOutput per case).
+        readerRouter: opts.readerRouter as string | undefined,
         sessionLevelNdcg: Boolean(opts.sessionLevelNdcg) || undefined,
         sessionLevelNdcgTopK: opts.sessionLevelNdcgTopK as number | undefined,
         // Stage F-2: commander's --no-abstention sets opts.abstention === false
@@ -1012,6 +1037,33 @@ export function buildCli(): Command {
           ? new MockReader(opts.reader as string)
           : createReader(opts.reader as ReaderModel);
 
+      // Reader-router auxiliary pool. When `--reader-router <preset>` is set,
+      // build BOTH gpt-4o and gpt-5-mini reader instances up front and pass
+      // them via `readerByTier` to the bench so per-case dispatch has both
+      // tiers available. The default `--reader` instance above stays the
+      // fallback for cases where the dispatched tier isn't in the pool or
+      // the classifier errors. Skip in --dry-run + micro-benchmark mode for
+      // the same reasons single-reader runs use MockReader there.
+      let readerByTier:
+        | Partial<Record<'gpt-4o' | 'gpt-5-mini', IReader>>
+        | undefined;
+      if (
+        opts.readerRouter &&
+        !opts.dryRun &&
+        entry.family !== 'micro'
+      ) {
+        readerByTier = {
+          'gpt-4o':
+            (opts.reader as ReaderModel) === 'gpt-4o'
+              ? reader
+              : createReader('gpt-4o'),
+          'gpt-5-mini':
+            (opts.reader as ReaderModel) === 'gpt-5-mini'
+              ? reader
+              : createReader('gpt-5-mini'),
+        };
+      }
+
       // Optional real embedder for the full-cognitive path. When the
       // flag is absent the adapter falls back to CharHashEmbedder,
       // which is fine for smoke tests but not for publishable numbers.
@@ -1107,6 +1159,7 @@ export function buildCli(): Command {
 
       const benchmark = entry.build({
         reader,
+        readerByTier,
         embedder,
         sessionSummarizer,
         sessionSummaryStore,

@@ -87,6 +87,10 @@ import {
   type PolicyRouterDecision,
 } from '../../core/policyRouter.js';
 import {
+  selectReader,
+  type ReaderRouterPreset,
+} from '../../core/readerRouter.js';
+import {
   MINIMIZE_COST_AUGMENTED_TABLE,
   RETRIEVAL_CONFIG_SPECS,
   selectAugmentedDispatch,
@@ -107,6 +111,15 @@ import {
 export interface LongMemEvalAdapterOptions {
   /** Reader LLM for answering questions. Bench tests inject a MockReader. */
   reader: IReader;
+  /**
+   * Optional auxiliary reader pool for the per-category reader-tier router
+   * ({@link ../../core/readerRouter.ts}). Required only when
+   * `ctx.config.readerRouter` is set; supplies the reader instances the
+   * router can dispatch to (e.g. `{ 'gpt-4o': IReader, 'gpt-5-mini':
+   * IReader }`). When the dispatched tier is missing from this pool, the
+   * router silently falls back to {@link reader} for that case.
+   */
+  readerByTier?: Partial<Record<import('../../core/readerRouter.js').ReaderTier, IReader>>;
   /** Variant — `s`, `m`, or `oracle`. */
   variant: LongMemEvalVariant;
   /** Maximum reader answer tokens. Defaults to 256 — answers are usually short. */
@@ -923,6 +936,45 @@ export class LongMemEvalS implements IBenchmark {
     let tokensOut: number;
     let usd: number;
 
+    // Reader-router dispatch (2026-04-28). When `--reader-router <preset>` is
+    // active, pick the answer reader per case from `this.opts.readerByTier`
+    // based on the predicted question category. Reuses the classifier output
+    // already produced by policyRouter / omDynamicRouter / retrievalConfigRouter
+    // when any of them ran (zero extra LLM calls). Falls back to
+    // `this.opts.reader` when (a) the router is off, (b) the dispatched tier
+    // isn't in the auxiliary pool, or (c) the classifier errored upstream.
+    let dispatchedReader: IReader = this.opts.reader;
+    if (ctx.config.readerRouter && this.opts.readerByTier) {
+      const dispatchCategory: QuestionCategory | null =
+        policyRouterDecision?.predictedCategory ??
+        routerCategory ??
+        // retrievalConfigClassifierCategory is MemoryQueryCategory which is
+        // structurally identical to QuestionCategory (same six string-literal
+        // members); cast through unknown so the router types align.
+        ((retrievalConfigClassifierCategory ?? null) as unknown as
+          | QuestionCategory
+          | null);
+      if (dispatchCategory) {
+        try {
+          const dispatchedTier = selectReader(
+            dispatchCategory,
+            ctx.config.readerRouter as ReaderRouterPreset,
+          );
+          const candidate = this.opts.readerByTier[dispatchedTier];
+          if (candidate) {
+            dispatchedReader = candidate;
+            runMetadata.readerRouter = ctx.config.readerRouter;
+            runMetadata.readerRouterDispatched = dispatchedTier;
+            runMetadata.readerRouterCategory = dispatchCategory;
+          }
+        } catch {
+          // selectReader throws on unknown preset / category. Fall through
+          // to the default reader; the metadata.readerRouter mark stays
+          // unset so the run JSON shows the dispatch was bypassed.
+        }
+      }
+    }
+
     const evidenceForTwoCall = runMetadata.retrievedEvidence as
       | Array<{ id: string; content: string }>
       | undefined;
@@ -941,7 +993,7 @@ export class LongMemEvalS implements IBenchmark {
       }));
 
       const twoCall = await twoCallRead({
-        reader: this.opts.reader,
+        reader: dispatchedReader,
         query: c.question,
         passages,
         answerMaxTokens: this.opts.maxAnswerTokens ?? 256,
@@ -973,7 +1025,7 @@ export class LongMemEvalS implements IBenchmark {
       runMetadata.twoCallFallbackUsed = twoCall.fallbackUsed;
       runMetadata.twoCallFactCount = twoCall.scratchpadFacts.length;
     } else {
-      const response = await this.opts.reader.invoke({
+      const response = await dispatchedReader.invoke({
         system,
         user: c.question,
         maxTokens: this.opts.maxAnswerTokens ?? 256,

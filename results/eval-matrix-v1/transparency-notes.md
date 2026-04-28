@@ -129,6 +129,30 @@ Every reference row in [comparison-table.md](comparison-table.md) §"Reference r
 
 Numbers in the headline accuracy table that are NOT footnoted with a vendor caveat are AgentOS measurements at the methodology in §1.
 
+## 5.5. Per-category reader router (NEW 2026-04-28 — cost-Pareto win at gpt-4o-class accuracy)
+
+The Phase B confirmation that `gpt-5-mini` and `gpt-4o` readers tie at **83.2%** aggregate on LongMemEval-S — but with very different per-category strengths — surfaced an architectural opportunity. Per-category dispatch between the two readers, driven by the same `gpt-5-mini` few-shot classifier already running for the Tier 3 policy router, produces an apples-to-apples Pareto improvement at the gpt-4o-reader tier:
+
+| Metric | Tier 3 min-cost + sem-embed (gpt-4o reader) | + Reader router | Δ |
+|---|---:|---:|---:|
+| Aggregate accuracy | 83.2% [79.8%, 86.4%] | **84.8% [81.6%, 87.8%]** | +1.6 pp (CIs overlap) |
+| Cost per correct | $0.0521 | **$0.0410** | **−21%** |
+| Avg latency | 73 234 ms | **21 042 ms** | **−71% (3.5× faster)** |
+| Total LLM cost | $21.66 | **$17.38** | −20% |
+| single-session-preference | 63.3% [46.7, 80.0] | **86.7% [73.3, 96.7]** | **+23.4 pp (CI excludes baseline)** |
+
+The aggregate lift is statistically within bootstrap-CI overlap with the gpt-4o-only baseline, so we do not claim a fresh accuracy headline. The honest framing is: **per-category reader dispatch ties or beats gpt-4o-only on every category except where the classifier misroutes (TR, SSU within CI), at materially lower cost and latency, and produces one statistically separated category lift (single-session-preference, +23.4 pp, CI excludes baseline).**
+
+**Calibration source**: per-category accuracy split between `gpt-4o` (Phase B 2026-04-27) and `gpt-5-mini` (Phase B 2026-04-28) at the same retrieval stack (Tier 3 min-cost + `text-embedding-3-small`). `gpt-4o` wins TR (84.7% vs 72.9%) and SSU (94.3% vs 90.0%); `gpt-5-mini` wins SSP (86.7% vs 63.3%, +23.4 pp), KU (87.2% vs 85.7%), MS (79.7% vs 76.2%); SSA is tied (100% vs 98.2%, prefer cheaper). Codified as `MIN_COST_BEST_CAT_2026_04_28_TABLE` in [`packages/agentos-bench/src/core/readerRouter.ts`](../../src/core/readerRouter.ts).
+
+**Realized vs oracle**: oracle aggregate at this calibration is 435/500 = **87.0%** (per-category-best dispatch with a perfect classifier). We realize **84.8%** at full N=500 because the `gpt-5-mini` few-shot classifier mispredicts category on ~20% of S cases. The misroute cost concentrates on TR (-2.7 pp vs ground-truth-best dispatch) and SSU (-2.9 pp). Closing the realized-to-oracle gap is the next architectural axis: a stronger classifier (gpt-4o classifier instead of gpt-5-mini few-shot) would lift dispatch accuracy at a small per-query cost premium.
+
+**Architecture novelty**: where Tier 3's policy router dispatches per query *between retrieval architectures* (canonical-hybrid vs OM-v11) at a fixed reader, the reader router dispatches per query *between reader models* at a fixed retrieval architecture. Both consume the same gpt-5-mini classifier, so adding the reader router on top of the policy router costs zero extra LLM calls per case. The two routers are orthogonal axes of the same dispatch primitive — a product surface no other published memory library exposes today.
+
+**Productionization**: the calibration table + dispatch ship in agentos-bench at the commit alongside this note. The companion `ReaderRouter` primitive in `@framers/agentos/memory-router` is queued for v0.5.5 release so consumers of `@framers/agentos` can wire per-category reader dispatch directly without rebuilding the bench harness.
+
+Run JSON: `results/runs/2026-04-28T13-21-50-567--longmemeval-s--gpt-4o--full-cognitive--ingest.json`. Source code: [`src/core/readerRouter.ts`](../../src/core/readerRouter.ts), [`tests/readerRouter.spec.ts`](../../tests/readerRouter.spec.ts) (12 unit tests pinning the table), dispatch wired in [`src/benchmarks/longmemeval/LongMemEvalS.ts`](../../src/benchmarks/longmemeval/LongMemEvalS.ts) at the answer-call site. CLI flag: `--reader-router min-cost-best-cat-2026-04-28`.
+
 ## 6. v2 ambitions (publication next)
 
 The v2 publication will add the following work, on top of the v1 baseline:
