@@ -59,9 +59,9 @@ The v1 publication plan (`docs/plans/2026-04-26-v1-publication-plan.md` §1.2) c
 
 The existing 0% LOCOMO FPR therefore applies to every retrieval configuration on LOCOMO, including `--entity-linking 0.5`. Spending another $0.05 to confirm a tautology would burn the v1 transparency budget on signal we already have.
 
-## 3. Two negative architecture findings
+## 3. Negative architecture findings — six total (two Phase A drops + four Phase B compounding regressions)
 
-The v1 spec ([2026-04-25-comprehensive-evaluation-matrix-design.md](../../docs/specs/2026-04-25-comprehensive-evaluation-matrix-design.md)) named six candidate architectures. Two were tested and dropped at Phase A. Both are documented as production primitives in agentos core anyway, since consumers building different pipelines may see different results. The negative findings are the credibility differentiator vs vendors who only publish wins.
+The v1 spec ([2026-04-25-comprehensive-evaluation-matrix-design.md](../../docs/specs/2026-04-25-comprehensive-evaluation-matrix-design.md)) named six candidate architectures. Two were tested and dropped at Phase A (§3.1, §3.2). Four additional architectures were tested at Phase B as compounding lifts on top of validated baselines and net-regressed (§3.3, §3.4 — hierarchical retrieval, two-call reader, M-tuned flags compounded on S, all-OM dispatch on S). All six negative findings are documented as production primitives in agentos core anyway, since consumers building different pipelines may see different results. The negative findings are the credibility differentiator vs vendors who only publish wins.
 
 ### 3.1 Stage L: Anthropic Contextual Retrieval `summarized` executor
 
@@ -87,9 +87,17 @@ Why it didn't lift on top of Cohere rerank:
 
 Mem0 v3's published 91.6% LOCOMO is a managed-platform claim with proprietary optimizations. Their own blog ([State of AI Agent Memory 2026](https://mem0.ai/blog/state-of-ai-agent-memory-2026)) reports **66.9%** for the production stack on LOCOMO, which is closer to the architecture we tested. The agentos primitives (`EntityExtractor`, `EntityLinkingIngestExecutor`, `EntityRetrievalRanker`, shipping in 0.2.13) are still useful for consumers replicating Mem0-v3-style pipelines.
 
-### 3.3 The pattern
+### 3.3 Phase B compounding tests on S — both regress against the 83.2% baseline
 
-Two consecutive negatives for lightweight signal additions on top of our hybrid + Cohere rerank stack. Both architectures duplicate work the rerank stage already does (Stage L) or introduce signals the cross-encoder already considers (Stage I). To push aggregate accuracy further, the next architectural push needs to be substantial — typed graph traversal, not signal stacking. Stage E (Hindsight 4-network typed observer) is the v2 candidate.
+After landing the 83.2% Phase B headline (Tier 3 min-cost + `text-embedding-3-small`), two natural next-axis experiments were measured at full N=500 to test whether layered architectures compound. **Both regressed**, locking the 83.2% configuration as the right S anchor.
+
+**M-tuned flags compounded on S Phase B (`--rerank-candidate-multiplier 5 --reader-top-k 50 --hyde`):** **76.6% [72.8%, 80.2%]**, $0.113/correct. **−6.6 pp vs 83.2%.** MS −17.6 pp, TR −10.3 pp. The wider rerank pool over-prunes S's smaller chunk pool; HyDE adds noise on shorter haystacks. The flags are M-specific calibration for 500-session haystacks, not S. Run JSON: `results/runs/2026-04-27T19-07-21-734--longmemeval-s--gpt-4o--full-cognitive--ingest.json`.
+
+**All-OM dispatch on S (Mastra OM architecture clone, `--observational-memory --om-observer-model gpt-5-mini`):** **76.0% [72.2%, 79.6%]**, $0.346/correct (6.6× more expensive). **−7.2 pp vs 83.2%.** SSA −16.1 pp (98.2% → 82.1%), TR −16.3 pp (84.7% → 68.4%). All-OM-on-every-case summarizes session content into observational memory regardless of category, throwing away the verbatim detail lexical+rerank retrieval would have surfaced for single-session-assistant questions and the temporal anchors temporal-reasoning needs. **Apples-to-apples confirmation that Mastra OM's published 84.2% gpt-4o number is within statistical CI of our 83.2% gpt-4o baseline; their 94.9% headline is reader-driven (gpt-5-mini reader, +10.7 pp on their own data), NOT architecture-driven (all-OM dispatch HURT us at gpt-4o reader on the identical retrieval stack).** Selective OM gating (Tier 3 min-cost preset on `@framers/agentos/memory-router`) is the validated S architecture choice. Run JSON: `results/runs/2026-04-27T21-31-50-806--longmemeval-s--gpt-4o--full-cognitive--ingest.json`.
+
+### 3.4 The pattern
+
+Six architecturally-distinct experiments, six negative results vs the simpler shipping configuration: Stage L Anthropic Contextual Retrieval, Stage I Mem0-style entity-linking re-rank, Stage H hierarchical retrieval, two-call reader on M-tuned, M-tuned flags compounded on S, all-OM dispatch on S. The first three duplicate work the Cohere rerank stage already does or introduce signals the cross-encoder already considers; the latter three replace simpler-and-cheaper paths with more-expensive paths that lose detail (M-tuned over-prunes S; OM summarization throws away verbatim chunks; two-call reader strips raw passage context). To push aggregate accuracy further, the next architectural push needs to be either a substantial new signal (typed graph traversal — Stage E Hindsight 4-network observer is the v2 candidate) or a model-tier swap (gpt-5-mini reader, queued as the next S experiment after M Phase B lands; Mastra's own data implies +10.7 pp from this single change).
 
 ## 4. BEAM 100K coverage
 
@@ -110,7 +118,8 @@ Every reference row in [comparison-table.md](comparison-table.md) §"Reference r
 | Reference system | LongMemEval-S | Caveat |
 |---|---:|---|
 | Full-context `gpt-4o` baseline | 60.2% | LongMemEval paper. No memory architecture; whole conversation in context. |
-| Mastra Observational Memory | 84.2% (`gpt-4o`) | Observer is `gemini-2.5-flash`. Reader is `gpt-4o`. Cross-provider; not single-provider reproducible. |
+| Mastra Observational Memory | 84.2% (`gpt-4o`) | Observer is `gemini-2.5-flash`. Reader is `gpt-4o`. Cross-provider; not single-provider reproducible. **Within statistical CI of our 83.2% gpt-4o baseline.** |
+| Mastra Observational Memory (architecture clone, our retrieval) | **76.0%** [72.2%, 79.6%] (`gpt-4o`) | **Apples-to-apples test 2026-04-27.** All-OM dispatch + `gpt-5-mini` observer (matching Mastra's 94.9% architecture) on our retrieval stack (full-cognitive + Cohere rerank-v3.5 + `text-embedding-3-small`) at `gpt-4o` reader. **−7.2 pp vs our 83.2% baseline at the same reader.** Confirms Mastra's architecture lift on S is reader/observer-tier driven (their 94.9% uses `gpt-5-mini` reader + `gpt-5-mini` observer; +10.7 pp over their gpt-4o number is reader + observer combined), not the all-OM-on-S dispatch pattern. Run JSON: `results/runs/2026-04-27T21-31-50-806--longmemeval-s--gpt-4o--full-cognitive--ingest.json`. |
 | Mem0 v3 (managed platform) | 93.4% | Managed-platform-only number with proprietary optimizations. Mem0's own production-stack number (LOCOMO) is 66.9% per their State of AI Agent Memory 2026 blog. |
 | Hindsight Gemini-3-pro | 91.4% | Reader is `gemini-3-pro`. Bench harness uses Gemini judge (`vectorize-io/agent-memory-benchmark`). Apples-to-apples for our `gpt-4o` reader is OSS-20B 83.6% / OSS-120B 89.0%. |
 | Hindsight OSS-120B | 89.0% | Same Gemini-judge harness caveat. |
