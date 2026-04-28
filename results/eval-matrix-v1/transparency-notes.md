@@ -165,6 +165,12 @@ The 84.8% reader-router-with-Tier-3 headline assumed the Tier 3 minimize-cost po
 | Recall@10 | 0.831 | 0.981 | +0.150 |
 | Reader dispatch | 234/500 gpt-4o, 266/500 gpt-5-mini | 235/500 gpt-4o, 265/500 gpt-5-mini | unchanged |
 
+**What's measured vs not (cost/latency claims)**:
+
+The 4.6× cheaper and 5.3× faster comparisons are **AgentOS-internal**: both the prior 84.8% reader-router-with-policy run and the 85.6% canonical-hybrid + reader-router run were executed at full Phase B N=500 on the same hardware, same OpenAI/Cohere API endpoints, same per-case `costTracker.record()` instrumentation, same wall-clock latency capture. Apples-to-apples intra-AgentOS Pareto delta. **Cost and latency are NOT measured against external vendors (Mastra, Supermemory, EmergenceMem) because those vendors do not publish $/correct or per-case latency numbers in their published research.** Apples-to-apples cost/latency comparisons against external libraries would require cloning their stacks and re-running the bench — out of scope for v1.
+
+The accuracy comparison vs Mastra OM gpt-4o is apples-to-apples on the dimensions we can verify (same dataset, same answer reader tier), with the standing caveat that judge methodology differs across vendors (Mastra's judge model/rubric not publicly disclosed).
+
 **Why this works (architectural finding):**
 
 The Tier 3 minimize-cost preset's calibration sends `multi-session` and `single-session-preference` cases to the OM-v11 backend. That calibration was derived from **CharHash-era Phase B data**, when retrieval recall was much weaker and OM-v11's compressed observation log compensated for the missed gold passages. In the sem-embed era (2026-04-27 onward), `text-embedding-3-small` lifts canonical-hybrid recall@10 from ~0.62 to **0.981** (when measured on the full set without the policy router's MS/SSP carve-out). Canonical-hybrid's verbatim chunk retrieval now BEATS OM-v11's summarization on MS and SSP — the OM-v11 routing strips verbatim detail the gpt-5-mini reader needs:
