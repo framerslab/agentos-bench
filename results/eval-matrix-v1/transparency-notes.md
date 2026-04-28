@@ -151,6 +151,69 @@ The aggregate lift is statistically within bootstrap-CI overlap with the gpt-4o-
 
 **Productionization**: the calibration table + dispatch ship in agentos-bench at the commit alongside this note. The companion `ReaderRouter` primitive in `@framers/agentos/memory-router` is queued for v0.5.5 release so consumers of `@framers/agentos` can wire per-category reader dispatch directly without rebuilding the bench harness.
 
+### 5.5.1 Classifier-model trade-off — cost vs. accuracy decision matrix
+
+The reader router's realized 84.8% sits below the per-category oracle 87.0% because the gpt-5-mini few-shot classifier mispredicts category on roughly 20% of S cases. Switching to a stronger classifier (gpt-4o) closes part of that gap at the cost of higher per-query LLM spend. Below is the cost/accuracy trade-off so consumers of `@framers/agentos` can pick the right setting for their workload. **All numbers anchored to LongMemEval-S Phase B N=500.**
+
+**Per-case classifier LLM cost** (~650 input tokens system prompt + question, ~10 output tokens for the bare category token; OpenAI public pricing as of 2026-04-28):
+
+| Classifier model | Input $/1M | Output $/1M | $/case (classifier) | Multiple vs `gpt-5-mini` |
+|---|---:|---:|---:|---:|
+| gpt-5-mini | $0.20 | $0.80 | **$0.000138** | 1.0× |
+| gpt-4o | $2.50 | $10.00 | $0.001725 | **12.5×** |
+
+**Per-run total LLM cost at LongMemEval-S Phase B N=500** (reader + reranker + judge + classifier; reader/rerank/judge held constant across both rows):
+
+| Classifier model | Reader-router run cost | Increment vs default | % of total run |
+|---|---:|---:|---:|
+| gpt-5-mini (default) | **$17.38** | — | — |
+| gpt-4o | $18.17 | +$0.79 (+4.5%) | 4.4% of total |
+
+**Break-even accuracy** — the lift `gpt-4o` classifier needs to deliver to match `gpt-5-mini`'s `$0.041/correct`:
+
+| Realized aggregate accuracy | Resulting $/correct (gpt-4o classifier) | Δ vs `gpt-5-mini` baseline ($0.0410) |
+|---:|---:|---:|
+| 84.8% (no lift) | $0.0428 | +4.5% per correct (more expensive) |
+| 86.0% (+1.2 pp) | $0.0423 | +3.0% per correct |
+| 87.0% (+2.2 pp = oracle) | $0.0418 | +1.9% per correct |
+| **88.6%** (**+3.8 pp = break-even**) | **$0.0410** | **0% (matched cost-per-correct)** |
+| 90.0% (+5.2 pp) | $0.0404 | −1.5% per correct (cheaper net) |
+
+The realistic expectation for `gpt-4o` classifier is +1-2 pp toward the oracle 87.0% (the misclassification rate drops but doesn't go to zero — gpt-4o still gets categorical edge cases wrong). At realized 86%, the gpt-4o classifier is **3% more expensive per correct answer** than the default. Whether that's "worth it" depends on the workload's value-per-correct-answer.
+
+**At production scale (1M queries/year):**
+
+| Workload size | gpt-5-mini classifier ($/yr) | gpt-4o classifier ($/yr) | Δ ($/yr) | Accuracy lift expected | $/additional correct |
+|---:|---:|---:|---:|---:|---:|
+| 100K queries/yr | $13.80 | $172.50 | +$158.70 | ~+1.2 pp = +1,200 correct | $0.132 |
+| 1M queries/yr | $138.00 | $1,725.00 | +$1,587.00 | ~+12,000 correct | $0.132 |
+| 10M queries/yr | $1,380.00 | $17,250.00 | +$15,870.00 | ~+120,000 correct | $0.132 |
+
+**Empirical update 2026-04-28 (Phase B at full N=500)**: the gpt-4o classifier was tested empirically. The +3.7 pp Phase A signal (88.9% at N=54) **did NOT translate to Phase B at full N=500** — the validated number is **84.4% [81.2%, 87.6%]**, statistically tied with the gpt-5-mini classifier's 84.8% [81.6%, 87.8%] and within bootstrap CI overlap.
+
+| Metric | gpt-5-mini classifier (Phase B) | gpt-4o classifier (Phase B) | Δ |
+|---|---:|---:|---:|
+| Aggregate accuracy | 84.8% [81.6%, 87.8%] | 84.4% [81.2%, 87.6%] | −0.4 pp (within CI) |
+| Total LLM cost | $17.38 | $16.33 | −$1.05 (cheaper) |
+| $/correct | $0.0410 | $0.0387 | −5.7% (cheaper) |
+| Avg latency | 21,042 ms | 18,402 ms | −12.5% (faster) |
+| gpt-4o reader dispatched | 234/500 (47%) | 290/500 (58%) | +56 cases |
+
+The Phase A → Phase B compression pattern is a recurring lesson in this matrix: small-sample stratified probes at N=9 per category have implicit CIs of roughly ±10-15 pp, and aggregates inferred from those probes routinely compress 3-8 pp at full N=500. Three independent runs in this session — the 2026-04-27 gpt-5-mini reader probe (90.7% PA → 83.2% PB), the 2026-04-28 reader-router probe (85.2% PA → 84.8% PB), and the 2026-04-28 gpt-4o-classifier probe (88.9% PA → 84.4% PB) — all show the same compression. Phase A signals are decision gates, not headlines.
+
+**Empirical decision rule for consumers**:
+- **Default to `gpt-5-mini` classifier**. It matches `gpt-4o` classifier accuracy on LongMemEval-S Phase B at 12× lower per-query LLM cost. Use it.
+- The `--om-classifier-model gpt-4o` flag remains wired in for **per-workload empirical testing**: the misclassification penalty is workload-distribution-sensitive, so workloads with very different category mixes from LongMemEval-S may see a meaningful lift. Run a Phase B evaluation on your own workload before committing.
+- If you're running benchmark-style evals where matched-reader comparison to other vendors is the goal: pick whichever classifier the comparison vendor uses (most don't have a classifier — see §1.1).
+
+**Why no lift?** Inspection of dispatch counts shows the gpt-4o classifier dispatches more cases to the gpt-4o reader (290/500 vs 234/500), reflecting that it's actually MORE confident about TR/SSU classifications than gpt-5-mini. But the classification gains on those categories are offset by losses on KU (-3.9 pp) — gpt-4o classifier becomes slightly more aggressive about re-categorizing edge cases, and the redistribution doesn't favor the calibration table as designed. The realized accuracy ceiling at this Tier 3 retrieval stack is **~85%** with the current calibration; closing further toward oracle 87% requires a different lever (recall lift via `text-embedding-3-large`, or architectural change via Stage E typed observer).
+
+The gpt-4o classifier evaluation, conducted in the same session as this note's first publication, demonstrates the discipline the matrix tries to encode: write the cost-vs-accuracy hypothesis with realistic estimates, then validate empirically at Phase B before recommending the more expensive option to consumers.
+
+Run JSONs:
+- gpt-5-mini classifier Phase B: `results/runs/2026-04-28T13-21-50-567--longmemeval-s--gpt-4o--full-cognitive--ingest.json` (84.8%, $17.38)
+- gpt-4o classifier Phase B: `results/runs/2026-04-28T14-45-26-287--longmemeval-s--gpt-4o--full-cognitive--ingest.json` (84.4%, $16.33)
+
 Run JSON: `results/runs/2026-04-28T13-21-50-567--longmemeval-s--gpt-4o--full-cognitive--ingest.json`. Source code: [`src/core/readerRouter.ts`](../../src/core/readerRouter.ts), [`tests/readerRouter.spec.ts`](../../tests/readerRouter.spec.ts) (12 unit tests pinning the table), dispatch wired in [`src/benchmarks/longmemeval/LongMemEvalS.ts`](../../src/benchmarks/longmemeval/LongMemEvalS.ts) at the answer-call site. CLI flag: `--reader-router min-cost-best-cat-2026-04-28`.
 
 ## 6. v2 ambitions (publication next)

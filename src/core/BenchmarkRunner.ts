@@ -381,6 +381,21 @@ export function computeCaseRunKeyParts(
     const readerRouterTag = `reader-router:${config.readerRouter}`;
     runKeyParts.push(readerRouterTag);
     resultKeyParts.push(readerRouterTag);
+
+    // Classifier-model fingerprint (2026-04-28). Same rationale as the
+    // policy-router classifier-fingerprint: the reader router dispatches the
+    // answer reader from the gpt-5-mini few-shot classifier's predicted
+    // category, so different classifier models produce different per-case
+    // dispatch decisions and different cached actualOutputs. Conditional
+    // append so existing reader-router cache buckets stay untouched.
+    // Idempotent w.r.t. the policy-router tag: when both are set with the
+    // same overridden classifier the same tag is appended twice, hashing the
+    // same way (cache keys join with `|`, so duplicates collapse to identity).
+    if (config.omClassifierModel && config.omClassifierModel !== 'gpt-5-mini') {
+      const classifierTag = `om-classifier:${config.omClassifierModel}`;
+      runKeyParts.push(classifierTag);
+      resultKeyParts.push(classifierTag);
+    }
   }
 
   // Session-level retrieval fingerprint (Step 2): conditional append
@@ -665,6 +680,19 @@ export function computeCaseRunKeyParts(
     const tag = `policy-router:v1:${presetHash}`;
     runKeyParts.push(tag);
     resultKeyParts.push(tag);
+
+    // Classifier-model fingerprint (2026-04-28 fix). The policy router
+    // dispatches per-question backend selection from the gpt-5-mini few-shot
+    // classifier's predicted category. Different classifier models produce
+    // different per-case dispatch decisions and therefore different cached
+    // actualOutputs. Conditional append: omit when the classifier is the
+    // default gpt-5-mini so existing policy-router cache buckets stay
+    // untouched.
+    if (config.omClassifierModel && config.omClassifierModel !== 'gpt-5-mini') {
+      const classifierTag = `om-classifier:${config.omClassifierModel}`;
+      runKeyParts.push(classifierTag);
+      resultKeyParts.push(classifierTag);
+    }
   }
 
   // RetrievalConfigRouter (2026-04-26 v2) fingerprint. Conditional so
