@@ -9,3 +9,9 @@ node_modules/
 
 # OS junk
 .DS_Store
+
+# Vendor reproduction adapters' Python venvs (sentence-transformers + deps
+# can be 800MB+; users recreate via the wrapper script's `python -m venv`).
+vendors/*/.venv/
+vendors/*/__pycache__/
+vendors/*/*.pyc
