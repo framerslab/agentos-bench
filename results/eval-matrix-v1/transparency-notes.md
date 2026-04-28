@@ -171,9 +171,45 @@ The 4.6× cheaper and 5.3× faster comparisons are **AgentOS-internal**: both th
 
 The accuracy comparison vs Mastra OM gpt-4o is apples-to-apples on the dimensions we can verify (same dataset, same answer reader tier), with the standing caveat that judge methodology differs across vendors (Mastra's judge model/rubric not publicly disclosed).
 
-**Why this works (architectural finding):**
+**Architectural finding.**
 
-The Tier 3 minimize-cost preset's calibration sends `multi-session` and `single-session-preference` cases to the OM-v11 backend. That calibration was derived from **CharHash-era Phase B data**, when retrieval recall was much weaker and OM-v11's compressed observation log compensated for the missed gold passages. In the sem-embed era (2026-04-27 onward), `text-embedding-3-small` lifts canonical-hybrid recall@10 from ~0.62 to **0.981** (when measured on the full set without the policy router's MS/SSP carve-out). Canonical-hybrid's verbatim chunk retrieval now BEATS OM-v11's summarization on MS and SSP — the OM-v11 routing strips verbatim detail the gpt-5-mini reader needs:
+The Tier 3 minimize-cost preset routes `multi-session` and `single-session-preference` cases to the OM-v11 backend. That routing table was calibrated on Phase B data measured against CharHashEmbedder, when canonical-hybrid recall@10 was around 0.62 and OM-v11's compressed observation log compensated for missed gold passages. With `text-embedding-3-small`, canonical-hybrid recall@10 hits **0.981** on S, and the per-category accuracy story changes substantially.
+
+Per-category Phase B at full N=500, sem-embed retrieval, both readers measured:
+
+At gpt-4o reader:
+
+| Category | Tier 3 + OM-v11 routing | Canonical-only | Effect |
+|---|---:|---:|---|
+| SSP (n=30) | 63.3% | 76.7% | OM-v11 costs 13.4 pp on SSP |
+| MS (n=133) | 76.2% | 72.2% | OM-v11 gains 4.0 pp on MS |
+| SSA, SSU, TR, KU | canonical-hybrid in both configs | within run-to-run noise |
+| Aggregate | 83.2% | 84.2% | canonical-only edges out by 1.0 pp |
+
+OM-v11's effect on the Tier 3 minimize-cost routing is mixed per category. SSP loses verbatim preference statements when the observer summarizes them into structured bullets, which gpt-4o struggles to recover from. MS benefits from cross-session aggregation. The case-weighted aggregate slightly favors canonical-only because SSP's 13.4 pp loss outweighs MS's 4 pp gain.
+
+At gpt-5-mini reader (via reader router):
+
+| Category | Tier 3 + OM-v11 + RR | Canonical + RR | Effect |
+|---|---:|---:|---|
+| SSP (n=30) | 86.7% | 86.7% | tied |
+| MS (n=133) | 75.2% | 74.4% | tied within CI |
+| Aggregate | 84.8% | 85.6% | +0.8 pp, overlapping CIs |
+
+At gpt-5-mini reader, OM-v11 routing produces statistically tied accuracy on the categories where it fires. The headline +23.4 pp SSP lift (63.3% baseline to 86.7% headline) is driven by the reader-tier swap, not the routing decision.
+
+The case for dropping OM-v11 routing in this configuration is therefore primarily a latency case:
+
+| Cost axis | OM-v11 routing on | OM-v11 routing off | Delta |
+|---|---:|---:|---|
+| Avg latency | 21,042 ms | 4,001 ms | 5.3× faster without OM-v11 |
+| p95 latency | 111,535 ms | 7,264 ms | 15× faster on the tail |
+| Per-case LLM calls (OM-routed) | 1 + N observer + 1 reader | 1 classifier + 1 reader | dropping ~N observer calls per OM case |
+| Total LLM cost ($) | $17.38 | $3.84 | 4.6× cheaper |
+
+OM-v11's per-session observer pipeline runs an LLM call per haystack session before the reader sees anything. On S with 40-50 sessions per haystack, that adds 60-120 seconds of sequential observer work per OM-routed case. At gpt-5-mini reader the observer cost buys no accuracy. Drop it.
+
+
 
 - SSP at sem-embed canonical + gpt-5-mini reader: **86.7%**
 - SSP at sem-embed Tier 3 minimize-cost (→ OM-v11) + gpt-5-mini reader: 86.7% (same, but now with the cost+latency tax of the OM ingest)
