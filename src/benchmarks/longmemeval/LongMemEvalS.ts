@@ -940,12 +940,15 @@ export class LongMemEvalS implements IBenchmark {
     // active, pick the answer reader per case from `this.opts.readerByTier`
     // based on the predicted question category. Reuses the classifier output
     // already produced by policyRouter / omDynamicRouter / retrievalConfigRouter
-    // when any of them ran (zero extra LLM calls). Falls back to
-    // `this.opts.reader` when (a) the router is off, (b) the dispatched tier
-    // isn't in the auxiliary pool, or (c) the classifier errored upstream.
+    // when any of them ran (zero extra LLM calls). When NO other router fired
+    // the classifier (canonical-only run), fall back to a standalone gpt-5-mini
+    // few-shot classifier call here — the reader-router still needs the
+    // predicted category to dispatch. Falls back to `this.opts.reader` when (a)
+    // the router is off, (b) the dispatched tier isn't in the auxiliary pool,
+    // or (c) the classifier errored.
     let dispatchedReader: IReader = this.opts.reader;
     if (ctx.config.readerRouter && this.opts.readerByTier) {
-      const dispatchCategory: QuestionCategory | null =
+      let dispatchCategory: QuestionCategory | null =
         policyRouterDecision?.predictedCategory ??
         routerCategory ??
         // retrievalConfigClassifierCategory is MemoryQueryCategory which is
@@ -954,6 +957,35 @@ export class LongMemEvalS implements IBenchmark {
         ((retrievalConfigClassifierCategory ?? null) as unknown as
           | QuestionCategory
           | null);
+      // Standalone classifier fallback: when no other router ran, fire a
+      // fresh classify call so the reader router can dispatch. Cost is a
+      // single ~$0.000138 gpt-5-mini call per case (default classifier).
+      if (!dispatchCategory) {
+        const classifierModelName = (ctx.config.omClassifierModel ??
+          'gpt-5-mini') as ReaderModel;
+        const classifierReader = createReader(classifierModelName);
+        try {
+          const result = await classifyQuestion({
+            reader: classifierReader,
+            question: c.question,
+            useFewshotPrompt: Boolean(ctx.config.omClassifierFewshot),
+          });
+          dispatchCategory = result.category;
+          if (result.tokensIn > 0 || result.tokensOut > 0) {
+            ctx.costTracker.record({
+              category: 'reader',
+              model: result.model,
+              tokensIn: result.tokensIn,
+              tokensOut: result.tokensOut,
+              tag: `${c.id}:reader-router-classifier`,
+            });
+          }
+        } catch {
+          // Classifier errored: leave dispatchCategory null so the
+          // dispatch is bypassed and `this.opts.reader` answers the case.
+          // Same fallback posture as policy router on classifier error.
+        }
+      }
       if (dispatchCategory) {
         try {
           const dispatchedTier = selectReader(

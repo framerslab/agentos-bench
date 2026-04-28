@@ -151,6 +151,50 @@ The aggregate lift is statistically within bootstrap-CI overlap with the gpt-4o-
 
 **Productionization**: the calibration table + dispatch ship in agentos-bench at the commit alongside this note. The companion `ReaderRouter` primitive in `@framers/agentos/memory-router` is queued for v0.5.5 release so consumers of `@framers/agentos` can wire per-category reader dispatch directly without rebuilding the bench harness.
 
+### 5.5.0 NEW HEADLINE 2026-04-28 — Canonical-hybrid + standalone classifier breaks the 84.8% Pareto
+
+The 84.8% reader-router-with-Tier-3 headline assumed the Tier 3 minimize-cost policy router was load-bearing. **It isn't — it's actively hurting at the sem-embed era.** Dropping it AND adding a standalone gpt-5-mini classifier so the reader router can dispatch on the canonical-hybrid-only path produces a **fresh accuracy headline AND simultaneous cost-Pareto improvement** at full Phase B N=500:
+
+| Metric | Tier 3 + reader router (84.8%) | Canonical-only + reader router (85.6%) | Δ |
+|---|---:|---:|---:|
+| Aggregate accuracy | 84.8% [81.6%, 87.8%] | **85.6% [82.4%, 88.6%]** | +0.8 pp (overlapping CIs) |
+| Total LLM cost | $17.38 | **$3.84** | **−78%** |
+| Cost per correct | $0.0410 | **$0.0090** | **4.6× CHEAPER** |
+| Avg latency | 21 042 ms | **4 001 ms** | **5.3× FASTER** |
+| **p95 latency** | **111 535 ms** | **7 264 ms** | **15.4× FASTER on the tail** |
+| Recall@10 | 0.831 | 0.981 | +0.150 |
+| Reader dispatch | 234/500 gpt-4o, 266/500 gpt-5-mini | 235/500 gpt-4o, 265/500 gpt-5-mini | unchanged |
+
+**Why this works (architectural finding):**
+
+The Tier 3 minimize-cost preset's calibration sends `multi-session` and `single-session-preference` cases to the OM-v11 backend. That calibration was derived from **CharHash-era Phase B data**, when retrieval recall was much weaker and OM-v11's compressed observation log compensated for the missed gold passages. In the sem-embed era (2026-04-27 onward), `text-embedding-3-small` lifts canonical-hybrid recall@10 from ~0.62 to **0.981** (when measured on the full set without the policy router's MS/SSP carve-out). Canonical-hybrid's verbatim chunk retrieval now BEATS OM-v11's summarization on MS and SSP — the OM-v11 routing strips verbatim detail the gpt-5-mini reader needs:
+
+- SSP at sem-embed canonical + gpt-5-mini reader: **86.7%**
+- SSP at sem-embed Tier 3 minimize-cost (→ OM-v11) + gpt-5-mini reader: 86.7% (same, but now with the cost+latency tax of the OM ingest)
+- SSP at sem-embed Tier 3 minimize-cost (→ OM-v11) + gpt-4o reader (the prior 83.2% headline): **63.3%** (gpt-4o struggles on OM summaries for SSP)
+
+**The fix**: use canonical-hybrid for ALL categories + reader router with standalone classifier. MS/SSP cases now flow through canonical-hybrid retrieval (where they have access to verbatim chunks) AND get dispatched to gpt-5-mini reader (which handles them best). The Tier 3 minimize-cost preset is now **deprecated for sem-embed deployments** — its calibration is stale.
+
+**Standalone classifier mechanism**: when `--reader-router <preset>` is set without a co-existing classifier-firing router (`--policy-router`, `--om-dynamic-router`, or `--retrieval-config-router`), the bench fires its own gpt-5-mini few-shot classifier per case. Cost: ~$0.000138/case ($0.07 for the full Phase B N=500). The cache fingerprint partitions by a `reader-router-standalone-classifier:v1` tag so cached results from the dispatch-bypassed era don't bleed in (5 contract tests pin this in `tests/readerRouterCacheFingerprint.spec.ts`).
+
+**Stress-tested optimum**: 7 adjacent configurations were Phase A-tested on top of the 84.8% reader-router-with-Tier-3 baseline — all regressed:
+
+| Probe | Phase A (N=54) | Δ vs 85.2% PA baseline |
+|---|---:|---:|
+| `--reader-top-k 30` + reader router | 81.5% | −3.7 pp |
+| `--hyde` + reader router | 83.3% | −1.9 pp |
+| `--rerank-candidate-multiplier 5` + reader router | 75.9% | −9.3 pp |
+| `--retrieval-config-router minimize-cost-augmented` + reader router | 77.8% | −7.4 pp |
+| `--policy-router-preset balanced` + reader router | 74.1% | −11.1 pp |
+| `--policy-router-preset maximize-accuracy` + reader router | 83.3% | −1.9 pp |
+| `text-embedding-3-large` + reader router | 83.3% | −1.9 pp |
+
+The 85.6% canonical-hybrid headline was discovered by running an **ablation control** for the per-category HyDE-for-MS hypothesis: the control (`canonical-only + reader router, no HyDE`) lifted by dropping the policy router. The hypothesis itself (HyDE compounds with reader router) was falsified (`canonical-only + HyDE` regressed -5.6 pp). The accidental discovery is the headline.
+
+Source code: bench dispatch in [`src/benchmarks/longmemeval/LongMemEvalS.ts`](../../src/benchmarks/longmemeval/LongMemEvalS.ts) standalone-classifier fallback block; cache fingerprint in [`src/core/BenchmarkRunner.ts`](../../src/core/BenchmarkRunner.ts) `computeCaseRunKeyParts`; tests in [`tests/readerRouterCacheFingerprint.spec.ts`](../../tests/readerRouterCacheFingerprint.spec.ts).
+
+Run JSON: [`results/runs/2026-04-28T19-06-42-271--longmemeval-s--gpt-4o--full-cognitive--ingest.json`](../runs/2026-04-28T19-06-42-271--longmemeval-s--gpt-4o--full-cognitive--ingest.json).
+
 ### 5.5.1 Classifier-model trade-off — cost vs. accuracy decision matrix
 
 The reader router's realized 84.8% sits below the per-category oracle 87.0% because the gpt-5-mini few-shot classifier mispredicts category on roughly 20% of S cases. Switching to a stronger classifier (gpt-4o) closes part of that gap at the cost of higher per-query LLM spend. Below is the cost/accuracy trade-off so consumers of `@framers/agentos` can pick the right setting for their workload. **All numbers anchored to LongMemEval-S Phase B N=500.**

@@ -382,6 +382,27 @@ export function computeCaseRunKeyParts(
     runKeyParts.push(readerRouterTag);
     resultKeyParts.push(readerRouterTag);
 
+    // Standalone-classifier mode (2026-04-28-v2). When `--reader-router` is
+    // on AND no other classifier-firing router is active (no `--policy-router`,
+    // no `--om-dynamic-router`, no `--retrieval-config-router`), the bench
+    // now fires its OWN gpt-5-mini classifier call to drive reader dispatch.
+    // Prior cache buckets in this configuration were generated WITHOUT
+    // dispatch (the classifier never fired and `dispatchedReader` fell
+    // through to `--reader`); they are NOT compatible with the new dispatch
+    // path. Tag this mode separately so those stale buckets don't bleed in.
+    // Conditional append: tag only fires in the standalone path, so caches
+    // from runs that pair readerRouter with another router stay untouched.
+    const hasOtherClassifierRouter = Boolean(
+      config.policyRouter ||
+        config.omDynamicRouter ||
+        config.retrievalConfigRouter,
+    );
+    if (!hasOtherClassifierRouter) {
+      const standaloneTag = 'reader-router-standalone-classifier:v1';
+      runKeyParts.push(standaloneTag);
+      resultKeyParts.push(standaloneTag);
+    }
+
     // Classifier-model fingerprint (2026-04-28). Same rationale as the
     // policy-router classifier-fingerprint: the reader router dispatches the
     // answer reader from the gpt-5-mini few-shot classifier's predicted
