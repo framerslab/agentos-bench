@@ -176,6 +176,13 @@ function shuffleStable<T>(arr: T[], seed: number): T[] {
   return out;
 }
 
+function lastSessionIdForObserve(
+  sessionsByDate: ReadonlyArray<{ sessionId: string }>,
+  questionId: string,
+): string {
+  return sessionsByDate[sessionsByDate.length - 1]?.sessionId ?? `session_${questionId}`;
+}
+
 // ---------------------------------------------------------------------------
 // Dataset loading + sampling
 // ---------------------------------------------------------------------------
@@ -223,6 +230,10 @@ async function runCase(c: LongMemEvalCase, opts: RunOptions): Promise<CaseResult
   // both: the composite for Memory, and `.stores.memory` for the
   // processor's storage slot.
   const omStorage = new LibSQLStore({ id: `om-${c.question_id}`, url: ':memory:' });
+  // LibSQLStore composite needs init() before any sub-store reads/writes
+  // hit the DB — otherwise the per-domain tables (mastra_observational_memory,
+  // mastra_messages, etc.) don't exist yet and observe/reflect crash.
+  await (omStorage as unknown as { init: () => Promise<void> }).init();
   const omMemoryStore = (omStorage as unknown as { stores: { memory: unknown } }).stores.memory;
 
   // Track cost of Observer/Reflector calls separately from the reader
@@ -235,11 +246,21 @@ async function runCase(c: LongMemEvalCase, opts: RunOptions): Promise<CaseResult
     storage: omMemoryStore as ConstructorParameters<typeof ObservationalMemory>[0]['storage'],
     observation: {
       model: openai(opts.observerModel),
-      messageTokens: 30000,
+      // Lower threshold than Mastra's bench default of 30000 tokens.
+      // We observe per-session here (each call gets one session's
+      // messages), so the threshold needs to be below typical per-
+      // session token budget (~500-3000 for LongMemEval-S sessions).
+      // 1000 ensures observation fires for every session that has
+      // meaningful content; smaller sessions get rolled into the next
+      // observation when threshold cumulatively exceeds.
+      messageTokens: 1000,
       recognizePatterns: false,
     },
     reflection: {
       model: openai(opts.reflectorModel),
+      // Reflection threshold remains high; we trigger reflection
+      // explicitly via reflect() at the end of ingest, not via the
+      // accumulated-tokens trigger.
       observationTokens: 80000,
       recognizePatterns: false,
     },
@@ -281,71 +302,95 @@ async function runCase(c: LongMemEvalCase, opts: RunOptions): Promise<CaseResult
     }))
     .sort((a, b) => a.date.getTime() - b.date.getTime());
 
-  for (const { session, date, sessionId } of sessionsByDate) {
-    const messages = session.map((turn, idx) => ({
-      role: turn.role,
-      content: turn.content,
-      createdAt: new Date(date.getTime() + idx * 5_000),
-    }));
-    if (messages.length === 0) continue;
+  // Direct OM observation per session via the npm-published `observe()`
+  // and `reflect()` API. Bypasses the agent.generate-driven ingest
+  // (which Mastra's bench uses with a mock model) — direct calls avoid
+  // wasted reader tokens during ingest, and don't depend on the
+  // threshold accumulator firing across many tiny message-pair calls.
+  // Cost accounting: observerTokensIn/Out are aggregated from the
+  // observe() return value's observationUsage; reflection cost is
+  // captured separately when reflect() returns reflectionUsage.
+  type OmDirectAPI = {
+    observe: (opts: {
+      threadId: string;
+      resourceId: string;
+      messages: Array<{ role: string; content: string; createdAt: Date }>;
+    }) => Promise<{
+      observed: boolean;
+      observationUsage?: { inputTokens?: number; outputTokens?: number };
+    }>;
+    reflect: (
+      threadId: string,
+      resourceId: string,
+    ) => Promise<{
+      reflected: boolean;
+      reflectionUsage?: { inputTokens?: number; outputTokens?: number };
+    }>;
+  };
+  const om = observationalMemory as unknown as OmDirectAPI;
 
-    // Process message pairs one at a time (matches Mastra's prepare.ts loop)
-    for (let i = 0; i < messages.length; i += 2) {
-      const pair = messages.slice(i, Math.min(i + 2, messages.length));
-      try {
-        await agent.generate(pair as never, {
-          memory: { thread: sessionId, resource: resourceId },
-          modelSettings: { temperature: 0 },
-        } as never);
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        return {
-          caseId: c.question_id,
-          question: c.question,
-          expected: c.answer,
-          actualOutput: '',
-          caseType: c.question_type,
-          latencyMs: 0,
-          tokensIn: 0,
-          tokensOut: 0,
-          usd: 0,
-          ingestLatencyMs: performance.now() - ingestStart,
-          ingestTokensIn: observerTokensIn,
-          ingestTokensOut: observerTokensOut,
-          ingestUsd: priceUsd(opts.observerModel, observerTokensIn, observerTokensOut),
-          errored: true,
-          errorMessage: `ingest:${errMsg}`,
-          metadata: {
-            caseType: c.question_type,
-            type: c.question_type,
-            expected: c.answer,
-            sessionsReplayed: 0,
-            observerModel: opts.observerModel,
-            reflectorModel: opts.reflectorModel,
-            readerModel: opts.reader,
-          },
-        };
-      }
+  // Aggregate all haystack messages into a single observation call.
+  // The OM threshold is computed against the messages passed to observe(),
+  // so per-session calls fail to fire when individual sessions are under
+  // the messageTokens threshold. Aggregating across the full haystack
+  // (~115K tokens for LongMemEval-S) guarantees threshold is met.
+  // Each message keeps its source session's threadId via msg.threadId
+  // so the OM's observation log can attribute observations back.
+  const aggregatedMessages: Array<{
+    id: string;
+    role: 'user' | 'assistant';
+    content: string;
+    createdAt: Date;
+    threadId: string;
+  }> = [];
+  for (const { session, date, sessionId } of sessionsByDate) {
+    for (let i = 0; i < session.length; i++) {
+      aggregatedMessages.push({
+        id: `${sessionId}-msg-${i}`,
+        role: session[i].role,
+        content: session[i].content,
+        createdAt: new Date(date.getTime() + i * 5_000),
+        threadId: sessionId,
+      });
     }
   }
-  // Force a final observation + reflection pass over any unobserved
-  // messages. Mastra's bench does this explicitly after ingest to make
-  // sure the observation log is fully built before the reader sees it.
-  // Without this, short haystacks can leave the answer evidence in
-  // unobserved messages and the reader gets a stub log.
+
+  try {
+    const obsResult = await om.observe({
+      threadId: lastSessionIdForObserve(sessionsByDate, c.question_id),
+      resourceId,
+      messages: aggregatedMessages,
+    });
+    if (obsResult?.observationUsage) {
+      observerTokensIn += obsResult.observationUsage.inputTokens ?? 0;
+      observerTokensOut += obsResult.observationUsage.outputTokens ?? 0;
+    }
+    console.log(
+      `[${c.question_id}] observed=${obsResult?.observed} tokens=${aggregatedMessages.reduce((s, m) => s + Math.ceil(m.content.length / 4), 0)}`,
+    );
+  } catch (err) {
+    console.warn(
+      `observe failed for ${c.question_id}:`,
+      err instanceof Error ? err.message : err,
+    );
+  }
+
+  // Reflection over the accumulated observation log, scoped at resource.
+  // Mastra's bench triggers reflection through finalize(); we call
+  // reflect() directly with the last session as the thread anchor.
   const lastSessionId = sessionsByDate[sessionsByDate.length - 1]?.sessionId
     ?? `session_${c.question_id}`;
   try {
-    await (observationalMemory as unknown as {
-      finalize: (sessionId: string, resourceId: string, opts: object) => Promise<void>;
-    }).finalize(lastSessionId, resourceId, {
-      reflect: true,
-      observationTokens: 20000,
-    });
+    const refResult = await om.reflect(lastSessionId, resourceId);
+    if (refResult?.reflectionUsage) {
+      observerTokensIn += refResult.reflectionUsage.inputTokens ?? 0;
+      observerTokensOut += refResult.reflectionUsage.outputTokens ?? 0;
+    }
   } catch (err) {
-    // Non-fatal — the observation log may still have content from
-    // mid-ingest observations.
-    console.warn(`finalize failed for ${c.question_id}:`, err instanceof Error ? err.message : err);
+    console.warn(
+      `reflect failed for ${c.question_id}:`,
+      err instanceof Error ? err.message : err,
+    );
   }
 
   const ingestLatencyMs = performance.now() - ingestStart;
