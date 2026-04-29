@@ -33,7 +33,12 @@ export type { LongMemEvalQuestionType } from './judges/rubrics/longmemeval.js';
 export type { IReader, ReaderRequest, ReaderResponse } from './readers/IReader.js';
 export { MockReader } from './readers/MockReader.js';
 export type { MockHandler, MockRoute } from './readers/MockReader.js';
-export { createReader, OpenAIHttpReader, AnthropicHttpReader } from './readers/createReader.js';
+export {
+  createReader,
+  OpenAIHttpReader,
+  AnthropicHttpReader,
+  GeminiHttpReader,
+} from './readers/createReader.js';
 
 // --- Cognitive scaffolding ---
 export * from './cognitive/index.js';
@@ -53,7 +58,10 @@ export * from './setup/index.js';
 export { DecayFidelity, buildSyntheticTrace } from './micro/DecayFidelity.js';
 export { HexacoEncodingBias } from './micro/HexacoEncodingBias.js';
 export { WorkingMemoryCapacity } from './micro/WorkingMemoryCapacity.js';
-export { SpreadingActivationPrecision, buildSyntheticGraph } from './micro/SpreadingActivationPrecision.js';
+export {
+  SpreadingActivationPrecision,
+  buildSyntheticGraph,
+} from './micro/SpreadingActivationPrecision.js';
 export { ConsolidationSignalPreservation } from './micro/ConsolidationSignalPreservation.js';
 export { ScalingProfile } from './micro/ScalingProfile.js';
 export { SignalAblation, ndcgAtK } from './micro/SignalAblation.js';

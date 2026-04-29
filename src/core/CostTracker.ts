@@ -29,7 +29,15 @@ export const MODEL_PRICES: Record<string, { promptPer1k: number; completionPer1k
   'gpt-5-mini': { promptPer1k: 0.00025, completionPer1k: 0.002 },
   'gpt-5-nano': { promptPer1k: 0.00005, completionPer1k: 0.0004 },
 
-  // Embeddings (single price — combine into promptPer1k for simplicity).
+  // Google AI Studio — https://ai.google.dev/pricing (sub-200K-context tier).
+  // Gemini 2.5 Flash: tuned for high-throughput observer/reflector loops.
+  // Gemini 2.5 Pro: stronger reasoning, used by Mastra's reflector path.
+  'gemini-2.5-flash': { promptPer1k: 0.000075, completionPer1k: 0.0003 },
+  'gemini-2.5-pro': { promptPer1k: 0.00125, completionPer1k: 0.005 },
+  'gemini-1.5-flash': { promptPer1k: 0.000075, completionPer1k: 0.0003 },
+  'gemini-1.5-pro': { promptPer1k: 0.00125, completionPer1k: 0.005 },
+
+  // Embeddings (single price, combined into promptPer1k for simplicity).
   'text-embedding-3-small': { promptPer1k: 0.00002, completionPer1k: 0 },
   'text-embedding-3-large': { promptPer1k: 0.00013, completionPer1k: 0 },
 };
@@ -101,14 +109,16 @@ export class CostTracker {
     let usd = 0;
     if (!price) {
       if (!this.warnedModels.has(entry.model)) {
-        // eslint-disable-next-line no-console
+         
         console.warn(
-          `[agentos-bench CostTracker] No price entry for model '${entry.model}', recording 0 USD. Add to MODEL_PRICES.`,
+          `[agentos-bench CostTracker] No price entry for model '${entry.model}', recording 0 USD. Add to MODEL_PRICES.`
         );
         this.warnedModels.add(entry.model);
       }
     } else {
-      usd = (entry.tokensIn / 1000) * price.promptPer1k + (entry.tokensOut / 1000) * price.completionPer1k;
+      usd =
+        (entry.tokensIn / 1000) * price.promptPer1k +
+        (entry.tokensOut / 1000) * price.completionPer1k;
     }
 
     const full: CostEntry = { ...entry, usd };
@@ -146,7 +156,7 @@ export class CostTracker {
     if (maxUsd === undefined) return;
     if (this._totals.totalUsd + estimatedUsd > maxUsd) {
       throw new Error(
-        `agentos-bench: run aborted — projected USD ${(this._totals.totalUsd + estimatedUsd).toFixed(4)} exceeds --max-usd ${maxUsd.toFixed(2)}.`,
+        `agentos-bench: run aborted — projected USD ${(this._totals.totalUsd + estimatedUsd).toFixed(4)} exceeds --max-usd ${maxUsd.toFixed(2)}.`
       );
     }
   }
@@ -183,9 +193,7 @@ export class CostTracker {
  * provider echoes back a versioned name (`gpt-4o-2024-11-20` →
  * `gpt-4o`, `claude-sonnet-4-6-20260315` → `claude-sonnet-4-6`).
  */
-function resolvePrice(
-  model: string,
-): { promptPer1k: number; completionPer1k: number } | undefined {
+function resolvePrice(model: string): { promptPer1k: number; completionPer1k: number } | undefined {
   const direct = MODEL_PRICES[model];
   if (direct) return direct;
 

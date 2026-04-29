@@ -5,9 +5,22 @@
  * than pulling the vendor SDKs, so `@framers/agentos-bench` stays
  * install-free unless the caller actually runs an external benchmark.
  *
+ * Provider routing is by model-id prefix:
+ *
+ *   - `gpt-*`     → OpenAI (chat completions)
+ *   - `claude-*`  → Anthropic (messages API)
+ *   - `gemini-*`  → Google AI Studio (generateContent)
+ *
  * Env vars expected at runtime:
- *   - `OPENAI_API_KEY`  — required for `gpt-4o*` models
- *   - `ANTHROPIC_API_KEY` — required for `claude-*` models
+ *   - `OPENAI_API_KEY`     for `gpt-*` models
+ *   - `ANTHROPIC_API_KEY`  for `claude-*` models
+ *   - `GEMINI_API_KEY`     for `gemini-*` models
+ *
+ * The bench is provider-agnostic at every LLM role (reader, classifier,
+ * observer, reflector, judge). Single-provider OpenAI remains the
+ * recommended baseline for reproducibility; cross-provider configurations
+ * (e.g. `gemini-2.5-flash` observer to reproduce Mastra's published
+ * stack) are supported by the same factory contract.
  *
  * If a key is missing, the factory throws with a clear message. Unit
  * tests should inject a {@link MockReader} directly instead of calling
@@ -45,7 +58,7 @@ const DEFAULT_READER_TIMEOUT_MS = (() => {
 async function fetchWithTimeout(
   url: string,
   init: RequestInit,
-  timeoutMs: number = DEFAULT_READER_TIMEOUT_MS,
+  timeoutMs: number = DEFAULT_READER_TIMEOUT_MS
 ): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -62,23 +75,31 @@ async function fetchWithTimeout(
 }
 
 /**
- * Construct a reader for `model`. Chooses between OpenAI and Anthropic
- * based on the model name prefix.
+ * Construct a reader for `model`. Chooses between OpenAI, Anthropic,
+ * and Google AI Studio based on the model-id prefix. Throws with a
+ * specific error message when the matching API key is not set.
  */
 export function createReader(model: ReaderModel): IReader {
   if (model.startsWith('gpt-')) {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      throw new Error(`agentos-bench: OPENAI_API_KEY not set — required for reader '${model}'.`);
+      throw new Error(`agentos-bench: OPENAI_API_KEY not set, required for reader '${model}'.`);
     }
     return new OpenAIHttpReader(model, apiKey);
   }
   if (model.startsWith('claude-')) {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
-      throw new Error(`agentos-bench: ANTHROPIC_API_KEY not set — required for reader '${model}'.`);
+      throw new Error(`agentos-bench: ANTHROPIC_API_KEY not set, required for reader '${model}'.`);
     }
     return new AnthropicHttpReader(model, apiKey);
+  }
+  if (model.startsWith('gemini-')) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error(`agentos-bench: GEMINI_API_KEY not set, required for reader '${model}'.`);
+    }
+    return new GeminiHttpReader(model, apiKey);
   }
   throw new Error(`agentos-bench: no reader configured for model '${model}'.`);
 }
@@ -94,7 +115,10 @@ export function createReader(model: ReaderModel): IReader {
 export class OpenAIHttpReader implements IReader {
   readonly model: string;
 
-  constructor(model: string, private readonly apiKey: string) {
+  constructor(
+    model: string,
+    private readonly apiKey: string
+  ) {
     this.model = model;
   }
 
@@ -172,7 +196,10 @@ export class OpenAIHttpReader implements IReader {
 export class AnthropicHttpReader implements IReader {
   readonly model: string;
 
-  constructor(model: string, private readonly apiKey: string) {
+  constructor(
+    model: string,
+    private readonly apiKey: string
+  ) {
     this.model = model;
   }
 
@@ -216,6 +243,98 @@ export class AnthropicHttpReader implements IReader {
       tokensIn: body.usage?.input_tokens ?? 0,
       tokensOut: body.usage?.output_tokens ?? 0,
       model: body.model ?? this.model,
+      latencyMs: Date.now() - start,
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Google AI Studio (generateContent API)
+// ---------------------------------------------------------------------------
+
+/**
+ * Minimal Google AI Studio client for the Gemini family. Targets the
+ * `v1beta/models/{model}:generateContent` REST endpoint so we don't pull
+ * in `@google/generative-ai`. The Gemini request body diverges from the
+ * OpenAI / Anthropic shape:
+ *
+ *   - User content goes in `contents[].parts[].text` with `role: "user"`
+ *   - System prompt goes in `systemInstruction.parts[].text`
+ *   - Generation params live under `generationConfig`
+ *
+ * Token accounting is reported via `usageMetadata.{promptTokenCount,
+ * candidatesTokenCount}` which map cleanly onto our existing
+ * `tokensIn`/`tokensOut` accounting.
+ */
+export class GeminiHttpReader implements IReader {
+  readonly model: string;
+
+  constructor(
+    model: string,
+    private readonly apiKey: string
+  ) {
+    this.model = model;
+  }
+
+  async invoke(req: ReaderRequest): Promise<ReaderResponse> {
+    const start = Date.now();
+
+    const body: Record<string, unknown> = {
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: req.user }],
+        },
+      ],
+      generationConfig: {
+        temperature: req.temperature ?? 0,
+        maxOutputTokens: req.maxTokens ?? 512,
+      },
+    };
+
+    if (req.system) {
+      body.systemInstruction = {
+        parts: [{ text: req.system }],
+      };
+    }
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
+      this.model
+    )}:generateContent?key=${encodeURIComponent(this.apiKey)}`;
+
+    const resp = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!resp.ok) {
+      throw new Error(`Gemini API error ${resp.status}: ${await resp.text()}`);
+    }
+
+    const responseBody = (await resp.json()) as {
+      candidates?: Array<{
+        content?: { parts?: Array<{ text?: string }> };
+        finishReason?: string;
+      }>;
+      usageMetadata?: {
+        promptTokenCount?: number;
+        candidatesTokenCount?: number;
+        totalTokenCount?: number;
+      };
+      modelVersion?: string;
+    };
+
+    const text = (responseBody.candidates?.[0]?.content?.parts ?? [])
+      .map((p) => p.text ?? '')
+      .join('')
+      .trimEnd();
+
+    return {
+      text,
+      tokensIn: responseBody.usageMetadata?.promptTokenCount ?? 0,
+      tokensOut: responseBody.usageMetadata?.candidatesTokenCount ?? 0,
+      model: responseBody.modelVersion ?? this.model,
       latencyMs: Date.now() - start,
     };
   }

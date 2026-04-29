@@ -33,6 +33,19 @@ import type {
 
 /**
  * Reader model identifier. Matches AgentOS provider:model conventions.
+ *
+ * Provider routing in {@link createReader} is by prefix:
+ *
+ *   - `gpt-*`     → OpenAI (chat completions)
+ *   - `claude-*`  → Anthropic (messages API)
+ *   - `gemini-*`  → Google AI Studio (generateContent)
+ *
+ * The bench is provider-agnostic at the reader/observer/classifier level:
+ * any role can be filled by any provider whose model id is in this union.
+ * The default OpenAI-only configuration remains the recommended baseline
+ * for single-provider reproducibility, but cross-provider runs (e.g.
+ * matched-Mastra-stack reproductions with `gemini-2.5-flash` as observer)
+ * are supported by the same factory contract.
  */
 export type ReaderModel =
   | 'claude-opus-4-7'
@@ -41,7 +54,11 @@ export type ReaderModel =
   | 'gpt-4o-mini'
   | 'gpt-5'
   | 'gpt-5-mini'
-  | 'gpt-5-nano';
+  | 'gpt-5-nano'
+  | 'gemini-2.5-flash'
+  | 'gemini-2.5-pro'
+  | 'gemini-1.5-flash'
+  | 'gemini-1.5-pro';
 
 /**
  * Memory mode under evaluation.
@@ -909,8 +926,7 @@ type OptionalRunConfigKey = (typeof OPTIONAL_RUN_CONFIG_KEYS)[number] & keyof Ru
 
 export interface BenchContext {
   /** The run configuration (resolved defaults applied). */
-  config: Required<Omit<RunConfig, OptionalRunConfigKey>> &
-    Pick<RunConfig, OptionalRunConfigKey>;
+  config: Required<Omit<RunConfig, OptionalRunConfigKey>> & Pick<RunConfig, OptionalRunConfigKey>;
   /** LLM-as-judge for external benchmarks. Micro-benchmarks ignore. */
   judge: IJudge;
   /** Content-hash-keyed cache for embeddings, reader responses, judgments. */
