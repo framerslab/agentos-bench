@@ -92,8 +92,10 @@ import {
 } from '../../core/readerRouter.js';
 import {
   MINIMIZE_COST_AUGMENTED_TABLE,
+  S_BEST_CAT_HYDE_MS_2026_04_28_TABLE,
   RETRIEVAL_CONFIG_SPECS,
   selectAugmentedDispatch,
+  type AugmentedRoutingTable,
   type MemoryQueryCategory,
   type RetrievalConfigId,
 } from '@framers/agentos/memory-router';
@@ -433,16 +435,21 @@ export class LongMemEvalS implements IBenchmark {
       runMetadata.omRouterRetrieval = routerDecision.runRetrieval;
     }
 
-    // RetrievalConfigRouter (2026-04-26 v2): per-case retrieval-config
-    // dispatch on canonical-hybrid. Classifies the question via
-    // gpt-5-mini, looks up MINIMIZE_COST_AUGMENTED_TABLE, and produces
-    // a per-case override spec that supersedes the run-level
-    // --hyde / --reader-top-k / --rerank-candidate-multiplier flags
-    // for this case only. Reuses the policy-router's classifier output
-    // when both flags are on (saves one LLM call per case). Backend
-    // axis of the augmented table is ignored on this path — the
-    // backend stays canonical-hybrid and only the retrieval-config
-    // axis is applied.
+    // RetrievalConfigRouter: per-case retrieval-config dispatch on
+    // canonical-hybrid. Classifies the question via gpt-5-mini, looks
+    // up the chosen preset's table, and produces a per-case override
+    // spec that supersedes the run-level --hyde / --reader-top-k /
+    // --rerank-candidate-multiplier flags for this case only. Reuses
+    // the policy-router's classifier output when both flags are on
+    // (saves one LLM call per case). Backend axis of the augmented
+    // table is ignored on this path — the backend stays canonical-
+    // hybrid and only the retrieval-config axis is applied.
+    //
+    // Presets:
+    // - minimize-cost-augmented (v2 calibration; LongMemEval-M Phase A
+    //   N=54 ablation matrix per category).
+    // - s-best-cat-hyde-ms-2026-04-28 (S Pareto-win pre-validation
+    //   hypothesis; canonical everywhere except multi-session → HyDE).
     let retrievalConfigOverride:
       | {
           hyde?: boolean;
@@ -452,7 +459,19 @@ export class LongMemEvalS implements IBenchmark {
       | undefined;
     let retrievalConfigDispatchedId: RetrievalConfigId | undefined;
     let retrievalConfigClassifierCategory: MemoryQueryCategory | undefined;
-    if (ctx.config.retrievalConfigRouter === 'minimize-cost-augmented') {
+    const rcrPreset = ctx.config.retrievalConfigRouter;
+    if (rcrPreset) {
+      const augmentedTable: AugmentedRoutingTable | undefined =
+        rcrPreset === 'minimize-cost-augmented'
+          ? MINIMIZE_COST_AUGMENTED_TABLE
+          : rcrPreset === 's-best-cat-hyde-ms-2026-04-28'
+            ? S_BEST_CAT_HYDE_MS_2026_04_28_TABLE
+            : undefined;
+      if (!augmentedTable) {
+        throw new Error(
+          `[longmemeval] retrievalConfigRouter='${rcrPreset}' is not a registered preset.`,
+        );
+      }
       // Reuse the policy-router classifier when active (predictedCategory
       // populated above). When neither policy nor om-dynamic router fired,
       // run a fresh classifier call using gpt-5-mini with the same
@@ -480,9 +499,11 @@ export class LongMemEvalS implements IBenchmark {
           cTokensOut = result.tokensOut;
           cModel = result.model;
         } catch {
-          // Classifier errored: fall back to multi-session — its augmented
-          // dispatch (hyde-topk50-mult5, the M-tuned combined config) is
-          // the safest default for an unknown query.
+          // Classifier errored: fall back to multi-session — every
+          // shipped preset's MS dispatch is the most-coverage retrieval
+          // config (HyDE on s-best-cat-hyde-ms-2026-04-28; combined on
+          // minimize-cost-augmented), the safest default for an
+          // unknown query.
           predictedCategory = 'multi-session';
         }
         if (cTokensIn > 0 || cTokensOut > 0) {
@@ -499,10 +520,7 @@ export class LongMemEvalS implements IBenchmark {
       // (same six string-literal members); cast through unknown so the
       // bench's local type aligns with the agentos memory-router type.
       const memoryCategory = predictedCategory as unknown as MemoryQueryCategory;
-      const dispatchKey = selectAugmentedDispatch(
-        memoryCategory,
-        MINIMIZE_COST_AUGMENTED_TABLE,
-      );
+      const dispatchKey = selectAugmentedDispatch(memoryCategory, augmentedTable);
       const spec = RETRIEVAL_CONFIG_SPECS[dispatchKey.retrievalConfig];
       retrievalConfigOverride = {
         hyde: spec.hyde,
@@ -511,7 +529,7 @@ export class LongMemEvalS implements IBenchmark {
       };
       retrievalConfigDispatchedId = dispatchKey.retrievalConfig;
       retrievalConfigClassifierCategory = memoryCategory;
-      runMetadata.retrievalConfigRouter = 'minimize-cost-augmented';
+      runMetadata.retrievalConfigRouter = rcrPreset;
       runMetadata.retrievalConfigDispatched = retrievalConfigDispatchedId;
       runMetadata.retrievalConfigCategory = retrievalConfigClassifierCategory;
       runMetadata.retrievalConfigBackendIgnored = dispatchKey.backend;

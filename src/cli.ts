@@ -709,11 +709,12 @@ export function buildCli(): Command {
     )
     .option(
       '--retrieval-config-router <preset>',
-      "RetrievalConfigRouter (2026-04-26 v2): per-case retrieval-config dispatch on canonical-hybrid. Classifies each query via gpt-5-mini, looks up the calibrated MINIMIZE_COST_AUGMENTED_TABLE, and overrides the run-level --hyde / --reader-top-k / --rerank-candidate-multiplier flags for that case. Calibration: 2026-04-26 LongMemEval-M Phase A N=54 ablation matrix; forecast aggregate 68.5% (vs static M-tuned 57.4%, canonical baseline 30.6%). Orthogonal to --policy-router (which dispatches the backend axis). Only preset: minimize-cost-augmented. Cache fingerprint: stage-rcr:<preset>:v1.",
+      "RetrievalConfigRouter: per-case retrieval-config dispatch on canonical-hybrid. Classifies each query via gpt-5-mini, looks up the chosen preset's table, and overrides the run-level --hyde / --reader-top-k / --rerank-candidate-multiplier flags for that case. Presets: minimize-cost-augmented (2026-04-26 v2 calibration; LongMemEval-M Phase A N=54 ablation matrix; orthogonal to --policy-router); s-best-cat-hyde-ms-2026-04-28 (S Pareto-win pre-validation: canonical retrieval everywhere except multi-session, which switches to HyDE). Cache fingerprint: stage-rcr:<preset>:v1.",
       (value: string) => {
-        if (value !== 'minimize-cost-augmented') {
+        const allowed = ['minimize-cost-augmented', 's-best-cat-hyde-ms-2026-04-28'];
+        if (!allowed.includes(value)) {
           throw new Error(
-            `--retrieval-config-router must be 'minimize-cost-augmented' (only preset shipped in v2), got '${value}'`,
+            `--retrieval-config-router must be one of ${allowed.join(' | ')}, got '${value}'`,
           );
         }
         return value;
@@ -890,6 +891,7 @@ export function buildCli(): Command {
           | undefined,
         retrievalConfigRouter: opts.retrievalConfigRouter as
           | 'minimize-cost-augmented'
+          | 's-best-cat-hyde-ms-2026-04-28'
           | undefined,
         // Loadbearing: drives the case-run + case-result cache
         // fingerprint so CharHash and semantic-embedder runs don't

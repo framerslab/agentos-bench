@@ -652,11 +652,18 @@ export interface RunConfig {
    *
    * The augmented table's backend axis is ignored on this path
    * (canonical-hybrid stays the backend); only the retrieval-config
-   * axis applies. Calibration source: 2026-04-26 LongMemEval-M
-   * Phase A N=54 ablation matrix.
+   * axis applies.
    *
-   * Empirical aggregate forecast (M Phase A): 68.5% (vs 57.4%
-   * static M-tuned `hyde-topk50-mult5`, 30.6% canonical baseline).
+   * Presets:
+   *
+   * - `minimize-cost-augmented` (2026-04-26 v2 calibration; LongMemEval-M
+   *   Phase A N=54 ablation matrix). Empirical aggregate forecast on M:
+   *   68.5% per-category-oracle (vs 57.4% static M-tuned, 30.6%
+   *   canonical baseline).
+   * - `s-best-cat-hyde-ms-2026-04-28` (S Pareto-win pre-validation
+   *   hypothesis; canonical retrieval everywhere except multi-session,
+   *   which switches to HyDE). Anchors against the 2026-04-28
+   *   canonical+RR Phase B headline (85.6% aggregate, MS at 76.9%).
    *
    * Cache fingerprint: `stage-rcr:<preset>:v1`.
    * Mutually compatible with `policyRouter` (which dispatches the
@@ -667,7 +674,7 @@ export interface RunConfig {
    *
    * See [docs/specs/2026-04-26-retrieval-config-router-productionization-plan.md](../../docs/specs/2026-04-26-retrieval-config-router-productionization-plan.md).
    */
-  retrievalConfigRouter?: 'minimize-cost-augmented';
+  retrievalConfigRouter?: 'minimize-cost-augmented' | 's-best-cat-hyde-ms-2026-04-28';
 
   /**
    * Embedding model id used by the full-cognitive ingest path
