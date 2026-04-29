@@ -24,6 +24,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { performance } from 'node:perf_hooks';
 import { openai } from '@ai-sdk/openai';
+import { generateText } from 'ai';
 import { Agent } from '@mastra/core/agent';
 import { Memory } from '@mastra/memory';
 import { ObservationalMemory } from '@mastra/memory/processors';
@@ -397,22 +398,49 @@ async function runCase(c: LongMemEvalCase, opts: RunOptions): Promise<CaseResult
   observerUsd = priceUsd(opts.observerModel, observerTokensIn, observerTokensOut);
 
   // ---------- Question phase: ask the question with OM context ----------
+  // Bypass Mastra's Agent + inputProcessor pipeline (the OM input
+  // processor's prompt-injection path is brittle when observations
+  // and questions cross threadId boundaries). Instead, read the OM
+  // record directly via getOrCreateRecord(), serialize the observation
+  // log into a system prompt, and call gpt-4o directly via the AI SDK.
+  // This is what Mastra's OM does internally anyway — fetches the
+  // observation log and injects it as system context — just made
+  // explicit for the apples-to-apples cost+latency capture.
+  type OmRecord = {
+    activeObservations?: string;
+    observations?: string;
+    [k: string]: unknown;
+  };
+  type OmRecordReader = {
+    getOrCreateRecord: (threadId: string, resourceId: string) => Promise<OmRecord>;
+    formatObservationsForContext?: (observations: string) => string;
+  };
+  const omRecordReader = observationalMemory as unknown as OmRecordReader;
+  const lastSessId = lastSessionIdForObserve(sessionsByDate, c.question_id);
+  const omRecord = await omRecordReader.getOrCreateRecord(lastSessId, resourceId);
+  const observationLog =
+    omRecord.activeObservations ?? omRecord.observations ?? '';
+
   const askStart = performance.now();
   let answer = '';
   let answerTokensIn = 0;
   let answerTokensOut = 0;
   try {
-    const result = (await agent.generate(
-      [{ role: 'user', content: c.question }],
-      {
-        memory: { thread: 'question_thread', resource: resourceId },
-        modelSettings: { temperature: 0 },
-      } as never,
-    )) as {
-      text?: string;
-      response?: { messages?: Array<{ content?: string }> };
-      usage?: { inputTokens?: number; outputTokens?: number };
-    };
+    const systemPrompt =
+      'You are an assistant answering a question about a previous conversation.\n\n' +
+      '<observation_log>\n' +
+      observationLog +
+      '\n</observation_log>\n\n' +
+      'Answer using the observation log. If the answer is not in the log, ' +
+      'say "I do not know."';
+    const result = await generateText({
+      model: openai(opts.reader),
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: c.question },
+      ],
+      temperature: 0,
+    });
     answer = result.text ?? '';
     answerTokensIn = result.usage?.inputTokens ?? 0;
     answerTokensOut = result.usage?.outputTokens ?? 0;
