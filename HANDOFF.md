@@ -2,6 +2,18 @@
 
 A complete picture of what exists, what works, what doesn't, and where to pick up.
 
+> **Current status (2026-04-28, latest):** the LongMemEval-S Phase B headline is **85.6% [82.4%, 88.6%] at $0.0090/correct, 4 second avg latency** on the canonical-hybrid + per-category reader router + `text-embedding-3-small` configuration. Beats Mastra OM gpt-4o (84.2% published) on accuracy. Beats EmergenceMem Simple Fast (80.6% measured apples-to-apples in our harness) by +5.0 pp at 6.5× lower cost-per-correct. Eleven adjacent stress-tests across Phase A and Phase B all regress on this configuration, validating it as locally Pareto-optimal in the tested parameter space.
+>
+> The bench has been extracted to its own public repo at **<https://github.com/framersai/agentos-bench>** (Apache 2.0). The historical handoff content below covers the 2026-04-19 → 2026-04-22 timeframe of the per-turn-pair chunking refactor and is left as-is for archaeology; current state lives in:
+>
+> - [`results/LEADERBOARD.md`](results/LEADERBOARD.md) — the canonical results table
+> - [`results/eval-matrix-v1/transparency-notes.md`](results/eval-matrix-v1/transparency-notes.md) — methodology, judge FPR per benchmark, all negative findings
+> - [`results/eval-matrix-v1/comparison-table.md`](results/eval-matrix-v1/comparison-table.md) — cross-vendor matrix with per-axis caveats
+> - [`README.md`](README.md) — the public-repo overview
+> - Latest blog post: <https://docs.agentos.sh/blog/2026/04/28/reader-router-pareto-win>
+>
+> The 40% / first-pilot framing below is from the 2026-04-19 handoff and reflects the early per-turn-pair chunking validation, NOT the current shipping headline.
+
 ---
 
 ## 0. TL;DR
