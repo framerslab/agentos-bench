@@ -93,6 +93,7 @@ import {
 import {
   MINIMIZE_COST_AUGMENTED_TABLE,
   S_BEST_CAT_HYDE_MS_2026_04_28_TABLE,
+  S_BEST_CAT_TOPK50_MULT5_MS_2026_04_29_TABLE,
   RETRIEVAL_CONFIG_SPECS,
   selectAugmentedDispatch,
   type AugmentedRoutingTable,
@@ -466,7 +467,9 @@ export class LongMemEvalS implements IBenchmark {
           ? MINIMIZE_COST_AUGMENTED_TABLE
           : rcrPreset === 's-best-cat-hyde-ms-2026-04-28'
             ? S_BEST_CAT_HYDE_MS_2026_04_28_TABLE
-            : undefined;
+            : rcrPreset === 's-best-cat-topk50-mult5-ms-2026-04-29'
+              ? S_BEST_CAT_TOPK50_MULT5_MS_2026_04_29_TABLE
+              : undefined;
       if (!augmentedTable) {
         throw new Error(
           `[longmemeval] retrievalConfigRouter='${rcrPreset}' is not a registered preset.`,

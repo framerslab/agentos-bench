@@ -662,8 +662,14 @@ export interface RunConfig {
    *   canonical baseline).
    * - `s-best-cat-hyde-ms-2026-04-28` (S Pareto-win pre-validation
    *   hypothesis; canonical retrieval everywhere except multi-session,
-   *   which switches to HyDE). Anchors against the 2026-04-28
-   *   canonical+RR Phase B headline (85.6% aggregate, MS at 76.9%).
+   *   which switches to HyDE). Refuted at Phase A 2026-04-29 — MS
+   *   regressed catastrophically (74.4% Phase B baseline → 22.2% Phase
+   *   A HyDE).
+   * - `s-best-cat-topk50-mult5-ms-2026-04-29` (follow-up: canonical
+   *   everywhere except multi-session, which switches to topk50-mult5
+   *   wider rerank pool with no HyDE). Anchored on the 2026-04-26
+   *   LongMemEval-M Phase A ablation matrix, where topk50-mult5 lifts
+   *   M's MS canonical 18.0% → 44.4%.
    *
    * Cache fingerprint: `stage-rcr:<preset>:v1`.
    * Mutually compatible with `policyRouter` (which dispatches the
@@ -674,7 +680,10 @@ export interface RunConfig {
    *
    * See [docs/specs/2026-04-26-retrieval-config-router-productionization-plan.md](../../docs/specs/2026-04-26-retrieval-config-router-productionization-plan.md).
    */
-  retrievalConfigRouter?: 'minimize-cost-augmented' | 's-best-cat-hyde-ms-2026-04-28';
+  retrievalConfigRouter?:
+    | 'minimize-cost-augmented'
+    | 's-best-cat-hyde-ms-2026-04-28'
+    | 's-best-cat-topk50-mult5-ms-2026-04-29';
 
   /**
    * Embedding model id used by the full-cognitive ingest path
