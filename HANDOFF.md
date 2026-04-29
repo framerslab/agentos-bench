@@ -2,7 +2,10 @@
 
 A complete picture of what exists, what works, what doesn't, and where to pick up.
 
-> **Current status (2026-04-28, latest):** the LongMemEval-S Phase B headline is **85.6% [82.4%, 88.6%] at $0.0090/correct, 4 second avg latency** on the canonical-hybrid + per-category reader router + `text-embedding-3-small` configuration. Beats Mastra OM gpt-4o (84.2% published) on accuracy. Beats EmergenceMem Simple Fast (80.6% measured apples-to-apples in our harness) by +5.0 pp at 6.5× lower cost-per-correct. Eleven adjacent stress-tests across Phase A and Phase B all regress on this configuration, validating it as locally Pareto-optimal in the tested parameter space.
+> **Current status (2026-04-29 v1.1, latest):**
+>
+> - **LongMemEval-S Phase B headline**: **85.6% [82.4%, 88.6%]** at **$0.0090/correct**, 4 sec avg latency, on canonical-hybrid + per-category reader router + `text-embedding-3-small`. Beats Mastra OM gpt-4o (84.2% published). Beats EmergenceMem Simple Fast (80.6% measured apples-to-apples in our harness) by +5.0 pp at 6.5× lower cost-per-correct. **16 adjacent stress-tests across Phase A and Phase B all regress** on this configuration (added 2026-04-29: graph-activation Phase A 68.5% → refuted), validating it as locally Pareto-optimal in the tested parameter space.
+> - **🚀 LongMemEval-M Phase B headline (NEW v1.1, 2026-04-29)**: **70.2% [66.0%, 74.0%]** at **$0.0078/correct**, 84 sec avg latency, on M-tuned + sem-embed + reader router + reader-top-K=5. **+24.8 pp lift over the prior CharHash-era M-tuned baseline (45.4%)**, CIs non-overlapping. **+4.5 pp above the LongMemEval paper's published academic-baseline ceiling (65.7%, Wu et al., ICLR 2025, Table 3)**. Statistically tied with AgentBrain's closed-source SaaS 71.7% on M (their point estimate sits inside our CI). **agentos-bench is the first open-source memory library on the public record with end-to-end LongMemEval-M QA accuracy above 65%** — every other open-source memory library (Mem0, Mastra, Hindsight, Zep, EmergenceMem, Supermemory, MemMachine, Memoria, Backboard, agentmemory, etc.) publishes only the easier S variant.
 >
 > The bench has been extracted to its own public repo at **<https://github.com/framersai/agentos-bench>** (Apache 2.0). The historical handoff content below covers the 2026-04-19 → 2026-04-22 timeframe of the per-turn-pair chunking refactor and is left as-is for archaeology; current state lives in:
 >
@@ -10,7 +13,8 @@ A complete picture of what exists, what works, what doesn't, and where to pick u
 > - [`results/eval-matrix-v1/transparency-notes.md`](results/eval-matrix-v1/transparency-notes.md) — methodology, judge FPR per benchmark, all negative findings
 > - [`results/eval-matrix-v1/comparison-table.md`](results/eval-matrix-v1/comparison-table.md) — cross-vendor matrix with per-axis caveats
 > - [`README.md`](README.md) — the public-repo overview
-> - Latest blog post: <https://docs.agentos.sh/blog/2026/04/28/reader-router-pareto-win>
+> - Latest S blog post: <https://docs.agentos.sh/blog/2026/04/28/reader-router-pareto-win>
+> - Latest M run JSON: `results/runs/2026-04-29T07-45-41-547--longmemeval-m--gpt-4o--full-cognitive--ingest.json` (M v1.1 blog post in flight pending the top-K=5 + Chain-of-Note follow-up Phase B run)
 >
 > The 40% / first-pilot framing below is from the 2026-04-19 handoff and reflects the early per-turn-pair chunking validation, NOT the current shipping headline.
 

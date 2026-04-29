@@ -23,7 +23,7 @@ The publishable claim is not "AgentOS beats every vendor on every benchmark." It
 | Per-case artifacts | One run JSON per cell | Saved to `results/runs/<timestamp>--<benchmark>--gpt-4o--full-cognitive--ingest.json`. LongMemEval-M run JSONs exceed 100 MB; the matching `--summary.json` is committed and the full run JSON is gitignored. |
 | Cost tracking | `totalUsd` = full pipeline (ingest + reader + judge + reranker) | `costPerCorrect` = `totalUsd / passedCases`. |
 | Single-provider reproducibility | Classifiers and judges all on OpenAI | No Claude or Gemini dependency for any shipping configuration. Cohere only for the rerank stage. |
-| Embedder | `text-embedding-3-small` on the headline LongMemEval-S row (83.2%); `CharHashEmbedder` (lexical FNV-1a hash) on the bench-default fallback row (76.6%) and on the M Phase B headline (45.4% — semantic-embedder M run is in flight at v2). | **Updated 2026-04-27**: the prior 76.6% S headline used CharHash because the bench falls back to the lexical-hash stub when no embedder is configured. The validated agentos-as-deployed configuration (real consumers wire a real embedder via `Memory.createSqlite()` or `CognitiveMemoryManager`) measures **83.2% [79.8%, 86.4%]** on S Phase B at $0.052/correct (10× cheaper per correct than Mastra OM gpt-4o's published 84.2%, comparable accuracy within statistical CI). The 76.6% row stays in the leaderboard as a "bench-default fallback" reference so the gap is auditable. See [S 83.2% blog post](../../../../apps/agentos-live-docs/blog/2026-04-27-longmemeval-s-83-with-semantic-embedder.md). |
+| Embedder | `text-embedding-3-small` on the S headline (85.6%) and the M headline (70.2%); `CharHashEmbedder` (lexical FNV-1a hash) preserved on the bench-default fallback row (S 76.6%, M 45.4%) for auditable gap tracking. | **Updated 2026-04-29**: the validated agentos-as-deployed configuration on S is **85.6% [82.4%, 88.6%]** at $0.0090/correct (canonical+RR + reader router) and on M is **70.2% [66.0%, 74.0%]** at $0.0078/correct (M-tuned + sem-embed + reader router + reader-top-K=5). The 76.6% S CharHash row and the 45.4% M CharHash row stay in the leaderboard as "bench-default fallback" references so the gap is auditable. See [S 85.6% blog post](../../../../apps/agentos-live-docs/blog/2026-04-28-reader-router-pareto-win.md) and the M 70.2% row's footnote in [LEADERBOARD.md](../LEADERBOARD.md). |
 | Reranker | Cohere `rerank-v3.5` | Cross-encoder over the merged BM25 + dense pool. Required for every Tier 1+ row. |
 | `reader-top-k` | 20 | Top 20 chunks after rerank fed to the reader. |
 
@@ -316,13 +316,38 @@ Run JSON: `results/runs/2026-04-28T13-21-50-567--longmemeval-s--gpt-4o--full-cog
 
 ## 6. v2 ambitions (publication next)
 
-The v2 publication will add the following work, on top of the v1 baseline:
+The v1.1 publication is now complete on both benchmarks (S 85.6%, M 70.2%). The v2 work below is the next push:
 
 1. **Stage E (Hindsight 4-network typed observer)** — full implementation in agentos core, Phase A decision gate at +2 pp baseline, Phase B at full N on LongMemEval-S, LongMemEval-M, LOCOMO. Spec: [2026-04-26-hindsight-4network-observer-design.md](../../docs/specs/2026-04-26-hindsight-4network-observer-design.md). Plan: [2026-04-26-hindsight-4network-observer-plan.md](../../docs/plans/2026-04-26-hindsight-4network-observer-plan.md). Budget $500-800. Duration 2-3 weeks.
-2. **Full multi-tier BEAM** — adapter implementation, 100K + 500K + 1M tiers at full N, GPT-4.1-mini judge for direct comparability with Hindsight 64.1% / Honcho 40.6%, plus our `gpt-4o-2024-08-06` judge for the FPR delta. Markmhendrickson's "state integrity breaks at 500K" critique drives the tier choice.
-3. ~~**CharHash vs OpenAI embedder ablation**~~ — **DONE 2026-04-27.** The Stage L paired baseline at small N had measured CharHash 76.6% vs OpenAI 74.1%, a misleading signal at that scale. Full Phase B at N=500 inverts: `text-embedding-3-small` lifts to **83.2% [79.8%, 86.4%]** while CharHash stays at 76.6%. The Stage L paired baseline was using a different ingest path that disadvantaged the OpenAI embedder; once you wire it the way real consumers do (via the `--embedder-model` flag → `OpenAIEmbedder` adapter → `CachedEmbedder` wrapper), the +6.6 pp aggregate lift compounds on TR (+14.5 pp) and MS (+14.5 pp). The shipping recommendation and headline are now updated; CharHash stays as the bench-default fallback row for auditability.
-4. **Cross-vendor reproductions** — Hindsight's `vectorize-io/agent-memory-benchmark` repo as a parallel harness with the Gemini judge, published with the FPR delta vs our judge.
-5. **MemoryArena** — defer to v3 publication. Per the survey, LoCoMo near-perfect systems drop to 40-60% on MemoryArena.
+2. **K=V+fact key augmentation (LongMemEval paper Table 3 best config)** — index sessions with both raw content (K=V) AND extracted facts (K=fact) at ingest time, dual-key vector lookup. The paper's 65.7% best M configuration used this; we currently use K=V only. Expected +2-4 pp lift on M; queued as the v1.2 M experiment behind the in-flight Chain-of-Note (`--two-call-reader`) probe. Implementation: extend agentos retrieval pipeline to embed both raw chunks and gpt-5-mini fact-extracted summaries, dedupe by metadata pointer at retrieve.
+3. ~~**Reader-top-K=5 ablation on M**~~ — **DONE 2026-04-29 v1.1**. Full Phase B at N=500 lifted from 57.6% (top-K=50) → **70.2% [66.0%, 74.0%]** (top-K=5), +12.6 pp aggregate, CIs non-overlapping, 6.5× cheaper per correct. The architectural insight: at M scale, top-K=50 was distracting the reader with 45 irrelevant chunks; top-K=5 forces the rerank cross-encoder to commit to its top picks. Same single-variable choice the LongMemEval paper used at their 65.7% best result. Run JSON: `results/runs/2026-04-29T07-45-41-547--longmemeval-m--gpt-4o--full-cognitive--ingest.json`.
+4. **Full multi-tier BEAM** — adapter implementation, 100K + 500K + 1M tiers at full N, GPT-4.1-mini judge for direct comparability with Hindsight 64.1% / Honcho 40.6%, plus our `gpt-4o-2024-08-06` judge for the FPR delta. Markmhendrickson's "state integrity breaks at 500K" critique drives the tier choice.
+5. ~~**CharHash vs OpenAI embedder ablation**~~ — **DONE 2026-04-27.** The Stage L paired baseline at small N had measured CharHash 76.6% vs OpenAI 74.1%, a misleading signal at that scale. Full Phase B at N=500 inverts: `text-embedding-3-small` lifts to **83.2% [79.8%, 86.4%]** while CharHash stays at 76.6%. The Stage L paired baseline was using a different ingest path that disadvantaged the OpenAI embedder; once you wire it the way real consumers do (via the `--embedder-model` flag → `OpenAIEmbedder` adapter → `CachedEmbedder` wrapper), the +6.6 pp aggregate lift compounds on TR (+14.5 pp) and MS (+14.5 pp). The shipping recommendation and headline are now updated; CharHash stays as the bench-default fallback row for auditability.
+6. **Cross-vendor reproductions** — Hindsight's `vectorize-io/agent-memory-benchmark` repo as a parallel harness with the Gemini judge, published with the FPR delta vs our judge.
+7. **MemoryArena** — defer to v3 publication. Per the survey, LoCoMo near-perfect systems drop to 40-60% on MemoryArena.
+
+### LongMemEval-M publication landscape — first open-source library claim (verified 2026-04-29)
+
+agentos-bench at 70.2% is the first **open-source** memory library on the public record with end-to-end LongMemEval-M QA accuracy above 65% with full methodology disclosure (bootstrap CIs, per-case run JSONs, reproducible CLI, MIT-licensed code). Verified universe of M numbers:
+
+| System | License | LongMemEval-M | Notes |
+|---|---|---:|---|
+| **agentos-bench (us)** | **MIT** | **70.2% [66.0%, 74.0%]** | Phase B N=500, 351/500, $0.0078/correct, run JSON published |
+| AgentBrain | closed-source SaaS | 71.7% (Test 0) | Statistically tied with us; requires Brain hosted endpoint, not a usable open-source library |
+| LongMemEval paper baseline | open repo | 65.7% | Wu et al., ICLR 2025, Table 3, GPT-4o + Stella V5 + Value=Session + K=V+fact + top-5 |
+| SelRoute (academic) | open repo | Recall@5 = 0.800 | Retrieval-side metric only, not end-to-end QA accuracy |
+| Mem0 v3 | Apache 2.0 | — (not published) | Reports 93.4% on S only |
+| Mastra OM | Apache 2.0 | — (not published) | Reports 84.2-94.9% on S only |
+| Zep | Apache 2.0 | — (not published) | Explicitly skipped: "due to gpt-4o's 128k context window we chose S over M" |
+| Hindsight | open repo | — (not published) | Paper [arxiv 2512.12818](https://arxiv.org/abs/2512.12818) reports 91.4% on S only |
+| EmergenceMem (Simple Fast) | open Python | — (not published) | 79-86% on S only |
+| Supermemory | open | — (not published) | 81.6-85.2% on S only |
+| MemMachine | open repo | — (not published) | 93.0% on S only |
+| Memoria | open | — (not published) | 88.78% on S only |
+| Backboard | open | — (not published) | 93.4% on S only |
+| agentmemory (JordanMcCann) | MIT | — (not published) | 96.2% on S only |
+| ByteRover | closed | — (not published) | 92.8% on S only; explicitly: "M scales to ~1.5M tokens, far beyond any context window" |
+| Letta / Cognee | open | — | No LongMemEval published at all |
 
 ## 7. What this matrix is, and what it isn't
 

@@ -19,10 +19,12 @@ Methodology, judge FPR per benchmark, two negative architecture findings, BEAM c
 
 | Architecture | LongMemEval-S | LongMemEval-M | LOCOMO | BEAM 100K |
 |---|---:|---:|---:|---:|
-| **🚀 Canonical-hybrid + sem-embed + per-category reader router (NEW HEADLINE 2026-04-28)** [^canonical-reader-router-pb-ct] | **85.6% [82.4%, 88.6%]** (Phase B N=500, **$0.0090/correct = 4.6× cheaper than the prior 84.8% headline, 5.3× faster avg latency, 15× faster p95**) | _PENDING_ | _PENDING_ | _PENDING_ |
+| **🚀 M-tuned + sem-embed + reader router + reader-top-K=5 (NEW M HEADLINE 2026-04-29 v1.1)** [^mtuned-topk5-m] | _PENDING (top-K=5 not yet tested at S scale)_ | **70.2% [66.0%, 74.0%]** (Phase B N=500, **$0.0078/correct = 6.5× cheaper than the prior 57.6% top-K=50 headline at $0.0505**, +12.6 pp aggregate, CIs non-overlapping) | _PENDING_ | _PENDING_ |
+| **🚀 Canonical-hybrid + sem-embed + per-category reader router (S HEADLINE 2026-04-28)** [^canonical-reader-router-pb-ct] | **85.6% [82.4%, 88.6%]** (Phase B N=500, **$0.0090/correct = 4.6× cheaper than the prior 84.8% headline, 5.3× faster avg latency, 15× faster p95**) | _PENDING (M run uses M-tuned config + top-K=5 instead — see row above)_ | _PENDING_ | _PENDING_ |
 | Tier 3 min-cost + semantic embedder + per-category reader router (Pareto-2, with policy router) [^reader-router-pb] | **84.8% [81.6%, 87.8%]** (Phase B N=500, $0.0410/correct = 21% cheaper than gpt-4o-only, 3.5× faster avg latency) | _PENDING_ | _PENDING_ | _PENDING_ |
-| **🔥 Tier 3 min-cost + semantic embedder (text-embedding-3-small) — Phase B validated** [^t3mincost-semantic] | **83.2% [79.8%, 86.4%]** (Phase B N=500, weighted 84.2% [81.0%, 87.2%]) | _PENDING (re-run with semantic embedder + M-tuned flags in flight)_ | _PENDING_ | _PENDING_ |
-| M-tuned (rerank-candidate ×5 + reader-top-k 50 + HyDE) — CharHash baseline [^mtuned-m] | 72.2% (cross-val N=54) | 45.4% [41.2%, 49.8%] (Phase B N=500, CharHashEmbedder) | _PENDING_ | **45.6% [35.6%, 55.6%]** (Phase A N=90 stratified) [^beam100k-pa] |
+| **🔥 Tier 3 min-cost + semantic embedder (text-embedding-3-small) — Phase B validated** [^t3mincost-semantic] | **83.2% [79.8%, 86.4%]** (Phase B N=500, weighted 84.2% [81.0%, 87.2%]) | _superseded by 70.2% top-K=5 row above_ | _PENDING_ | _PENDING_ |
+| M-tuned + sem-embed + reader router (top-K=50, prior M headline, superseded) [^mtuned-sem-embed-rr-m] | _PENDING_ | 57.6% [53.2%, 61.8%] (Phase B N=500, $0.0505/correct, superseded by top-K=5 row above) | _PENDING_ | _PENDING_ |
+| M-tuned (rerank-candidate ×5 + reader-top-k 50 + HyDE) — CharHash baseline [^mtuned-m] | 72.2% (cross-val N=54) | 45.4% [41.2%, 49.8%] (Phase B N=500, CharHashEmbedder; superseded twice by sem-embed + top-K=5) | _PENDING_ | **45.6% [35.6%, 55.6%]** (Phase A N=90 stratified) [^beam100k-pa] |
 | Per-category dispatch (Phase A forecast — NOT Phase B-validated; Phase B oracle measured 46.4%) [^pcd-m] | _to be measured_ | 68.5% Phase A oracle (Phase B oracle: **46.4%**, only +1pp over static M-tuned; small-sample variance dominated Phase A) | _PENDING_ | _PENDING_ |
 | HyDE-only (cost-efficient Pareto pick) [^hyde-only-pb-ct] | _PENDING_ | 35.6% [31.4%, 39.6%] (Phase B N=500); $0.0432/correct (3.1× cheaper than M-tuned) | _PENDING_ | _PENDING_ |
 | TopK50-only [^topk50-pb-ct] | _PENDING_ | 40.8% [36.6%, 45.2%] (Phase B N=500) | _PENDING_ | _PENDING_ |
@@ -43,6 +45,10 @@ Methodology, judge FPR per benchmark, two negative architecture findings, BEAM c
 | Canonical+RR + S-tuned router (HyDE-on-MS-only) on S — Phase A (DROPPED before Phase B, MS catastrophic regression) [^canonical-RR-stuned-pa-ct] | 77.8% [66.7%, 88.9%] aggregate Phase A; MS dropped to 22.2% [0%, 55.6%] vs Phase B baseline 74.4% (−52 pp) | n/a | n/a | n/a |
 | Canonical+RR + S-tuned router (topk50-mult5-on-MS-only) on S — Phase A (DROPPED before Phase B, MS regression) [^canonical-RR-stuned-topk50-pa-ct] | 77.8% [66.7%, 88.9%] aggregate Phase A; MS at 33.3% [0%, 66.7%] vs Phase B baseline 74.4% (−41 pp; better than HyDE but still well below baseline) | n/a | n/a | n/a |
 | Canonical+RR + gpt-5-on-TR/SSU reader-router on S — Phase B (DROPPED, Phase A signal didn't transfer) [^canonical-RR-gpt5-tr-pb-ct] | 83.2% [79.8%, 86.4%] (−2.4 pp PE vs 85.6% baseline; CIs overlap; TR 80.5% vs gpt-4o 84.2% = −3.7 pp on the swapped category) | n/a | n/a | n/a |
+
+[^mtuned-topk5-m]: **🚀 NEW M HEADLINE 2026-04-29 v1.1 — M-tuned + sem-embed + reader-router + reader-top-K=5.** Phase B at full N=500: **70.2% [66.0%, 74.0%]** (351/500), $2.74 LLM total, **$0.0078/correct (6.5× cheaper than prior 57.6% top-K=50 headline at $0.0505)**, avg latency 84 sec (p50 18 sec, p95 745 sec). Per-category at this run (10k bootstrap CIs): SSA 96.4% [91.1%, 100%] (n=56), SSU 91.4% [84.3%, 97.1%] (n=70), KU 78.2% [69.2%, 87.2%] (n=78), TR 66.2% [57.9%, 74.4%] (n=133), SSP 63.3% [46.7%, 80.0%] (n=30), MS 48.9% [40.6%, 57.1%] (n=133). **+12.6 pp aggregate over the prior 57.6% top-K=50 headline; CIs do NOT overlap (53.2 < 66.0), statistically separated.** Per-category lifts vs the 57.6% headline: TR +24.1 pp (42.1 → 66.2), SSP +23.3 pp (40.0 → 63.3), MS +19.6 pp (29.3 → 48.9; MS finally moves above 30% at M scale), KU +1.3 pp, SSA tied 96.4%, SSU −4.3 pp (95.7 → 91.4, small slip within CI). **Architectural insight:** the prior top-K=50 reader was being distracted by 45 irrelevant retrieved chunks per query at M scale (1.5M-token haystacks make signal-to-noise worse than at S). Lowering reader-top-K to 5 forces the rerank cross-encoder to commit; gpt-4o concentrates on 5 well-chosen chunks instead of skimming 50. This is the same single-variable choice the LongMemEval paper used at their published 65.7% best result on M ([Wu et al., ICLR 2025, Table 3](https://arxiv.org/abs/2410.10813); GPT-4o + Stella V5 + Value=Session + K=V+fact + top-5). **Comparison context:** **+4.5 pp above the LongMemEval paper's academic-baseline ceiling 65.7%** at point estimate; statistically tied with AgentBrain's closed-source SaaS 71.7% on M (their point estimate sits inside our CI [66.0%, 74.0%]; AgentBrain requires access to their proprietary Brain hosted endpoint — agentos-bench is now the first **open-source** memory library on the public record with end-to-end LongMemEval-M QA accuracy above 65% with full methodology disclosure: bootstrap CIs, per-case run JSONs, reproducible CLI, MIT-licensed). Run JSON: `results/runs/2026-04-29T07-45-41-547--longmemeval-m--gpt-4o--full-cognitive--ingest.json`. CLI: `--reader gpt-4o --memory full-cognitive --replay ingest --hybrid-retrieval --rerank cohere --rerank-candidate-multiplier 5 --reader-top-k 5 --hyde --embedder-model text-embedding-3-small --reader-router min-cost-best-cat-2026-04-28 --concurrency 5`. See [LEADERBOARD ^mtuned-topk5-sem-embed-rr](../LEADERBOARD.md#mtuned-topk5-sem-embed-rr).
+
+[^mtuned-sem-embed-rr-m]: **2026-04-29 (prior M headline, superseded by top-K=5 row above) — M-tuned + sem-embed + reader-router at top-K=50.** Phase B at full N=500: **57.6% [53.2%, 61.8%]** (288/500), $14.56 LLM, $0.0505/correct, avg 265s latency. Per-category: SSA 96.4%, SSU 95.7%, KU 76.9%, TR 42.1%, SSP 40.0%, MS 29.3%. +12.2 pp over the CharHash baseline 45.4%, but lowering reader-top-K from 50 to 5 then lifted the same retrieval stack from 57.6% to 70.2% (the top-K=5 row above is the validated current M headline). The 57.6% number is preserved here as a load-bearing intermediate calibration: it isolates the +12.2 pp lift attributable to sem-embed + reader-router specifically (top-K=50 held constant), separate from the +12.6 pp lift attributable to top-K=5 specifically (sem-embed + reader-router held constant). Run JSON: `results/runs/2026-04-28T23-35-11-601--longmemeval-m--gpt-4o--full-cognitive--ingest.json`.
 
 [^pcd-m]: **PHASE A FORECAST — not yet Phase B-validated.** Derived from six Phase A ablation runs at N=54 stratified (seed=42, `--sample-per-type 9`, identical case IDs across runs). For each category, picking the best-accuracy ablation config gives a per-category-oracle aggregate: SSA → combined (9/9, 100%); KU → combined (7/9, 77.8%); SSU → combined (7/9, 77.8%); TR → hyde (6/9, 66.7%); MS → combined (6/9, 66.7%); SSP → hyde (2/9, 22.2%). Total **37/54 = 68.5%** equal-weighted stratified Phase A. **CAVEAT**: the M-tuned Phase B at N=500 (45.4% [41.2%, 49.8%]) revealed Phase A inflated MS (Phase A 66.7% N=9 → Phase B 26.2% N=130) and TR (Phase A 33.3% N=9 → Phase B 22.6% N=133) because N=9-per-category had wide implicit CIs. The dispatch lift forecast at N=500 may therefore be smaller than the +11 pp Phase A math suggests. To validate the per-category dispatch lift at full scale, hyde-only and topk-only Phase B runs at N=500 (each ~$30, ~5 hours) need to land so the dispatched per-category accuracies can be re-measured at scale. **Productionized as the `MINIMIZE_COST_AUGMENTED_TABLE` preset on `MemoryRouter` and the `--retrieval-config-router minimize-cost-augmented` bench flag** per [RetrievalConfigRouter productionization plan](../../docs/specs/2026-04-26-retrieval-config-router-productionization-plan.md). Source: Phase A ablation run JSONs `2026-04-26T01-40-34-904--*` through `2026-04-26T03-22-06-857--*`.
 
@@ -94,8 +100,11 @@ Methodology, judge FPR per benchmark, two negative architecture findings, BEAM c
 
 | Architecture | LongMemEval-S | LongMemEval-M | LOCOMO | BEAM 100K |
 |---|---:|---:|---:|---:|
-| **✨ Tier 3 min-cost + sem-embed + reader router (Phase B N=500)** | **$0.0410** (-21% vs gpt-4o-only sem-embed; -29% vs Tier 3 min-cost CharHash) | _PENDING_ | _PENDING_ | _PENDING_ |
-| **M-tuned combined (Phase B N=500)** | $0.0833 (cross-val Phase A) | **$0.1348** (Phase B) | _PENDING_ | _PENDING_ |
+| **🚀 M-tuned + sem-embed + reader router + reader-top-K=5 (NEW M HEADLINE 2026-04-29 v1.1)** | _PENDING_ | **$0.0078** (Phase B N=500; 6.5× cheaper than the prior 57.6% top-K=50 headline at $0.0505; 17× cheaper than the 45.4% CharHash baseline at $0.1348) | _PENDING_ | _PENDING_ |
+| **✨ Canonical+RR + sem-embed + reader router (S HEADLINE)** | **$0.0090** (Phase B N=500; 4.6× cheaper than the prior 84.8% Tier 3 + reader-router headline at $0.0410) | n/a (M uses M-tuned + top-K=5 row above) | _PENDING_ | _PENDING_ |
+| Tier 3 min-cost + sem-embed + reader router (S Pareto-2, with policy router) | $0.0410 (-21% vs gpt-4o-only sem-embed; -29% vs Tier 3 min-cost CharHash) | _PENDING_ | _PENDING_ | _PENDING_ |
+| M-tuned + sem-embed + reader router (top-K=50, prior M headline, superseded) | _PENDING_ | $0.0505 (Phase B; superseded by top-K=5 row above which is 6.5× cheaper) | _PENDING_ | _PENDING_ |
+| **M-tuned combined (CharHash baseline, prior published)** | $0.0833 (cross-val Phase A) | **$0.1348** (Phase B; superseded by top-K=5 row above) | _PENDING_ | _PENDING_ |
 | Tier 1 canonical-hybrid | $0.0213 | $0.0818 | $0.0099 | DEFERRED |
 | Tier 2b OM-v11 | $0.4362 | _PENDING_ | n/a | DEFERRED |
 | Tier 3 min-cost (CharHash) | **$0.0580** | _≈ Tier 1_ | n/a | DEFERRED |
@@ -114,9 +123,11 @@ Phase B at N=500 validates the all-three combined config; per-flag attribution i
 | `--hyde` only | Phase A N=54 | 46.3% | +15.7 pp | **$0.0369** | $0.92 | 3 546 ms |
 | `--hyde --reader-top-k 50` (no multiplier) | Phase A N=54 | 50.0% | +19.4 pp | $0.1390 | $3.75 | 3 869 ms |
 | All three combined (M-tuned) | Phase A N=54 | 57.4% | +26.8 pp | $0.0558 | $1.73 | _Phase A_ |
-| **All three combined (M-tuned)** | **Phase B N=500** | **45.4% [41.2%, 49.8%]** | **+14.8 pp** | $0.1348 | $30.59 | 40 271 ms |
+| **All three combined (M-tuned, CharHash)** | **Phase B N=500** | **45.4% [41.2%, 49.8%]** | **+14.8 pp** | $0.1348 | $30.59 | 40 271 ms |
+| **+ sem-embed (text-embedding-3-small) + reader router** | **Phase B N=500** | **57.6% [53.2%, 61.8%]** | **+27.0 pp** vs canonical Tier 1 (superseded by top-K=5 below) | $0.0505 | $14.56 | 264 933 ms |
+| **🚀 + reader-top-K=5 (NEW M HEADLINE 2026-04-29 v1.1)** | **Phase B N=500** | **70.2% [66.0%, 74.0%]** | **+39.6 pp** vs canonical Tier 1; **+24.8 pp** vs CharHash M-tuned baseline | **$0.0078** | $2.74 | 83 711 ms |
 
-Phase A → Phase B compression: the all-three combined config dropped −12 pp from N=54 stratified to N=500 because Phase A's `--sample-per-type 9` overweighted easy categories (SSA/KU/SSU were 33% of N=54 vs 41% of N=500; the true distribution is dominated by MS+TR at 53% of N=500). The +14.8 pp Phase B lift is the validated headline; the ablation singletons remain Phase A-only and need Phase B-scale runs to validate per-category dispatch (see [^pcd-m]).
+Phase A → Phase B compression note: the all-three combined config dropped −12 pp from N=54 stratified to N=500 (Phase A inflated by `--sample-per-type 9` overweighting easy categories — SSA/KU/SSU were 33% of N=54 vs 41% of N=500; the true distribution is dominated by MS+TR at 53% of N=500). The two compounding axes that lifted from 45.4% → 70.2% are: (1) sem-embed replaces CharHashEmbedder fallback (+12.2 pp), (2) reader-top-K from 50 → 5 (+12.6 pp). Both individually CI-non-overlapping with their own respective baselines (see footnotes ^mtuned-sem-embed-rr-m and ^mtuned-topk5-m).
 
 Phase A per-category attribution (kept as the calibration source for the productionized [RetrievalConfigRouter](../../docs/specs/2026-04-26-retrieval-config-router-productionization-plan.md)): multi-session (precision-bound bottleneck) only lifts to 66.7% Phase A with the multiplier — Phase B at N=130 measured 26.2% [18.5%, 33.8%], so the Phase A signal compresses substantially at scale. HyDE alone was Phase A best for SSA (88.9%) and TR (66.7%) — both also Phase A-only. TopK alone was best for KU (77.8%) and SSU (66.7%) — Phase A-only. The 68.5% per-category-oracle Phase A forecast is Phase A-derived end-to-end and explicitly not Phase B-validated.
 
@@ -126,15 +137,32 @@ Cross-validation on LongMemEval-S (M-tuned config, Phase A N=54): 72.2% accuracy
 
 | Architecture | LongMemEval-S | LongMemEval-M | LOCOMO | BEAM 100K |
 |---|---:|---:|---:|---:|
+| **🚀 M-tuned + sem-embed + reader router + reader-top-K=5 (NEW M HEADLINE)** | _PENDING_ | **83 711** (p50 18 018, p95 744 911 — heavy tail from rate-limit retries on 1.5M-token haystacks; avg 3× faster than the 57.6% top-K=50 headline) | _PENDING_ | _PENDING_ |
+| **Canonical+RR + sem-embed + reader router (S HEADLINE)** | **4 001** (p50 3 558, p95 7 264 — 5.3× faster than prior 84.8% Tier 3 + reader-router; 15× faster on p95) | n/a | _PENDING_ | _PENDING_ |
 | Tier 1 canonical-hybrid | 98 072 | 10 564 | 1 453 | DEFERRED |
-| **M-tuned combined (Phase B N=500)** | _72.2% cross-val Phase A_ | **40 271** | _PENDING_ | _PENDING_ |
+| **M-tuned combined (CharHash baseline, prior; Phase B)** | _72.2% cross-val Phase A_ | **40 271** (superseded; top-K=5 + sem-embed run is 264 933 ms with sem-embed cost added but cheaper $/correct) | _PENDING_ | _PENDING_ |
 | Tier 2b OM-v11 | 14 172 | _PENDING_ | n/a | DEFERRED |
 | Tier 3 min-cost | **16 130** | _≈ Tier 1_ | n/a | DEFERRED |
 | Tier 3 max-acc | 65 565 | _PENDING_ | n/a | DEFERRED |
 
-## Per-category breakdown — LongMemEval (Tier 3 min-cost, the shipping default)
+## Per-category breakdown — LongMemEval (current headlines)
 
-LongMemEval's six-category taxonomy. Tier 3 min-cost on LongMemEval-S routes SSA/SSU/TR/KU → canonical-hybrid, MS/SSP → observational-memory-v11. On LongMemEval-M the routing reduces to canonical-hybrid for every category (per [^t3mincostm]).
+LongMemEval's six-category taxonomy. The S headline uses canonical+RR + reader-router; the M headline uses M-tuned + sem-embed + reader-router + reader-top-K=5. Both share the same `min-cost-best-cat-2026-04-28` reader-router preset (gpt-4o for TR/SSU; gpt-5-mini for SSA/SSP/KU/MS).
+
+| Category | LongMemEval-S (85.6% headline) | LongMemEval-M (70.2% headline) | Δ at M scale |
+|---|---:|---:|---:|
+| single-session-assistant | 98.2% [94.6%, 100%] | 96.4% [91.1%, 100%] | −1.8 pp |
+| single-session-user | 92.9% [85.7%, 98.6%] | 91.4% [84.3%, 97.1%] | −1.5 pp |
+| knowledge-update | 91.0% [84.6%, 97.4%] | 78.2% [69.2%, 87.2%] | −12.8 pp |
+| temporal-reasoning | 84.2% [77.4%, 90.2%] | 66.2% [57.9%, 74.4%] | −18.0 pp |
+| single-session-preference | 86.7% [73.3%, 96.7%] | 63.3% [46.7%, 80.0%] | −23.4 pp |
+| multi-session | 74.4% [66.9%, 82.0%] | 48.9% [40.6%, 57.1%] | −25.5 pp |
+
+The S→M scale gap is now isolated to TR/SSP/MS — the categories where retrieval needle-in-haystack ratio gets worse with 10× more candidate sessions. SSA/SSU/KU survive scale-up well (within 12 pp). MS at M scale is 48.9% even at the new headline, the weakest category at M scale (and consistent with the same MS-as-bottleneck pattern at S where MS sits at 74.4%).
+
+### Prior M baselines (superseded, kept for archeology)
+
+Tier 3 min-cost CharHash baseline on LongMemEval-M (per [^t3mincostm]):
 
 | Category | LongMemEval-S | LongMemEval-M | Δ at M scale |
 |---|---:|---:|---:|

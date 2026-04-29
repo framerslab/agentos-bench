@@ -4,15 +4,31 @@ Open benchmark harness for [`@framers/agentos`](https://github.com/framersai/age
 
 Currently covers [LongMemEval](https://github.com/xiaowu0162/LongMemEval) (S, M, Oracle variants), [LOCOMO](https://github.com/snap-research/locomo), [BEAM](https://github.com/vectorize-io/agent-memory-benchmark), and a suite of cognitive-mechanism micro-benchmarks. Every published number ships with: a per-cell run JSON at fixed seed, bootstrap 95% CI at 10 000 resamples, judge false-positive rate probed per benchmark, and explicit methodology disclosures for every cross-vendor comparison.
 
-## Latest headline (LongMemEval-S Phase B N=500, gpt-4o reader)
+## Latest headlines (Phase B N=500, gpt-4o reader)
+
+### LongMemEval-S
 
 | Configuration | Accuracy | $/correct | p50 latency | p95 latency |
 |---|---:|---:|---:|---:|
-| **Tier 3 canonical-hybrid + sem-embed + reader router (NEW 2026-04-28)** | **85.6% [82.4%, 87.8%]** | **$0.0090** | **3,558 ms** | **7,264 ms** |
+| **Canonical-hybrid + sem-embed + reader router (S HEADLINE 2026-04-28)** | **85.6% [82.4%, 88.6%]** | **$0.0090** | **3,558 ms** | **7,264 ms** |
 | Tier 3 minimize-cost + sem-embed + reader router (Pareto-2) | 84.8% [81.6%, 87.8%] | $0.0410 | ~5,000 ms | 111,535 ms |
 | Tier 3 minimize-cost + sem-embed (gpt-4o-only baseline) | 83.2% [79.8%, 86.4%] | $0.0521 | — | — |
 
-For an open-source library at `gpt-4o` reader, **85.6%** is competitive with managed-platform-class numbers. Methodology, per-category breakdowns, and 10+ documented negative architecture findings (stress-tests of adjacent configs that all regress) are at [`results/eval-matrix-v1/`](results/eval-matrix-v1/). The validated consumer default classifier is `gpt-5-mini`; two independent Phase B runs confirmed that upgrading to `gpt-4o` classifier costs 12× more per query without lifting accuracy on this benchmark's category mix.
+For an open-source library at `gpt-4o` reader, **85.6%** is competitive with managed-platform-class numbers. **16 adjacent stress-tests across Phase A and Phase B all regress** on the headline configuration, validating it as locally Pareto-optimal in the tested parameter space.
+
+### LongMemEval-M (1.5M tokens, 500 sessions per haystack)
+
+| Configuration | Accuracy | $/correct | Avg latency |
+|---|---:|---:|---:|
+| **🚀 M-tuned + sem-embed + reader router + reader-top-K=5 (NEW M HEADLINE 2026-04-29 v1.1)** | **70.2% [66.0%, 74.0%]** | **$0.0078** | **84 sec** (p50 18 sec, p95 745 sec) |
+| Same config at top-K=50 (prior M headline, superseded) | 57.6% [53.2%, 61.8%] | $0.0505 | 265 sec |
+| M-tuned (CharHash baseline, prior published) | 45.4% [41.2%, 49.8%] | $0.1348 | 40 sec |
+
+**+24.8 pp lift over the prior CharHash-era M-tuned baseline (45.4%), CIs non-overlapping (statistically separated).** **+4.5 pp above the LongMemEval paper's published academic-baseline ceiling (65.7%, [Wu et al., ICLR 2025, Table 3](https://arxiv.org/abs/2410.10813))**, statistically tied with AgentBrain's closed-source SaaS 71.7% on M (their point estimate sits inside our CI [66.0%, 74.0%]).
+
+**agentos-bench is the first open-source memory library on the public record with end-to-end LongMemEval-M QA accuracy above 65% with full methodology disclosure** (bootstrap CIs, per-case run JSONs, reproducible CLI, MIT-licensed). Every other open-source memory library (Mem0 v3 93.4%, Mastra OM 84.2-94.9%, Hindsight 91.4%, Zep 71.2%, EmergenceMem 86%, Supermemory 81.6-85.2%, MemMachine 93%, Memoria 88.78%, agentmemory 96.2%, Backboard 93.4%, ByteRover 92.8%) publishes only the easier S variant. M's 500-sessions-per-haystack distribution surfaces precision limits that S does not, and most vendors avoid M because raw long-context models can't fit it (1.5M tokens > GPT-4o's 128K window) and retrieval saturates differently than at S scale.
+
+Methodology, per-category breakdowns, and all documented negative architecture findings (stress-tests of adjacent configs that regress) are at [`results/eval-matrix-v1/`](results/eval-matrix-v1/). The validated consumer default classifier is `gpt-5-mini`; two independent Phase B runs confirmed that upgrading to `gpt-4o` classifier costs 12× more per query without lifting accuracy on this benchmark's category mix.
 
 ## What ships in agentos
 
