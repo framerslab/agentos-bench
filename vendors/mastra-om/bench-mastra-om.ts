@@ -216,7 +216,14 @@ function sampleCases(
 
 async function runCase(c: LongMemEvalCase, opts: RunOptions): Promise<CaseResult> {
   const resourceId = `resource_${c.question_id}`;
+  // Mastra needs a composite store for Memory (which dispatches to
+  // sub-stores via getStore()), and the inner memory sub-store for
+  // MessageHistory + ObservationalMemory (which call methods like
+  // getThreadById directly on what they're given). LibSQLStore exposes
+  // both: the composite for Memory, and `.stores.memory` for the
+  // processor's storage slot.
   const omStorage = new LibSQLStore({ id: `om-${c.question_id}`, url: ':memory:' });
+  const omMemoryStore = (omStorage as unknown as { stores: { memory: unknown } }).stores.memory;
 
   // Track cost of Observer/Reflector calls separately from the reader
   let observerTokensIn = 0;
@@ -225,7 +232,7 @@ async function runCase(c: LongMemEvalCase, opts: RunOptions): Promise<CaseResult
 
   const observationalMemory = new ObservationalMemory({
     obscureThreadIds: true,
-    storage: omStorage as unknown as ConstructorParameters<typeof ObservationalMemory>[0]['storage'],
+    storage: omMemoryStore as ConstructorParameters<typeof ObservationalMemory>[0]['storage'],
     observation: {
       model: openai(opts.observerModel),
       messageTokens: 30000,
@@ -238,8 +245,6 @@ async function runCase(c: LongMemEvalCase, opts: RunOptions): Promise<CaseResult
     },
     scope: 'resource',
     onDebugEvent: (event: { type: string; usage?: { inputTokens?: number; outputTokens?: number } }) => {
-      // Observation/reflection events expose token usage on completion.
-      // Capture for cost accounting.
       const usage = event.usage;
       if (usage) {
         observerTokensIn += usage.inputTokens ?? 0;
@@ -249,11 +254,11 @@ async function runCase(c: LongMemEvalCase, opts: RunOptions): Promise<CaseResult
   });
 
   const messageHistory = new MessageHistory({
-    storage: omStorage as unknown as ConstructorParameters<typeof MessageHistory>[0]['storage'],
+    storage: omMemoryStore as ConstructorParameters<typeof MessageHistory>[0]['storage'],
     lastMessages: 10,
   });
   const memory = new Memory({
-    storage: omStorage as unknown as ConstructorParameters<typeof Memory>[0]['storage'],
+    storage: omStorage as ConstructorParameters<typeof Memory>[0]['storage'],
   });
 
   const agent = new Agent({
@@ -323,6 +328,26 @@ async function runCase(c: LongMemEvalCase, opts: RunOptions): Promise<CaseResult
       }
     }
   }
+  // Force a final observation + reflection pass over any unobserved
+  // messages. Mastra's bench does this explicitly after ingest to make
+  // sure the observation log is fully built before the reader sees it.
+  // Without this, short haystacks can leave the answer evidence in
+  // unobserved messages and the reader gets a stub log.
+  const lastSessionId = sessionsByDate[sessionsByDate.length - 1]?.sessionId
+    ?? `session_${c.question_id}`;
+  try {
+    await (observationalMemory as unknown as {
+      finalize: (sessionId: string, resourceId: string, opts: object) => Promise<void>;
+    }).finalize(lastSessionId, resourceId, {
+      reflect: true,
+      observationTokens: 20000,
+    });
+  } catch (err) {
+    // Non-fatal — the observation log may still have content from
+    // mid-ingest observations.
+    console.warn(`finalize failed for ${c.question_id}:`, err instanceof Error ? err.message : err);
+  }
+
   const ingestLatencyMs = performance.now() - ingestStart;
   observerUsd = priceUsd(opts.observerModel, observerTokensIn, observerTokensOut);
 
