@@ -40,17 +40,19 @@ import type { QuestionCategory } from '../observational-memory/questionRouter.js
 
 /**
  * Reader tier the router can dispatch to. Restricted to OpenAI models the
- * MIN_COST_BEST_CAT_2026_04_28 calibration was measured against. Future
- * presets (e.g. claude-opus-4-7 + gpt-5-mini) would extend this union.
+ * shipped reader-router presets were calibrated against. Future presets
+ * (e.g. claude-opus-4-7 + gpt-5-mini) would extend this union.
  */
-export type ReaderTier = 'gpt-4o' | 'gpt-5-mini';
+export type ReaderTier = 'gpt-4o' | 'gpt-5' | 'gpt-5-mini';
 
 /**
  * Registered preset identifier. Each preset names the calibration source +
  * the date the calibration table was derived, mirroring the `MINIMIZE_COST_*`
  * preset naming convention in {@link ./policyRouter.ts}.
  */
-export type ReaderRouterPreset = 'min-cost-best-cat-2026-04-28';
+export type ReaderRouterPreset =
+  | 'min-cost-best-cat-2026-04-28'
+  | 'min-cost-best-cat-gpt5-tr-2026-04-29';
 
 /**
  * A complete reader-router calibration: every QuestionCategory must map to a
@@ -112,6 +114,36 @@ export const MIN_COST_BEST_CAT_2026_04_28_TABLE: ReaderRouterTable = {
 };
 
 /**
+ * The MIN_COST_BEST_CAT_GPT5_TR_2026_04_29 calibration. Replaces the gpt-4o
+ * picks for `temporal-reasoning` and `single-session-user` with `gpt-5`
+ * (cheaper input than gpt-4o + Phase A signal of +4 pp on TR). Keeps the
+ * gpt-5-mini picks for `single-session-assistant`, `single-session-preference`,
+ * `knowledge-update`, and `multi-session` unchanged.
+ *
+ * **Calibration source:** Phase A N=54 stratified probe at canonical+RR
+ * + `--reader gpt-5` (no reader-router) measured TR 88.9% [66.7%, 100%]
+ * vs the gpt-4o Phase B baseline 84.7% — a +4.2 pp point estimate at
+ * small sample. SSU was 100% at N=9 vs 94.3% baseline. Phase A only;
+ * Phase B at N=500 is the validation gate.
+ *
+ * **Why ship as a preset rather than defaulting:** preset is opt-in
+ * via `--reader-router min-cost-best-cat-gpt5-tr-2026-04-29`. Phase B
+ * may show the gpt-5 lift collapses (Phase A → Phase B compressions
+ * have happened repeatedly in this benchmark on small samples).
+ */
+export const MIN_COST_BEST_CAT_GPT5_TR_2026_04_29_TABLE: ReaderRouterTable = {
+  preset: 'min-cost-best-cat-gpt5-tr-2026-04-29',
+  mapping: {
+    'temporal-reasoning': 'gpt-5',
+    'single-session-user': 'gpt-5',
+    'single-session-preference': 'gpt-5-mini',
+    'single-session-assistant': 'gpt-5-mini',
+    'knowledge-update': 'gpt-5-mini',
+    'multi-session': 'gpt-5-mini',
+  },
+};
+
+/**
  * Registry of all calibrated reader-router tables. Adding a new preset means
  * (a) extending {@link ReaderRouterPreset}, (b) defining a `*_TABLE` const
  * with the calibration, (c) adding the entry here. The contract test in
@@ -120,6 +152,7 @@ export const MIN_COST_BEST_CAT_2026_04_28_TABLE: ReaderRouterTable = {
  */
 export const PRESET_TABLES: Record<ReaderRouterPreset, ReaderRouterTable> = {
   'min-cost-best-cat-2026-04-28': MIN_COST_BEST_CAT_2026_04_28_TABLE,
+  'min-cost-best-cat-gpt5-tr-2026-04-29': MIN_COST_BEST_CAT_GPT5_TR_2026_04_29_TABLE,
 };
 
 /**

@@ -463,11 +463,15 @@ export function buildCli(): Command {
     )
     .option(
       '--reader-router <preset>',
-      "Per-category reader-tier router: dispatch the answer reader per case based on the gpt-5-mini classifier's predicted category. Only 'min-cost-best-cat-2026-04-28' is calibrated today (gpt-4o for TR/SSU, gpt-5-mini for SSP/SSA/KU/MS — oracle 87.0% on S Phase B vs 83.2% at either reader alone). When unset the bench uses the single --reader for every case.",
+      "Per-category reader-tier router: dispatch the answer reader per case based on the gpt-5-mini classifier's predicted category. Presets: min-cost-best-cat-2026-04-28 (gpt-4o for TR/SSU, gpt-5-mini for SSP/SSA/KU/MS; oracle 87.0% on S Phase B); min-cost-best-cat-gpt5-tr-2026-04-29 (replaces gpt-4o with gpt-5 for TR/SSU; Phase A small-sample signal of +4 pp on TR). When unset the bench uses the single --reader for every case.",
       (value: string) => {
-        if (value !== 'min-cost-best-cat-2026-04-28') {
+        const allowed = [
+          'min-cost-best-cat-2026-04-28',
+          'min-cost-best-cat-gpt5-tr-2026-04-29',
+        ];
+        if (!allowed.includes(value)) {
           throw new Error(
-            `--reader-router must be 'min-cost-best-cat-2026-04-28', got '${value}'`,
+            `--reader-router must be one of ${allowed.join(' | ')}, got '${value}'`,
           );
         }
         return value;

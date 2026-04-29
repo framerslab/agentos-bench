@@ -28,6 +28,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   MIN_COST_BEST_CAT_2026_04_28_TABLE,
+  MIN_COST_BEST_CAT_GPT5_TR_2026_04_29_TABLE,
   PRESET_TABLES,
   ReaderRouterUnknownCategoryError,
   ReaderRouterUnknownPresetError,
@@ -116,5 +117,81 @@ describe('PRESET_TABLES: registry', () => {
     expect(PRESET_TABLES['min-cost-best-cat-2026-04-28']).toBe(
       MIN_COST_BEST_CAT_2026_04_28_TABLE,
     );
+  });
+
+  it('exposes min-cost-best-cat-gpt5-tr-2026-04-29 as a registered preset', () => {
+    expect(PRESET_TABLES['min-cost-best-cat-gpt5-tr-2026-04-29']).toBe(
+      MIN_COST_BEST_CAT_GPT5_TR_2026_04_29_TABLE,
+    );
+  });
+});
+
+describe('selectReader: min-cost-best-cat-gpt5-tr-2026-04-29 calibration', () => {
+  const PRESET_GPT5: ReaderRouterPreset = 'min-cost-best-cat-gpt5-tr-2026-04-29';
+
+  it('routes temporal-reasoning to gpt-5 (Phase A small-sample +4.2 pp PE vs gpt-4o)', () => {
+    expect(selectReader('temporal-reasoning', PRESET_GPT5)).toBe('gpt-5');
+  });
+
+  it('routes single-session-user to gpt-5 (Phase A small-sample lift over gpt-4o)', () => {
+    expect(selectReader('single-session-user', PRESET_GPT5)).toBe('gpt-5');
+  });
+
+  it('keeps single-session-preference on gpt-5-mini (gpt-5-mini was the +23.4 pp winner; not displaced)', () => {
+    expect(selectReader('single-session-preference', PRESET_GPT5)).toBe('gpt-5-mini');
+  });
+
+  it('keeps single-session-assistant on gpt-5-mini (gpt-5-mini ties; cheaper)', () => {
+    expect(selectReader('single-session-assistant', PRESET_GPT5)).toBe('gpt-5-mini');
+  });
+
+  it('keeps knowledge-update on gpt-5-mini (gpt-5-mini ties; cheaper)', () => {
+    expect(selectReader('knowledge-update', PRESET_GPT5)).toBe('gpt-5-mini');
+  });
+
+  it('keeps multi-session on gpt-5-mini (gpt-5-mini was the +3.5 pp winner)', () => {
+    expect(selectReader('multi-session', PRESET_GPT5)).toBe('gpt-5-mini');
+  });
+});
+
+describe('MIN_COST_BEST_CAT_GPT5_TR_2026_04_29_TABLE: completeness invariant', () => {
+  const ALL_CATEGORIES: QuestionCategory[] = [
+    'single-session-user',
+    'single-session-assistant',
+    'single-session-preference',
+    'knowledge-update',
+    'multi-session',
+    'temporal-reasoning',
+  ];
+
+  it('covers all six LongMemEval categories', () => {
+    for (const cat of ALL_CATEGORIES) {
+      expect(MIN_COST_BEST_CAT_GPT5_TR_2026_04_29_TABLE.mapping[cat]).toBeDefined();
+    }
+  });
+
+  it('only references gpt-5 and gpt-5-mini reader tiers', () => {
+    for (const cat of ALL_CATEGORIES) {
+      const reader = MIN_COST_BEST_CAT_GPT5_TR_2026_04_29_TABLE.mapping[cat];
+      expect(['gpt-5', 'gpt-5-mini']).toContain(reader);
+    }
+  });
+
+  it('has the expected preset id', () => {
+    expect(MIN_COST_BEST_CAT_GPT5_TR_2026_04_29_TABLE.preset).toBe(
+      'min-cost-best-cat-gpt5-tr-2026-04-29',
+    );
+  });
+
+  it('replaces every gpt-4o pick from MIN_COST_BEST_CAT_2026_04_28 with gpt-5', () => {
+    for (const cat of ALL_CATEGORIES) {
+      if (MIN_COST_BEST_CAT_2026_04_28_TABLE.mapping[cat] === 'gpt-4o') {
+        expect(MIN_COST_BEST_CAT_GPT5_TR_2026_04_29_TABLE.mapping[cat]).toBe('gpt-5');
+      } else {
+        expect(MIN_COST_BEST_CAT_GPT5_TR_2026_04_29_TABLE.mapping[cat]).toBe(
+          MIN_COST_BEST_CAT_2026_04_28_TABLE.mapping[cat],
+        );
+      }
+    }
   });
 });
