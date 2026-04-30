@@ -16,7 +16,10 @@ vendors/*/.venv/
 vendors/*/__pycache__/
 vendors/*/*.pyc
 
-# Superpowers (internal planning workflow, never push)
+# Internal research artifacts (vibe-coded session docs, never push).
+# Anything date-stamped or stage-tagged is transient working notes;
+# only the curated top-level docs (README, SCORECARD, PROVENANCE, etc.)
+# belong in git.
 .superpowers/
 docs/superpowers/
 docs/specs/
@@ -26,3 +29,11 @@ docs/RAG_STACK_*.md
 docs/PHASE_*.md
 docs/STAGE_*.md
 docs/SESSION_*.md
+docs/SOTA_*.md
+docs/ARCHITECTURE_DECISION_*.md
+docs/COMPETITOR_*.md
+docs/INDUSTRY_*.md
+docs/RESEARCH_FOLLOWUP*.md
+docs/RETRIEVAL_CONFIG_*.md
+docs/*_2026-*.md
+docs/*_2027-*.md
