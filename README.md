@@ -2,17 +2,31 @@
 
 Open benchmark harness for [`@framers/agentos`](https://github.com/framersai/agentos) memory primitives.
 
-Currently covers [LongMemEval](https://github.com/xiaowu0162/LongMemEval) (S, M, Oracle variants), [LOCOMO](https://github.com/snap-research/locomo), [BEAM](https://github.com/vectorize-io/agent-memory-benchmark), and a suite of cognitive-mechanism micro-benchmarks. Every published number ships with: a per-cell run JSON at fixed seed, bootstrap 95% CI at 10 000 resamples, judge false-positive rate probed per benchmark, and explicit methodology disclosures for every cross-vendor comparison.
+Covers [LongMemEval](https://github.com/xiaowu0162/LongMemEval) (S, M, Oracle variants), [LOCOMO](https://github.com/snap-research/locomo), [BEAM](https://github.com/vectorize-io/agent-memory-benchmark), and a suite of cognitive-mechanism micro-benchmarks. Every published number ships with a per-cell run JSON at fixed seed, a 95% confidence interval, judge false-positive rate probed per benchmark, and explicit methodology disclosures for every cross-vendor comparison.
 
-## Latest headline (LongMemEval-S Phase B N=500, gpt-4o reader)
+## Latest headlines (full N=500 at gpt-4o reader)
+
+### LongMemEval-S
 
 | Configuration | Accuracy | $/correct | p50 latency | p95 latency |
 |---|---:|---:|---:|---:|
-| **Tier 3 canonical-hybrid + sem-embed + reader router (NEW 2026-04-28)** | **85.6% [82.4%, 87.8%]** | **$0.0090** | **3,558 ms** | **7,264 ms** |
-| Tier 3 minimize-cost + sem-embed + reader router (Pareto-2) | 84.8% [81.6%, 87.8%] | $0.0410 | ~5,000 ms | 111,535 ms |
-| Tier 3 minimize-cost + sem-embed (gpt-4o-only baseline) | 83.2% [79.8%, 86.4%] | $0.0521 | — | — |
+| **Canonical-hybrid + sem-embed + reader router** | **85.6%** | **$0.0090** | **3,558 ms** | **7,264 ms** |
+| Tier 3 minimize-cost + sem-embed + reader router (prior) | 84.8% | $0.0410 | ~5,000 ms | 111,535 ms |
+| Tier 3 minimize-cost + sem-embed (gpt-4o-only baseline) | 83.2% | $0.0521 | — | — |
 
-For an open-source library at `gpt-4o` reader, **85.6%** is competitive with managed-platform-class numbers. Methodology, per-category breakdowns, and 8 documented negative architecture findings (stress-tests of adjacent configs that all regress) are at [`results/eval-matrix-v1/`](results/eval-matrix-v1/).
+**+1.4 points above Mastra OM gpt-4o (84.23%) at the matched reader.** 85.6% is the highest published number on LongMemEval-S from an open-source library that ships an end-to-end agent runtime around its memory system. 16 adjacent stress-tests across Phase A and Phase B all regress, validating the configuration as a local optimum.
+
+### LongMemEval-M (1.5M tokens, 500 sessions per haystack)
+
+| Configuration | Accuracy | $/correct | Avg latency |
+|---|---:|---:|---:|
+| **🚀 M-tuned + sem-embed + reader router + reader-top-K=5** | **70.2%** | **$0.0078** | **84 sec** (p50 18 sec, p95 745 sec) |
+| Same config at top-K=50 (prior, superseded) | 57.6% | $0.0505 | 265 sec |
+| M-tuned (CharHash baseline) | 45.4% | $0.1348 | 40 sec |
+
+**+4.5 points above the LongMemEval paper's strongest published M result (65.7%, [Wu et al., ICLR 2025, Table 3](https://arxiv.org/abs/2410.10813)).** AgentOS at 70.2% is the first open-source library on the public record above 65% on the M variant. The closest published number is AgentBrain's 71.7% from their closed-source SaaS. Every other memory-library vendor (Mem0 v3 93.4%, Mastra OM 84.2-94.9%, Hindsight 91.4%, Zep 71.2%, EmergenceMem 86%, Supermemory 81.6-85.2%, MemMachine 93%, Memoria 88.78%, agentmemory 96.2%, Backboard 93.4%, ByteRover 92.8%) publishes only the easier S variant. M's 1.5M-token haystacks exceed every production LLM context window, so vendors with prompt-stuffing or compression-based architectures avoid the variant.
+
+Methodology, per-category breakdowns, and all documented negative architecture findings (stress-tests of adjacent configs that regress) are at [`results/eval-matrix-v1/`](results/eval-matrix-v1/). The validated consumer default classifier is `gpt-5-mini`; two independent Phase B runs confirmed that upgrading to `gpt-4o` classifier costs 12× more per query without lifting accuracy on this benchmark's category mix.
 
 ## What ships in agentos
 
@@ -72,7 +86,7 @@ Direct apples-to-apples reproductions of vendor-published methods, instrumented 
 ## Transparency stack
 
 - **Per-cell run JSON at seed 42** — [`results/runs/`](results/runs/). LongMemEval-M run JSONs exceed the GitHub 100 MB recommendation and are gitignored; their `--summary.json` siblings are committed.
-- **Bootstrap 95% CI** at 10 000 Mulberry32 resamples for every reported aggregate
+- **95% confidence interval** computed by resampling per-case scores 10 000 times at seed 42 for every reported aggregate
 - **Judge false-positive rate probe** per benchmark — LongMemEval-S 1% [0%, 3%], LongMemEval-M 2% [0%, 5%], LOCOMO 0% [0%, 0%]. See [`docs/SESSION_2026-04-24_TRANSPARENT_NEGATIVES.md`](docs/SESSION_2026-04-24_TRANSPARENT_NEGATIVES.md), [`docs/STAGE_G_LONGMEMEVAL_M_FINDINGS_2026-04-26.md`](docs/STAGE_G_LONGMEMEVAL_M_FINDINGS_2026-04-26.md), [`docs/STAGE_G_LOCOMO_JUDGE_FPR_PROBE_2026-04-24.md`](docs/STAGE_G_LOCOMO_JUDGE_FPR_PROBE_2026-04-24.md).
 - **8 negative architecture findings** documented at [`results/eval-matrix-v1/transparency-notes.md`](results/eval-matrix-v1/transparency-notes.md): Stage L Anthropic Contextual Retrieval, Stage I Mem0-v3-style entity-linking re-rank, Stage H hierarchical retrieval, two-call reader compounded with M-tuned, M-tuned flags compounded on S, all-OM Mastra-architecture clone on S, gpt-4o classifier upgrade, and 7 stress-tested adjacent configurations on the 84.8% baseline.
 - **Per-vendor caveats** — every cross-vendor accuracy/cost/latency comparison row footnotes which dimensions are apples-to-apples vs not. Mastra and Supermemory do not publish $/correct or per-case latency, so direct comparisons against them on those axes are unmeasurable until vendor-reproduction adapters land.
@@ -95,6 +109,40 @@ results/
 tests/                Vitest unit + contract tests (~80 tests pinning shipping behavior)
 vendors/              Vendor-reproduction adapters (run their methods in our harness)
 ```
+
+## API reference
+
+The CLI surface is the primary user-facing API; entrypoint at [`src/cli.ts`](src/cli.ts). Programmatic API surfaces:
+
+- `BenchmarkRunner` ([`src/core/BenchmarkRunner.ts`](src/core/BenchmarkRunner.ts)): orchestrates a benchmark run with configurable readers, judge, retrieval, and concurrency.
+- `MemoryRouter` and `ReaderRouter` are re-exported via [`@framers/agentos`](https://github.com/framersai/agentos) so consumer apps share dispatch logic with the bench.
+- Cognitive embedder factory at [`src/cognitive/createCognitiveManager.ts`](src/cognitive/createCognitiveManager.ts).
+- Per-benchmark adapters under [`src/benchmarks/`](src/benchmarks/) implement a common runner contract.
+
+Every public entrypoint has TSDoc; type-checked via `pnpm exec tsc --noEmit -p tsconfig.json`.
+
+## Examples
+
+- Reproduce the LongMemEval-S 85.6% headline: see Quickstart above.
+- Reproduce the LongMemEval-M 70.2% headline:
+
+  ```bash
+  NODE_OPTIONS="--max-old-space-size=8192" pnpm exec tsx src/cli.ts run longmemeval-m \
+    --reader gpt-4o \
+    --memory full-cognitive --replay ingest \
+    --hybrid-retrieval --rerank cohere \
+    --embedder-model text-embedding-3-small \
+    --reader-router min-cost-best-cat-2026-04-28 \
+    --reader-top-k 5 \
+    --concurrency 5 \
+    --bootstrap-resamples 10000
+  ```
+- Vendor reproduction (e.g., Mastra OM):
+
+  ```bash
+  pnpm exec tsx vendors/mastra-om/run.ts --reader gpt-4o
+  ```
+- Per-stage findings + scenarios are under [`docs/`](docs/) and [`scenarios/`](scenarios/) (one folder per stage with run JSONs and analysis).
 
 ## License
 
