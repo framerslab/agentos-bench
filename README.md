@@ -1,6 +1,6 @@
-# @framers/agentos-bench
+# agentos-bench
 
-Open benchmark harness for [`@framers/agentos`](https://github.com/framersai/agentos) memory primitives.
+Open benchmark harness for [`@framers/agentos`](https://github.com/framersai/agentos) memory primitives. Source-only repository, clone and run via the local CLI; not published to npm.
 
 Covers [LongMemEval](https://github.com/xiaowu0162/LongMemEval) (S, M, Oracle variants), [LOCOMO](https://github.com/snap-research/locomo), [BEAM](https://github.com/vectorize-io/agent-memory-benchmark), and a suite of cognitive-mechanism micro-benchmarks. Every published number ships with a per-cell run JSON at fixed seed, a 95% confidence interval, judge false-positive rate probed per benchmark, and explicit methodology disclosures for every cross-vendor comparison.
 
