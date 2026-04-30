@@ -112,6 +112,40 @@ tests/                Vitest unit + contract tests (~80 tests pinning shipping b
 vendors/              Vendor-reproduction adapters (run their methods in our harness)
 ```
 
+## API reference
+
+The CLI surface is the primary user-facing API; entrypoint at [`src/cli.ts`](src/cli.ts). Programmatic API surfaces:
+
+- `BenchmarkRunner` ([`src/core/BenchmarkRunner.ts`](src/core/BenchmarkRunner.ts)): orchestrates a benchmark run with configurable readers, judge, retrieval, and concurrency.
+- `MemoryRouter` and `ReaderRouter` are re-exported via [`@framers/agentos`](https://github.com/framersai/agentos) so consumer apps share dispatch logic with the bench.
+- Cognitive embedder factory at [`src/cognitive/createCognitiveManager.ts`](src/cognitive/createCognitiveManager.ts).
+- Per-benchmark adapters under [`src/benchmarks/`](src/benchmarks/) implement a common runner contract.
+
+Every public entrypoint has TSDoc; type-checked via `pnpm exec tsc --noEmit -p tsconfig.json`.
+
+## Examples
+
+- Reproduce the LongMemEval-S 85.6% headline: see Quickstart above.
+- Reproduce the LongMemEval-M 70.2% headline:
+
+  ```bash
+  NODE_OPTIONS="--max-old-space-size=8192" pnpm exec tsx src/cli.ts run longmemeval-m \
+    --reader gpt-4o \
+    --memory full-cognitive --replay ingest \
+    --hybrid-retrieval --rerank cohere \
+    --embedder-model text-embedding-3-small \
+    --reader-router min-cost-best-cat-2026-04-28 \
+    --reader-top-k 5 \
+    --concurrency 5 \
+    --bootstrap-resamples 10000
+  ```
+- Vendor reproduction (e.g., Mastra OM):
+
+  ```bash
+  pnpm exec tsx vendors/mastra-om/run.ts --reader gpt-4o
+  ```
+- Per-stage findings + scenarios are under [`docs/`](docs/) and [`scenarios/`](scenarios/) (one folder per stage with run JSONs and analysis).
+
 ## License
 
 Apache 2.0 — see [LICENSE](LICENSE).
