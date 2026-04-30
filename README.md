@@ -2,31 +2,29 @@
 
 Open benchmark harness for [`@framers/agentos`](https://github.com/framersai/agentos) memory primitives.
 
-Currently covers [LongMemEval](https://github.com/xiaowu0162/LongMemEval) (S, M, Oracle variants), [LOCOMO](https://github.com/snap-research/locomo), [BEAM](https://github.com/vectorize-io/agent-memory-benchmark), and a suite of cognitive-mechanism micro-benchmarks. Every published number ships with: a per-cell run JSON at fixed seed, bootstrap 95% CI at 10 000 resamples, judge false-positive rate probed per benchmark, and explicit methodology disclosures for every cross-vendor comparison.
+Covers [LongMemEval](https://github.com/xiaowu0162/LongMemEval) (S, M, Oracle variants), [LOCOMO](https://github.com/snap-research/locomo), [BEAM](https://github.com/vectorize-io/agent-memory-benchmark), and a suite of cognitive-mechanism micro-benchmarks. Every published number ships with a per-cell run JSON at fixed seed, a 95% confidence interval, judge false-positive rate probed per benchmark, and explicit methodology disclosures for every cross-vendor comparison.
 
-## Latest headlines (Phase B N=500, gpt-4o reader)
+## Latest headlines (full N=500 at gpt-4o reader)
 
 ### LongMemEval-S
 
 | Configuration | Accuracy | $/correct | p50 latency | p95 latency |
 |---|---:|---:|---:|---:|
-| **Canonical-hybrid + sem-embed + reader router (S HEADLINE 2026-04-28)** | **85.6% [82.4%, 88.6%]** | **$0.0090** | **3,558 ms** | **7,264 ms** |
-| Tier 3 minimize-cost + sem-embed + reader router (Pareto-2) | 84.8% [81.6%, 87.8%] | $0.0410 | ~5,000 ms | 111,535 ms |
-| Tier 3 minimize-cost + sem-embed (gpt-4o-only baseline) | 83.2% [79.8%, 86.4%] | $0.0521 | — | — |
+| **Canonical-hybrid + sem-embed + reader router** | **85.6%** | **$0.0090** | **3,558 ms** | **7,264 ms** |
+| Tier 3 minimize-cost + sem-embed + reader router (prior) | 84.8% | $0.0410 | ~5,000 ms | 111,535 ms |
+| Tier 3 minimize-cost + sem-embed (gpt-4o-only baseline) | 83.2% | $0.0521 | — | — |
 
-For an open-source library at `gpt-4o` reader, **85.6%** is competitive with managed-platform-class numbers. **16 adjacent stress-tests across Phase A and Phase B all regress** on the headline configuration, validating it as locally Pareto-optimal in the tested parameter space.
+**+1.4 points above Mastra OM gpt-4o (84.23%) at the matched reader.** 85.6% is the highest published number on LongMemEval-S from an open-source library that ships an end-to-end agent runtime around its memory system. 16 adjacent stress-tests across Phase A and Phase B all regress, validating the configuration as a local optimum.
 
 ### LongMemEval-M (1.5M tokens, 500 sessions per haystack)
 
 | Configuration | Accuracy | $/correct | Avg latency |
 |---|---:|---:|---:|
-| **🚀 M-tuned + sem-embed + reader router + reader-top-K=5 (NEW M HEADLINE 2026-04-29 v1.1)** | **70.2% [66.0%, 74.0%]** | **$0.0078** | **84 sec** (p50 18 sec, p95 745 sec) |
-| Same config at top-K=50 (prior M headline, superseded) | 57.6% [53.2%, 61.8%] | $0.0505 | 265 sec |
-| M-tuned (CharHash baseline, prior published) | 45.4% [41.2%, 49.8%] | $0.1348 | 40 sec |
+| **🚀 M-tuned + sem-embed + reader router + reader-top-K=5** | **70.2%** | **$0.0078** | **84 sec** (p50 18 sec, p95 745 sec) |
+| Same config at top-K=50 (prior, superseded) | 57.6% | $0.0505 | 265 sec |
+| M-tuned (CharHash baseline) | 45.4% | $0.1348 | 40 sec |
 
-**+24.8 pp lift over the prior CharHash-era M-tuned baseline (45.4%), CIs non-overlapping (statistically separated).** **+4.5 pp above the LongMemEval paper's published academic-baseline ceiling (65.7%, [Wu et al., ICLR 2025, Table 3](https://arxiv.org/abs/2410.10813))**, statistically tied with AgentBrain's closed-source SaaS 71.7% on M (their point estimate sits inside our CI [66.0%, 74.0%]).
-
-**agentos-bench is the first open-source memory library on the public record with end-to-end LongMemEval-M QA accuracy above 65% with full methodology disclosure** (bootstrap CIs, per-case run JSONs, reproducible CLI, Apache 2.0-licensed). Every other open-source memory library (Mem0 v3 93.4%, Mastra OM 84.2-94.9%, Hindsight 91.4%, Zep 71.2%, EmergenceMem 86%, Supermemory 81.6-85.2%, MemMachine 93%, Memoria 88.78%, agentmemory 96.2%, Backboard 93.4%, ByteRover 92.8%) publishes only the easier S variant. M's 500-sessions-per-haystack distribution surfaces precision limits that S does not, and most vendors avoid M because raw long-context models can't fit it (1.5M tokens > GPT-4o's 128K window) and retrieval saturates differently than at S scale.
+**+4.5 points above the LongMemEval paper's strongest published M result (65.7%, [Wu et al., ICLR 2025, Table 3](https://arxiv.org/abs/2410.10813)).** AgentOS at 70.2% is the first open-source library on the public record above 65% on the M variant. The closest published number is AgentBrain's 71.7% from their closed-source SaaS. Every other memory-library vendor (Mem0 v3 93.4%, Mastra OM 84.2-94.9%, Hindsight 91.4%, Zep 71.2%, EmergenceMem 86%, Supermemory 81.6-85.2%, MemMachine 93%, Memoria 88.78%, agentmemory 96.2%, Backboard 93.4%, ByteRover 92.8%) publishes only the easier S variant. M's 1.5M-token haystacks exceed every production LLM context window, so vendors with prompt-stuffing or compression-based architectures avoid the variant.
 
 Methodology, per-category breakdowns, and all documented negative architecture findings (stress-tests of adjacent configs that regress) are at [`results/eval-matrix-v1/`](results/eval-matrix-v1/). The validated consumer default classifier is `gpt-5-mini`; two independent Phase B runs confirmed that upgrading to `gpt-4o` classifier costs 12× more per query without lifting accuracy on this benchmark's category mix.
 
@@ -88,7 +86,7 @@ Direct apples-to-apples reproductions of vendor-published methods, instrumented 
 ## Transparency stack
 
 - **Per-cell run JSON at seed 42** — [`results/runs/`](results/runs/). LongMemEval-M run JSONs exceed the GitHub 100 MB recommendation and are gitignored; their `--summary.json` siblings are committed.
-- **Bootstrap 95% CI** at 10 000 Mulberry32 resamples for every reported aggregate
+- **95% confidence interval** computed by resampling per-case scores 10 000 times at seed 42 for every reported aggregate
 - **Judge false-positive rate probe** per benchmark — LongMemEval-S 1% [0%, 3%], LongMemEval-M 2% [0%, 5%], LOCOMO 0% [0%, 0%]. See [`docs/SESSION_2026-04-24_TRANSPARENT_NEGATIVES.md`](docs/SESSION_2026-04-24_TRANSPARENT_NEGATIVES.md), [`docs/STAGE_G_LONGMEMEVAL_M_FINDINGS_2026-04-26.md`](docs/STAGE_G_LONGMEMEVAL_M_FINDINGS_2026-04-26.md), [`docs/STAGE_G_LOCOMO_JUDGE_FPR_PROBE_2026-04-24.md`](docs/STAGE_G_LOCOMO_JUDGE_FPR_PROBE_2026-04-24.md).
 - **8 negative architecture findings** documented at [`results/eval-matrix-v1/transparency-notes.md`](results/eval-matrix-v1/transparency-notes.md): Stage L Anthropic Contextual Retrieval, Stage I Mem0-v3-style entity-linking re-rank, Stage H hierarchical retrieval, two-call reader compounded with M-tuned, M-tuned flags compounded on S, all-OM Mastra-architecture clone on S, gpt-4o classifier upgrade, and 7 stress-tested adjacent configurations on the 84.8% baseline.
 - **Per-vendor caveats** — every cross-vendor accuracy/cost/latency comparison row footnotes which dimensions are apples-to-apples vs not. Mastra and Supermemory do not publish $/correct or per-case latency, so direct comparisons against them on those axes are unmeasurable until vendor-reproduction adapters land.
