@@ -15,3 +15,14 @@ node_modules/
 vendors/*/.venv/
 vendors/*/__pycache__/
 vendors/*/*.pyc
+
+# Superpowers (internal planning workflow, never push)
+.superpowers/
+docs/superpowers/
+docs/specs/
+docs/plans/
+docs/STEP_*_FINDINGS_*.md
+docs/RAG_STACK_*.md
+docs/PHASE_*.md
+docs/STAGE_*.md
+docs/SESSION_*.md
