@@ -43,7 +43,7 @@
     "clean": "rimraf dist"
   },
   "peerDependencies": {
-    "@framers/agentos": "^0.5.3"
+    "@framers/agentos": "^0.6.6"
   },
   "dependencies": {
     "commander": "^12.0.0",
@@ -56,7 +56,7 @@
     "@huggingface/hub": "^1.0.0"
   },
   "devDependencies": {
-    "@framers/agentos": "^0.5.3",
+    "@framers/agentos": "^0.6.6",
     "@types/node": "^20.12.12",
     "@types/stream-json": "^1.7.8",
     "better-sqlite3": "^12.9.0",
@@ -70,7 +70,7 @@
     "type": "git",
     "url": "https://github.com/framersai/agentos-bench.git"
   },
-  "homepage": "https://github.com/framersai/agentos-bench#readme",
+  "homepage": "https://docs.agentos.sh/benchmarks",
   "bugs": {
     "url": "https://github.com/framersai/agentos-bench/issues"
   },
@@ -79,13 +79,22 @@
   },
   "keywords": [
     "agentos",
+    "framers-agentos",
+    "agentos-bench",
     "benchmark",
+    "ai-agent-benchmark",
     "memory",
+    "memory-benchmark",
+    "ai-memory",
+    "cognitive-memory",
     "longmemeval",
     "locomo",
     "beam",
-    "cognitive-memory",
     "eval",
-    "evaluation"
+    "evaluation",
+    "ai-evaluation",
+    "llm-benchmark",
+    "framers",
+    "frame-dev"
   ]
 }
