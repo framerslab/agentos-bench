@@ -14,7 +14,7 @@ Covers [LongMemEval](https://github.com/xiaowu0162/LongMemEval) (S, M, Oracle va
 | Tier 3 minimize-cost + sem-embed + reader router (prior) | 84.8% | $0.0410 | ~5,000 ms | 111,535 ms |
 | Tier 3 minimize-cost + sem-embed (gpt-4o-only baseline) | 83.2% | $0.0521 | — | — |
 
-**+1.4 points above Mastra OM gpt-4o (84.23%) at the matched reader.** Among open-source memory libraries that publish at the matched gpt-4o reader and ship an end-to-end agent runtime around their memory system, 85.6% is the highest published number we have located. The wider LongMemEval-S frontier across all reader tiers and judge configurations spans 89-96% (Mastra OM at gpt-5-mini 94.87%, MemMachine 93.0%, Hindsight 91.4%, Neutrally 89.4%, agentmemory 96.2%), and AgentOS at the matched gpt-4o reader is one band below that cross-reader frontier. 16 adjacent stress-tests across Phase A and Phase B all regress on top of the 85.6% configuration, validating it as a local optimum within the gpt-4o reader tier.
+**At a matched `gpt-4o` reader the same retrieval scores 84.2%, level with Mastra OM gpt-4o (84.23%).** The 85.6% headline routes four of the six question types (SSA/SSP/KU/MS) to `gpt-5-mini` and keeps `gpt-4o` on TR/SSU, so it is not a matched-reader comparison. The wider LongMemEval-S frontier across all reader tiers and judge configurations spans 89-96% (Mastra OM at gpt-5-mini 94.87%, MemMachine 93.0%, Hindsight 91.4%, Neutrally 89.4%, agentmemory 96.2%). 16 adjacent stress-tests across Phase A and Phase B all regress on top of the 85.6% configuration, validating it as a local optimum for this retrieval and reader-router setup.
 
 ### LongMemEval-M (1.5M tokens, 500 sessions per haystack)
 
