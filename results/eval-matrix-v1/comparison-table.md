@@ -17,7 +17,7 @@ Methodology, judge FPR per benchmark, two negative architecture findings, BEAM c
 
 ## Headline accuracy
 
-The canonical-hybrid + reader-router results on LongMemEval-S and the ablations measured against them came from runs that called Cohere's reranker. They are being re-run without a remote reranker and are left out of this page until those runs finish. The M-tuned + reader-router + reader-top-K=5 result on LongMemEval-M and the ablations measured against it also came from runs that called Cohere's reranker. Both are being re-run without a remote reranker and are left out of this page until those runs finish. Rows below whose configuration is canonical-hybrid or names Cohere rerank-v3.5 also used Cohere's reranker; they are historical results until the re-run.
+The canonical-hybrid + reader-router results on LongMemEval-S and the ablations measured against them came from runs that called Cohere's reranker. They are being re-run without a remote reranker and are left out of this page until those runs finish. The M-tuned + reader-router + reader-top-K=5 result on LongMemEval-M and the ablations measured against it also came from runs that called Cohere's reranker. Both are being re-run without a remote reranker and are left out of this page until those runs finish. The Tier 1, Tier 2a, Tier 2b and Tier 3 rows, and rows whose configuration names canonical-hybrid, hybrid or Cohere rerank-v3.5, also used Cohere's reranker (the canonical-hybrid path reranks with it), among them the 84.8% and 83.2% LongMemEval-S results and the 57.6% LongMemEval-M result; they are historical results until the re-run.
 
 | Architecture | LongMemEval-S | LongMemEval-M | LOCOMO | BEAM 100K |
 |---|---:|---:|---:|---:|
