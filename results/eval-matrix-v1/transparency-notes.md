@@ -248,7 +248,7 @@ The S and M headline results are being re-run without a remote reranker. The v2 
 
 ### LongMemEval-M publication landscape (verified 2026-04-29)
 
-Published LongMemEval-M numbers as of 2026-04-29. agentos-bench's own M result is being re-run without a remote reranker and is left out of this table until then.
+Published LongMemEval-M numbers as of 2026-04-29. agentos-bench's top-K=5 M result is being re-run without a remote reranker and is left out of this table until then; its top-K=50 result (57.6%, a historical result that used Cohere's reranker) is in [comparison-table.md](comparison-table.md).
 
 | System | License | LongMemEval-M | Notes |
 |---|---|---:|---|

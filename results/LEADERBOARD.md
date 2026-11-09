@@ -11,7 +11,7 @@ Methodologies may differ; every row footnotes its reader LLM so comparisons stay
 ## LongMemEval-S (500 cases, ~115k-token haystacks)
 Target to beat: **96.2%** (agentmemory (JordanMcCann)).
 
-The canonical-hybrid + reader-router results on LongMemEval-S and the ablations measured against them came from runs that called Cohere's reranker. They are being re-run without a remote reranker and are left out of this page until those runs finish.
+The canonical-hybrid + reader-router results on LongMemEval-S and the ablations measured against them came from runs that called Cohere's reranker. They are being re-run without a remote reranker and are left out of this page until those runs finish. Rows below whose Memory column names canonical-hybrid, hybrid or Cohere rerank-v3.5 also used Cohere's reranker; they are historical results until the re-run.
 
 | System | Reader | Memory | Replay | Cases | Accuracy | 95% CI | Avg latency | $/correct | Source |
 |---|---|---|---|---:|---:|---:|---:|---:|---|
@@ -56,7 +56,7 @@ The canonical-hybrid + reader-router results on LongMemEval-S and the ablations 
 
 ## LongMemEval-M (500 cases, ~1.5M-token haystacks)
 
-The M-tuned + reader-router + reader-top-K=5 result on LongMemEval-M and the ablations measured against it came from runs that called Cohere's reranker. They are being re-run without a remote reranker and are left out of this page until those runs finish.
+The M-tuned + reader-router + reader-top-K=5 result on LongMemEval-M and the ablations measured against it came from runs that called Cohere's reranker. They are being re-run without a remote reranker and are left out of this page until those runs finish. Rows below whose Memory column names canonical-hybrid, hybrid or Cohere rerank-v3.5 also used Cohere's reranker; they are historical results until the re-run.
 
 | System | Reader | Memory | Replay | Cases | Accuracy | 95% CI | Avg latency | $/correct | Source |
 |---|---|---|---|---:|---:|---:|---:|---:|---|

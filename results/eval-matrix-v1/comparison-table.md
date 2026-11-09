@@ -17,7 +17,7 @@ Methodology, judge FPR per benchmark, two negative architecture findings, BEAM c
 
 ## Headline accuracy
 
-The canonical-hybrid + reader-router results on LongMemEval-S and the ablations measured against them came from runs that called Cohere's reranker. They are being re-run without a remote reranker and are left out of this page until those runs finish. The M-tuned + reader-router + reader-top-K=5 result on LongMemEval-M and the ablations measured against it also came from runs that called Cohere's reranker. Both are being re-run without a remote reranker and are left out of this page until those runs finish.
+The canonical-hybrid + reader-router results on LongMemEval-S and the ablations measured against them came from runs that called Cohere's reranker. They are being re-run without a remote reranker and are left out of this page until those runs finish. The M-tuned + reader-router + reader-top-K=5 result on LongMemEval-M and the ablations measured against it also came from runs that called Cohere's reranker. Both are being re-run without a remote reranker and are left out of this page until those runs finish. Rows below whose configuration is canonical-hybrid or names Cohere rerank-v3.5 also used Cohere's reranker; they are historical results until the re-run.
 
 | Architecture | LongMemEval-S | LongMemEval-M | LOCOMO | BEAM 100K |
 |---|---:|---:|---:|---:|
@@ -102,7 +102,7 @@ Phase B at N=500 validates the all-three combined config; per-flag attribution i
 | **All three combined (M-tuned, CharHash)** | **Phase B N=500** | **45.4% [41.2%, 49.8%]** | **+14.8 pp** | $0.1348 | $30.59 | 40 271 ms |
 | **+ sem-embed (text-embedding-3-small) + reader router** | **Phase B N=500** | **57.6% [53.2%, 61.8%]** | **+27.0 pp** vs canonical Tier 1 | $0.0505 | $14.56 | 264 933 ms |
 
-Phase A → Phase B compression note: the all-three combined config dropped −12 pp from N=54 stratified to N=500 (Phase A inflated by `--sample-per-type 9` overweighting easy categories — SSA/KU/SSU were 33% of N=54 vs 41% of N=500; the true distribution is dominated by MS+TR at 53% of N=500). Replacing the CharHashEmbedder fallback with sem-embed lifted the combined config from 45.4% to 57.6% (+12.2 pp, CI-non-overlapping; see footnote ^mtuned-sem-embed-rr-m).
+Phase A → Phase B compression note: the all-three combined config dropped −12 pp from N=54 stratified to N=500 (Phase A inflated by `--sample-per-type 9` overweighting easy categories — SSA/KU/SSU were 33% of N=54 vs 41% of N=500; the true distribution is dominated by MS+TR at 53% of N=500). Adding sem-embed in place of the CharHashEmbedder fallback together with the reader router lifted the combined config from 45.4% to 57.6% (+12.2 pp, CI-non-overlapping; see footnote ^mtuned-sem-embed-rr-m); these runs measure the two changes together, not the embedder alone.
 
 Phase A per-category attribution (kept as the calibration source for the productionized [RetrievalConfigRouter](../../docs/specs/2026-04-26-retrieval-config-router-productionization-plan.md)): multi-session (precision-bound bottleneck) only lifts to 66.7% Phase A with the multiplier — Phase B at N=130 measured 26.2% [18.5%, 33.8%], so the Phase A signal compresses substantially at scale. HyDE alone was Phase A best for SSA (88.9%) and TR (66.7%) — both also Phase A-only. TopK alone was best for KU (77.8%) and SSU (66.7%) — Phase A-only. The 68.5% per-category-oracle Phase A forecast is Phase A-derived end-to-end and explicitly not Phase B-validated.
 

@@ -30,11 +30,11 @@ pnpm install
 pnpm build
 
 # Download the LongMemEval-S dataset into data/longmemeval/longmemeval_s.json
-pnpm exec tsx src/cli.ts setup --benchmark longmemeval-s
+pnpm bench setup --benchmark longmemeval-s
 
 # List the built-in benchmarks, then see every flag of the run command
-pnpm exec tsx src/cli.ts list
-pnpm exec tsx src/cli.ts run --help
+pnpm bench list
+pnpm bench run --help
 ```
 
 ## Vendor reproduction adapters
@@ -51,7 +51,7 @@ Direct apples-to-apples reproductions of vendor-published methods, instrumented 
 - **Per-cell run JSON at seed 42** — [`results/runs/`](results/runs/). LongMemEval-M run JSONs exceed the GitHub 100 MB recommendation and are gitignored; their `--summary.json` siblings are committed.
 - **95% confidence interval** computed by resampling per-case scores 10 000 times at seed 42 for every reported aggregate
 - **Judge false-positive rate probe** per benchmark — LongMemEval-S 1% [0%, 3%], LongMemEval-M 2% [0%, 5%], LOCOMO 0% [0%, 0%].
-- **8 negative architecture findings** documented at [`results/eval-matrix-v1/transparency-notes.md`](results/eval-matrix-v1/transparency-notes.md): Stage L Anthropic Contextual Retrieval, Stage I Mem0-v3-style entity-linking re-rank, Stage H hierarchical retrieval, two-call reader compounded with M-tuned, M-tuned flags compounded on S, all-OM Mastra-architecture clone on S, gpt-4o classifier upgrade, and 7 stress-tested adjacent configurations on the Tier 3 + reader-router configuration.
+- **8 negative architecture findings** (several measured on configurations that called Cohere's reranker; those are historical results until the re-run) documented at [`results/eval-matrix-v1/transparency-notes.md`](results/eval-matrix-v1/transparency-notes.md): Stage L Anthropic Contextual Retrieval, Stage I Mem0-v3-style entity-linking re-rank, Stage H hierarchical retrieval, two-call reader compounded with M-tuned, M-tuned flags compounded on S, all-OM Mastra-architecture clone on S, gpt-4o classifier upgrade, and 7 stress-tested adjacent configurations on the Tier 3 + reader-router configuration.
 - **Per-vendor caveats** — every cross-vendor accuracy/cost/latency comparison row footnotes which dimensions are apples-to-apples vs not. Mastra and Supermemory do not publish $/correct or per-case latency, so direct comparisons against them on those axes are unmeasurable until vendor-reproduction adapters land.
 
 ## Repository layout
@@ -90,7 +90,7 @@ Every public entrypoint has TSDoc; type-checked via `pnpm exec tsc --noEmit -p t
 
   ```bash
   # needs OPENAI_API_KEY for the reader and the judge
-  pnpm exec tsx src/cli.ts run longmemeval-s \
+  pnpm bench run longmemeval-s \
     --reader gpt-4o \
     --memory full-cognitive --replay ingest \
     --sample 20
