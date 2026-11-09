@@ -30,7 +30,7 @@ What's defensibly different about this rollout: thirty-plus controlled ablations
 
 That audit is why we added a judge-adversarial probe to our methodology (Step 1 of the rollout). The probe synthesizes topically-adjacent wrong answers, runs them through the same gpt-4o judge, and reports the false-positive rate as a floor. If a proposed improvement lifts accuracy by less than the judge's noise floor, it isn't a real improvement. On LongMemEval-style cases with gpt-4o judging, the FPR is manageable (low teens), but the probe runs every time so we never over-claim tiny deltas.
 
-The published leaderboard at gpt-4o reader, roughly sorted, looks like this:
+The published leaderboard, roughly sorted, looks like this (rows not run at a gpt-4o reader, or with the reader unnamed, say so in the notes):
 
 | System | LongMemEval-S | Notes |
 |---|---:|---|
@@ -44,10 +44,10 @@ The published leaderboard at gpt-4o reader, roughly sorted, looks like this:
 | [Supermemory](https://supermemory.ai/research/) | 81.60% | at gpt-4o |
 | [Mastra Observational Memory (gpt-4o)](https://mastra.ai/research/observational-memory) | 84.23% | observer + reflector compression, no retrieval |
 | [Emergence AI RAG](https://www.emergence.ai/blog/sota-on-longmemeval-with-rag) | 86% | two-stage session retrieval + NDCG |
-| [Mem0](https://docs.mem0.ai/core-concepts/memory-evaluation) | 94.4* | managed platform, top_200 retrieval budget, answerer model not named |
+| [Mem0](https://docs.mem0.ai/core-concepts/memory-evaluation) | 94.4* | managed platform, top_200 retrieval budget, answerer model not named, not reader-matched |
 | [Mastra Observational Memory (gpt-5-mini)](https://mastra.ai/research/observational-memory) | 94.87% | different reader, not matched |
 
-* Mem0's docs page reports 94.4 overall on LongMemEval (LongMemEval-S, the cleaned 500-question set its harness downloads) on its managed platform at a top_200 retrieval budget, and states the managed platform includes optimizations not in the open-source SDK. Mem0 does not name the answerer model for that run; its harness defaults to gpt-4o for answerer and judge. Mem0's [memory-benchmarks README](https://github.com/mem0ai/memory-benchmarks#results) also reports 94.8 at top_50 and 91.0 for its self-hosted OSS pipeline with GPT-5 as answerer and judge.
+* Mem0's docs page reports 94.4 overall on LongMemEval on its managed platform at a top_200 retrieval budget, and states the managed platform includes optimizations not in the open-source SDK. It does not name the answerer model or the LongMemEval variant for that run. Mem0's open-source harness ([memory-benchmarks](https://github.com/mem0ai/memory-benchmarks/blob/main/benchmarks/longmemeval/run.py)) downloads the cleaned S set by default. Its [README](https://github.com/mem0ai/memory-benchmarks#results) also reports 94.8 at top_50 on the managed platform and 91.0 for the self-hosted OSS pipeline with GPT-5 as answerer and judge.
 
 Our number at matched reader puts us between Zep and the frontier, not at the frontier. We'll explain what we added on top of the baseline, what we tried that didn't work, and why the methodology matters for anyone trying to trust these numbers.
 
