@@ -16,7 +16,7 @@ Thirty-plus matched-ablation experiments shipped findings: ten Steps 2-14 archit
 
 Total measurement cost: **~$1014** across all experiments + five Phase B confirmations (canonical, v10, v11, Tier 3 max-acc, Tier 3 min-cost). Bootstrap CI-gated accept/reject rules at every step caught ~$2100+ of wasted Phase B spend on known-dead variants. Kill ladder (Tier A N=24 → Phase A N=102 → Phase B N=500) caught four documented false-positive sampling-luck patterns, including Phase A's SSU-heavy sample that made Tier 3 max-acc look better than it actually is at full distribution.
 
-The aggregate still isn't frontier. Mem0 advertises [92.0](https://mem0.ai/research-2) to [93.4](https://docs.mem0.ai/core-concepts/memory-evaluation) depending on page, Emergence AI reports [86%](https://www.emergence.ai/blog/sota-on-longmemeval-with-rag), and Mastra's Observational Memory reports [84.23% at gpt-4o and 94.87% at gpt-5-mini](https://mastra.ai/research/observational-memory). AgentOS's 76.6% Tier 3 min-cost sits above [Zep/Graphiti's 71.2% at gpt-4o](https://blog.getzep.com/state-of-the-art-agent-memory/) and below the 80-86% frontier band. Cost-per-correct is not disclosed by Supermemory/Mastra/EmergenceMem; AgentOS's $0.058/correct at 76.6% is likely competitive on cost-per-correct against frontier systems that run full OM observer+reflector per query.
+The aggregate still isn't frontier. Mem0 reports [94.4](https://docs.mem0.ai/core-concepts/memory-evaluation) on its managed platform at a top_200 retrieval budget, Emergence AI reports [86%](https://www.emergence.ai/blog/sota-on-longmemeval-with-rag), and Mastra's Observational Memory reports [84.23% at gpt-4o and 94.87% at gpt-5-mini](https://mastra.ai/research/observational-memory). AgentOS's 76.6% Tier 3 min-cost sits above [Zep/Graphiti's 71.2% at gpt-4o](https://blog.getzep.com/state-of-the-art-agent-memory/) and below the 80-86% frontier band. Cost-per-correct is not disclosed by Supermemory/Mastra/EmergenceMem; AgentOS's $0.058/correct at 76.6% is likely competitive on cost-per-correct against frontier systems that run full OM observer+reflector per query.
 
 What's defensibly different about this rollout: thirty-plus controlled ablations with bootstrap-gated CIs on every claim, matched-reader cost comparison as a hard requirement, three-stage kill ladder with four documented sampling-luck catches, full source code published for all four production tier paths, an explicit cost-vs-latency-vs-accuracy tradeoff matrix per tier, a per-correctness token-retention methodology that exposed v11's mechanism inside the aggregate-noise band, and a policy router primitive that no other memory-architecture vendor ships (Mem0, Mastra, Supermemory, Zep all ship single-architecture configurations).
 
@@ -30,7 +30,7 @@ What's defensibly different about this rollout: thirty-plus controlled ablations
 
 That audit is why we added a judge-adversarial probe to our methodology (Step 1 of the rollout). The probe synthesizes topically-adjacent wrong answers, runs them through the same gpt-4o judge, and reports the false-positive rate as a floor. If a proposed improvement lifts accuracy by less than the judge's noise floor, it isn't a real improvement. On LongMemEval-style cases with gpt-4o judging, the FPR is manageable (low teens), but the probe runs every time so we never over-claim tiny deltas.
 
-The published leaderboard at gpt-4o reader, roughly sorted, looks like this:
+The published leaderboard, roughly sorted, looks like this (rows not run at a gpt-4o reader, or with the reader unnamed, say so in the notes):
 
 | System | LongMemEval-S | Notes |
 |---|---:|---|
@@ -44,10 +44,10 @@ The published leaderboard at gpt-4o reader, roughly sorted, looks like this:
 | [Supermemory](https://supermemory.ai/research/) | 81.60% | at gpt-4o |
 | [Mastra Observational Memory (gpt-4o)](https://mastra.ai/research/observational-memory) | 84.23% | observer + reflector compression, no retrieval |
 | [Emergence AI RAG](https://www.emergence.ai/blog/sota-on-longmemeval-with-rag) | 86% | two-stage session retrieval + NDCG |
-| [Mem0](https://mem0.ai/research-2) | 92.0-93.4* | public benchmark page and docs currently disagree |
+| [Mem0](https://docs.mem0.ai/core-concepts/memory-evaluation) | 94.4* | managed platform, top_200 retrieval budget, answerer model not named, not reader-matched |
 | [Mastra Observational Memory (gpt-5-mini)](https://mastra.ai/research/observational-memory) | 94.87% | different reader, not matched |
 
-* Mem0's public benchmark page advertises 92.0 on LongMemEval, while Mem0's docs page reports 93.4. We treat that as a source-verification caveat until the public numbers converge.
+* Mem0's docs page reports 94.4 overall on LongMemEval on its managed platform at a top_200 retrieval budget, and states the managed platform includes optimizations not in the open-source SDK. It does not name the answerer model or the LongMemEval variant for that run. Mem0's open-source harness ([memory-benchmarks](https://github.com/mem0ai/memory-benchmarks/blob/main/benchmarks/longmemeval/run.py)) downloads the cleaned S set by default. Its [README](https://github.com/mem0ai/memory-benchmarks#results) also reports 94.8 at top_50 on the managed platform and 91.0 for the self-hosted OSS pipeline with GPT-5 as answerer and judge.
 
 Our number at matched reader puts us between Zep and the frontier, not at the frontier. We'll explain what we added on top of the baseline, what we tried that didn't work, and why the methodology matters for anyone trying to trust these numbers.
 
@@ -426,7 +426,7 @@ What we can defensibly say:
 
 What we can't defensibly say:
 
-- "SOTA." Mem0 currently advertises 92.0-93.4 across two public pages, Emergence AI publishes 86%, and Mastra publishes 84.23% at gpt-4o. We haven't matched them.
+- "SOTA." Mem0 reports 94.4 on its managed platform, Emergence AI publishes 86%, and Mastra publishes 84.23% at gpt-4o. We haven't matched them.
 - "Cheaper than X." Mem0 publishes token counts, not cost-per-correct. Emergence AI doesn't publish cost. Without matched-reader + matched-cost data from each competitor running on identical infrastructure, a comparative cost claim is unsupported.
 - "Strong on all categories." Multi-session 54.9% is competitive but not frontier. Mastra's observational memory reports 87.2% at gpt-5-mini, which is dramatically higher. The frontier is reachable; we haven't reached it.
 
@@ -510,7 +510,7 @@ Orthogonality matters: each flag is independent, so consumers with unusual workl
 
 **Multimodal benchmarks.** AgentOS's multimodal RAG isn't tested here because LongMemEval is text-only. A separate sequenced rollout on [MM-Vet](https://arxiv.org/abs/2308.02490), [Video-MME](https://arxiv.org/abs/2405.21075), or a chat benchmark with image attachments would measure the modality-specific retrieval quality. Different architecture choices (late-fusion reranking, modality-specific indexing, pixel-level vs convert-to-text embedding) need their own ablations. Not in scope for this rollout; worth its own investigation.
 
-**Verifying frontier claims.** Mem0's public pages currently disagree between 92.0 and 93.4, Mastra reports 94.87% at gpt-5-mini, OMEGA reports 95.4% at GPT-4.1, and Emergence AI reports 86% at gpt-4o. Each of these uses a different stack at a different reader. A fair comparison would run each on identical infrastructure. We haven't done this. Until someone does, the leaderboard numbers are self-reported on self-selected configurations.
+**Verifying frontier claims.** Mem0 reports 94.4 on its managed platform with the answerer model unnamed, Mastra reports 94.87% at gpt-5-mini, OMEGA reports 95.4% at GPT-4.1, and Emergence AI reports 86% at gpt-4o. Each of these uses a different stack at a different reader. A fair comparison would run each on identical infrastructure. We haven't done this. Until someone does, the leaderboard numbers are self-reported on self-selected configurations.
 
 ---
 

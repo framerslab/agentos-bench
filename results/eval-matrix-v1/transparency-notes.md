@@ -32,7 +32,7 @@ The publishable claim is not "AgentOS beats every vendor on every benchmark." It
 Every cited methodology choice maps to a verbatim primary source in [SOTA_CITED_EVIDENCE_2026-04-25.md](../../docs/SOTA_CITED_EVIDENCE_2026-04-25.md). The audit covers:
 
 - §2 Hindsight typed-network observer (reference for v2 Stage E)
-- §3 Mem0 v3 architecture (single-pass ADD-only + entity-linking hybrid; managed-platform 93.4% caveat)
+- §3 Mem0 v3 architecture (single-pass ADD-only + entity-linking hybrid; managed-platform 94.4% caveat)
 - §4 Mastra Observational Memory (gemini-2.5-flash observer caveat on the headline 84.23%)
 - §5 Anthropic Contextual Retrieval (verbatim cookbook recipe; Stage L reference)
 - §6 Emergence Simple Fast (k=42 magic number, Calvin Ku critique)
@@ -85,7 +85,7 @@ Why it didn't lift on top of Cohere rerank:
 2. **Entity name variants confuse a regex matcher.** LOCOMO questions reference entities by partial name or pronoun ("the dog" vs "Maxwell"); regex extraction can't bridge these.
 3. **Multi-hop suffers most.** Multi-hop questions span sessions where the relevant entities don't all appear in any single session. Re-ranking by per-candidate entity overlap penalizes the partial-match candidates that multi-hop reasoning actually needs.
 
-Mem0 v3's published 91.6% LOCOMO is a managed-platform claim with proprietary optimizations. Their own blog ([State of AI Agent Memory 2026](https://mem0.ai/blog/state-of-ai-agent-memory-2026)) reports **66.9%** for the production stack on LOCOMO, which is closer to the architecture we tested. The agentos primitives (`EntityExtractor`, `EntityLinkingIngestExecutor`, `EntityRetrievalRanker`, shipping in 0.2.13) are still useful for consumers replicating Mem0-v3-style pipelines.
+Mem0 v3's published 92.5% LOCOMO (top_200 retrieval budget, [Mem0 docs](https://docs.mem0.ai/core-concepts/memory-evaluation)) is a managed-platform claim; Mem0 states those scores include proprietary optimizations not available in the open-source SDK. Mem0's 2025 paper ([arXiv 2504.19413](https://arxiv.org/abs/2504.19413)) reports an LLM-as-a-Judge (J) score of **66.9%** on LOCOMO for the algorithm that paper describes, which Mem0 replaced in April 2026 ([State of AI Agent Memory 2026](https://mem0.ai/blog/state-of-ai-agent-memory-2026)); the two LOCOMO numbers come from different systems and runs. The agentos primitives (`EntityExtractor`, `EntityLinkingIngestExecutor`, `EntityRetrievalRanker`, shipping in 0.2.13) are still useful for consumers replicating Mem0-v3-style pipelines.
 
 ### 3.3 Phase B compounding tests on S — both regress against the 83.2% baseline
 
@@ -120,7 +120,7 @@ Every reference row in [comparison-table.md](comparison-table.md) §"Reference r
 | Full-context `gpt-4o` baseline | 60.2% | LongMemEval paper. No memory architecture; whole conversation in context. |
 | Mastra Observational Memory | 84.2% (`gpt-4o`) | Observer is `gemini-2.5-flash`. Reader is `gpt-4o`. Cross-provider; not single-provider reproducible. **Within statistical CI of our 83.2% gpt-4o baseline.** |
 | Mastra Observational Memory (architecture clone, our retrieval) | **76.0%** [72.2%, 79.6%] (`gpt-4o`) | **Apples-to-apples test 2026-04-27.** All-OM dispatch + `gpt-5-mini` observer (matching Mastra's 94.9% architecture) on our retrieval stack (full-cognitive + Cohere rerank-v3.5 + `text-embedding-3-small`) at `gpt-4o` reader. **−7.2 pp vs our 83.2% baseline at the same reader.** Confirms Mastra's architecture lift on S is reader/observer-tier driven (their 94.9% uses `gpt-5-mini` reader + `gpt-5-mini` observer; +10.7 pp over their gpt-4o number is reader + observer combined), not the all-OM-on-S dispatch pattern. Run JSON: `results/runs/2026-04-27T21-31-50-806--longmemeval-s--gpt-4o--full-cognitive--ingest.json`. |
-| Mem0 v3 (managed platform) | 93.4% | Managed-platform-only number with proprietary optimizations. Mem0's own production-stack number (LOCOMO) is 66.9% per their State of AI Agent Memory 2026 blog. |
+| Mem0 v3 (managed platform) | 94.4% | Managed platform at a top_200 retrieval budget; Mem0 states it includes proprietary optimizations not in the open-source SDK and does not name the answerer model or the LongMemEval variant for that run ([Mem0 docs](https://docs.mem0.ai/core-concepts/memory-evaluation)); its open-source harness downloads the S set by default. Mem0 also publishes 94.8% at top_50 and 91.0% for its self-hosted OSS pipeline with GPT-5 as answerer and judge ([memory-benchmarks](https://github.com/mem0ai/memory-benchmarks#results)). |
 | Hindsight Gemini-3-pro | 91.4% | Reader is `gemini-3-pro`. Bench harness uses Gemini judge (`vectorize-io/agent-memory-benchmark`). Apples-to-apples for our `gpt-4o` reader is OSS-20B 83.6% / OSS-120B 89.0%. |
 | Hindsight OSS-120B | 89.0% | Same Gemini-judge harness caveat. |
 | Hindsight OSS-20B | 83.6% | Same Gemini-judge harness caveat. |
@@ -338,7 +338,7 @@ agentos-bench at 70.2% is the first **open-source** memory library on the public
 | **agentos-bench (us)** | **Apache-2.0** | **70.2% [66.0%, 74.0%]** | Phase B N=500, 351/500, $0.0078/correct, run JSON published |
 | LongMemEval paper, GPT-4o round Top-5 | open repo | 65.7% | Wu et al., ICLR 2025, Table 3, K=V+fact, Stella V5 retriever |
 | SelRoute (academic) | open repo | Recall@5 = 0.800 | Retrieval-side metric only, not end-to-end QA accuracy |
-| Mem0 v3 | Apache 2.0 | — (not published) | Reports 93.4% on S only |
+| Mem0 v3 | Apache 2.0 | — (not published) | Reports 94.4% with the variant not named ([Mem0 docs](https://docs.mem0.ai/core-concepts/memory-evaluation)); its open-source harness runs S by default; no M result published |
 | Mastra OM | Apache 2.0 | — (not published) | Reports 84.2-94.9% on S only |
 | Zep | Apache 2.0 | — (not published) | Explicitly skipped: "due to gpt-4o's 128k context window we chose S over M" |
 | Hindsight | open repo | — (not published) | Paper [arxiv 2512.12818](https://arxiv.org/abs/2512.12818) reports 91.4% on S only |
