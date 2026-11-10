@@ -92,7 +92,7 @@ jobs:
           set -euo pipefail
           # Pick CPUs from the topology: c1 = one CPU; c2l = the two SMT
           # siblings of one physical core; c2p = one CPU on each of two cores.
-          lscpu -e=CPU,CORE --no-headings | awk '{print $1, $2}' | sort -k2,2n -k1,1n > "$WORK/topo"
+          lscpu -p=CPU,CORE | grep -v '^#' | tr ',' ' ' | sort -k2,2n -k1,1n > "$WORK/topo"
           cat "$WORK/topo"
           A=$(awk '$1==0{print $2}' "$WORK/topo")
           SIB=$(awk -v c="$A" '$2==c{print $1}' "$WORK/topo" | head -2 | paste -sd, -)
