@@ -362,7 +362,7 @@ jobs:
           set -uo pipefail
           for id in $PRIOR_RUNS; do
             mkdir -p "parts/run-$id"
-            gh run download "$id" -R "$GITHUB_REPOSITORY" -p 'rerank-sweep-speed-*' -p 'rerank-sweep-quality-*' -D "parts/run-$id" \
+            gh run download "$id" -R "$GITHUB_REPOSITORY" -p 'rerank-sweep-speed-*' -p 'rerank-sweep-quality-*' -p 'rerank-sweep-proxy-*' -D "parts/run-$id" \
               || echo "::warning::could not download the artifacts of run $id"
           done
           find parts -name '*.jsonl' | sort
