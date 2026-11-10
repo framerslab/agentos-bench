@@ -1,8 +1,9 @@
 name: rerank-latency
 
 # Latency bench for local cross-encoder rerankers on a small CPU host.
-# One job per (model, core limit); each runs every implementation as its own
-# process under taskset, then a final job merges the results.
+# One job per (model, implementation); each runs 2, 4 and 1 cores on the same
+# runner, one process per configuration inside a cpuset cgroup, then a final
+# job merges the results.
 
 on:
   pull_request:
@@ -20,24 +21,20 @@ concurrency:
 
 jobs:
   measure:
-    name: measure (${{ matrix.short }}, ${{ matrix.cores }} cores)
+    name: measure (${{ matrix.short }}, ${{ matrix.variant }})
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
+        short: [minilm-l6, minilm-l12, bge-base]
+        variant: [shipped, direct-fp32, direct-q8]
         include:
-          - { model: cross-encoder/ms-marco-MiniLM-L-6-v2, short: minilm-l6, cores: 1 }
-          - { model: cross-encoder/ms-marco-MiniLM-L-6-v2, short: minilm-l6, cores: 2 }
-          - { model: cross-encoder/ms-marco-MiniLM-L-6-v2, short: minilm-l6, cores: 4 }
-          - { model: cross-encoder/ms-marco-MiniLM-L-12-v2, short: minilm-l12, cores: 1 }
-          - { model: cross-encoder/ms-marco-MiniLM-L-12-v2, short: minilm-l12, cores: 2 }
-          - { model: cross-encoder/ms-marco-MiniLM-L-12-v2, short: minilm-l12, cores: 4 }
-          - { model: BAAI/bge-reranker-base, short: bge-base, cores: 1 }
-          - { model: BAAI/bge-reranker-base, short: bge-base, cores: 2 }
-          - { model: BAAI/bge-reranker-base, short: bge-base, cores: 4 }
+          - { short: minilm-l6, model: cross-encoder/ms-marco-MiniLM-L-6-v2 }
+          - { short: minilm-l12, model: cross-encoder/ms-marco-MiniLM-L-12-v2 }
+          - { short: bge-base, model: BAAI/bge-reranker-base }
     env:
-      JOB: ${{ matrix.short }}-c${{ matrix.cores }}
+      JOB: ${{ matrix.short }}-${{ matrix.variant }}
     steps:
       - uses: actions/checkout@v4
 
@@ -68,9 +65,11 @@ jobs:
           {
             echo "## Host ($JOB)"
             echo '```'
-            lscpu
+            lscpu | grep -E "Model name|^CPU\(s\)|Thread|Core|Socket|L2|L3|Flags" | cut -c1-200
             echo "nproc: $(nproc)"
+            for c in /sys/devices/system/cpu/cpu[0-9]*; do echo "$(basename $c) siblings $(cat $c/topology/thread_siblings_list)"; done
             free -m
+            echo "cgroup: $(cat /proc/self/cgroup); root controllers: $(cat /sys/fs/cgroup/cgroup.controllers)"
             echo "agentos: $(node -p "require('./node_modules/@framers/agentos/package.json').version")"
             echo "transformers: $(node -p "require('./node_modules/@huggingface/transformers/package.json').version")"
             echo "onnxruntime-node: $(npm ls onnxruntime-node --all --parseable --long 2>/dev/null | sed 's/.*onnxruntime-node@//' | sort -u | tr '\n' ' ')"
@@ -84,44 +83,53 @@ jobs:
           cd "$WORK"
           F=node_modules/@framers/agentos/dist/cognition/rag/reranking/providers/LocalCrossEncoderReranker.js
           echo "== $F"; grep -n "quantized\|\[SEP\]\|text-classification\|for (const pair of batch)\|await this.pipeline\|positiveResult\|batchSize" "$F" || true
-          D=node_modules/@framers/agentos/dist/cognition/rag/reranking/providers/LocalCrossEncoderReranker.d.ts
-          echo "== $D"; sed -n '1,200p' "$D" | grep -n "constructor\|initialize\|rerank(\|interface\|defaultModelId\|batchSize" || true
           T=node_modules/@huggingface/transformers/src/pipelines.js
-          echo "== $T"; grep -n "class TextClassificationPipeline\|softmax(batch.data)\|multi_label_classification\|async _call(texts" "$T" || true
+          echo "== $T"; grep -n "class TextClassificationPipeline\|softmax(batch.data)\|multi_label_classification" "$T" | head -6 || true
           M=node_modules/@huggingface/transformers/src/models.js
-          echo "== $M"; grep -n "dtype not specified\|DEFAULT_DEVICE_DTYPE_MAPPING\[selectedDevice\]\|model_file_name ?? 'model'" "$M" | head -10 || true
-          grep -n "q8\]: '_quantized'\|DEFAULT_DEVICE_DTYPE_MAPPING = " node_modules/@huggingface/transformers/src/utils/dtypes.js || true
-          grep -rn "quantized" node_modules/@huggingface/transformers/src/models.js | head -5 || true
-          for m in "${{ matrix.model }}" "Xenova/$(basename '${{ matrix.model }}')"; do
-            echo "== files in $m"
-            curl -sL --max-time 30 "https://huggingface.co/api/models/$m" | jq -r '.id, (.siblings[]?.rfilename | select(test("onnx|config")))' || true
+          echo "== $M"; grep -n "dtype not specified\|model_file_name ?? 'model'" "$M" | head -6 || true
+
+      - name: CPU-limit cgroups
+        run: |
+          set -euo pipefail
+          # taskset alone does not hold: the ONNX runtime pins its own worker
+          # threads. A cpuset cgroup bounds every thread of the process.
+          echo "+cpuset" | sudo tee /sys/fs/cgroup/cgroup.subtree_control
+          for c in 1 2 4; do
+            sudo mkdir -p /sys/fs/cgroup/bench-c$c
+            echo "0-$((c-1))" | sudo tee /sys/fs/cgroup/bench-c$c/cpuset.cpus
+            echo "bench-c$c effective: $(cat /sys/fs/cgroup/bench-c$c/cpuset.cpus.effective)"
           done
 
       - name: Measure
         env:
           MODEL: ${{ matrix.model }}
-          CORES: ${{ matrix.cores }}
+          VARIANT: ${{ matrix.variant }}
         run: |
           set -uo pipefail
           cd "$WORK"
           mkdir -p "$WORK/out"
           OUT="$WORK/out/results-$JOB.jsonl"
           : > "$OUT"
-          CPUS="0-$((CORES-1))"
+          NODE=$(command -v node)
+          # run <cores> <seconds> <args...>: one node process inside the cpuset
+          # cgroup for <cores>, also under taskset to the same CPUs.
           run() {
-            local tl=$1; shift
-            echo "::group::$*"
-            timeout "$tl" taskset -c "$CPUS" node measure.mjs --out "$OUT" --model "$MODEL" --cores "$CORES" --job "$JOB" --cache "$WORK/hf" "$@"
+            local c=$1 tl=$2; shift 2
+            echo "::group::cores $c: $*"
+            timeout "$tl" bash -c 'sudo sh -c "echo $$ > /sys/fs/cgroup/bench-c$0/cgroup.procs" && exec taskset -c "0-$(($0-1))" "$@"' \
+              "$c" "$NODE" measure.mjs --out "$OUT" --model "$MODEL" --cores "$c" --job "$JOB" --cache "$WORK/hf" "$@"
             local rc=$?
             if [ $rc -ne 0 ]; then
-              printf '{"type":"process-exit","job":"%s","model":"%s","cores":%s,"args":"%s","rc":%s}\n' "$JOB" "$MODEL" "$CORES" "$*" "$rc" >> "$OUT"
+              printf '{"type":"process-exit","job":"%s","model":"%s","cores":%s,"args":"%s","rc":%s}\n' "$JOB" "$MODEL" "$c" "$*" "$rc" >> "$OUT"
             fi
             echo "::endgroup::"
           }
-          for v in shipped direct-fp32 direct-q8; do
-            run 300 --mode load --variant "$v" --phase cold
-            run 300 --mode load --variant "$v" --phase cache
-            run 540 --mode bench --variant "$v"
+          run 4 300 --mode load --variant "$VARIANT" --phase cold
+          if [ "$VARIANT" = shipped ]; then run 4 300 --mode load --variant direct-fp32 --phase cold; fi
+          for c in 2 4 1; do
+            run "$c" 300 --mode load --variant "$VARIANT" --phase cache
+            run "$c" 720 --mode bench --variant "$VARIANT"
+            if [ "$VARIANT" = shipped ]; then run "$c" 300 --mode bench --variant direct-fp32 --shapes key --tag ref; fi
           done
           node measure.mjs --mode summarize --dir "$WORK/out" --json "$WORK/results.json" --md "$WORK/summary.md"
           cat "$WORK/summary.md" >> "$GITHUB_STEP_SUMMARY"

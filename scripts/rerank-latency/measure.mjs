@@ -72,6 +72,30 @@ function vmHwmMB() {
   } catch { return null; }
 }
 
+// CPU affinity of every thread in this process, grouped: shows whether the
+// runtime's worker threads stay inside the limit the process was started with.
+function threadAffinities() {
+  try {
+    const counts = {};
+    for (const tid of fs.readdirSync('/proc/self/task')) {
+      const st = fs.readFileSync(`/proc/self/task/${tid}/status`, 'utf8');
+      const m = st.match(/Cpus_allowed_list:\s+(\S+)/);
+      const k = m ? m[1] : '?';
+      counts[k] = (counts[k] ?? 0) + 1;
+    }
+    return counts;
+  } catch { return null; }
+}
+function cgroupInfo() {
+  try {
+    const line = fs.readFileSync('/proc/self/cgroup', 'utf8').trim().split('\n').pop();
+    const rel = line.split('::')[1] ?? '';
+    let eff = null;
+    try { eff = fs.readFileSync(path.join('/sys/fs/cgroup', rel, 'cpuset.cpus.effective'), 'utf8').trim(); } catch { /* none */ }
+    return { cgroup: rel, cpusetEffective: eff };
+  } catch { return null; }
+}
+
 function pkgVersion(name) {
   try {
     return JSON.parse(fs.readFileSync(path.join(process.cwd(), 'node_modules', name, 'package.json'), 'utf8')).version;
@@ -83,6 +107,7 @@ function meta() {
     cpuModel: os.cpus()[0]?.model ?? null,
     cpusListed: os.cpus().length,
     availableParallelism: os.availableParallelism(),
+    ...cgroupInfo(),
     totalMemMB: MB(os.totalmem()),
     node: process.version,
     agentos: pkgVersion('@framers/agentos'),
@@ -169,11 +194,12 @@ function walkFiles(dir) {
 
 // Wrap an ONNX session's run() to count forward passes and see the feeds.
 function instrumentSession(session) {
-  const stats = { runs: 0, first: null };
+  const stats = { runs: 0, first: null, firstLogitPerRun: [] };
   const orig = session.run.bind(session);
   session.run = async (feeds, ...rest) => {
     stats.runs++;
     const out = await orig(feeds, ...rest);
+    if (out.logits && stats.firstLogitPerRun.length < 64) stats.firstLogitPerRun.push(Number(out.logits.data[0]));
     if (!stats.first) {
       const feedInfo = {};
       for (const [k, t] of Object.entries(feeds)) {
@@ -358,6 +384,12 @@ async function modeLoad() {
     }
     instrument = {
       forwardPassesPerCall: inst ? inst.stats.runs : null,
+      // Shipped: one forward pass per document, so these are the raw logits per
+      // document in input order, before the pipeline's softmax.
+      rawLogitPerForward: inst ? inst.stats.firstLogitPerRun.map((x) => Number(x.toFixed(4))) : null,
+      rankFromRawLogits: inst && variant === 'shipped' && inst.stats.firstLogitPerRun.length === CHECK_TEXTS.length
+        ? inst.stats.firstLogitPerRun.map((s, i) => [s, i]).sort((a, b) => b[0] - a[0]).map((x) => x[1]).indexOf(CHECK_ANSWER_INDEX) + 1
+        : null,
       firstForward: inst ? inst.stats.first : null,
       pipelineCallsPerRerank: variant === 'shipped' ? pipeCalls : null,
       pipelineSample: pipeSample,
@@ -371,6 +403,7 @@ async function modeLoad() {
       cand, candIndex: idx, attempts,
       loadMs: Math.round(impl.loadMs), totalMs: Math.round(totalMs),
       rssBeforeMB: rssBefore, rssAfterLoadMB: rssMB(),
+      threadsAfterLoad: threadAffinities(),
       onnxFiles, files: impl.events ? [...new Set(impl.events.map((e) => `${e.status}:${e.name}/${e.file}`))] : files.map((f) => f.file),
       warnings: warnings.slice(wStart),
       check, instrument,
@@ -392,7 +425,7 @@ async function modeBench() {
   const model = args.model;
   const cacheRoot = path.resolve(args.cache);
   const chosenFile = path.join(cacheRoot, `chosen-${variant}.json`);
-  const base = { type: 'bench', variant, model, cores: Number(args.cores), job: args.job, meta: meta() };
+  const base = { type: 'bench', variant, model, cores: Number(args.cores), job: args.job, tag: args.tag ?? null, meta: meta() };
   if (!fs.existsSync(chosenFile)) { emit({ ...base, error: 'no candidate loaded in the cold phase' }); return; }
   const { idx, cand } = JSON.parse(fs.readFileSync(chosenFile, 'utf8'));
   const cacheDir = path.join(cacheRoot, `${variant}-c${idx}`);
@@ -401,7 +434,10 @@ async function modeBench() {
   const onnxFiles = walkFiles(cacheDir).filter((f) => f.file.endsWith('.onnx'));
 
   const shapes = [[20, 1024]];
-  for (const n of [8, 20, 30]) for (const l of [300, 1024, 2000]) if (!(n === 20 && l === 1024)) shapes.push([n, l]);
+  if (args.shapes !== 'key') {
+    for (const n of [8, 20, 30]) for (const l of [300, 1024, 2000]) if (!(n === 20 && l === 1024)) shapes.push([n, l]);
+  }
+  let threadsSeen = null;
 
   for (const [n, l] of shapes) {
     const isKey = n === 20 && l === 1024;
@@ -413,6 +449,7 @@ async function modeBench() {
       const t = performance.now();
       await callScores(variant, impl, BENCH_QUERY, docs);
       warmTimes.push(performance.now() - t);
+      if (!threadsSeen) threadsSeen = threadAffinities();
       if (performance.now() - wStart > WARM_BUDGET_MS) break;
       if (!isKey && warmTimes[0] > BIG_CALL_MS) break;
     }
@@ -450,6 +487,7 @@ async function modeBench() {
       p50: r1(pct(sorted, 50)), p95: r1(pct(sorted, 95)), max: r1(sorted[sorted.length - 1]),
       mean: r1(times.reduce((a, b) => a + b, 0) / times.length),
       cpuSecPerCall: Math.round(((cpu.user + cpu.system) / 1e6 / times.length) * 1000) / 1000,
+      threads: threadsSeen,
       rssAfterLoadMB: rssAfterLoad, rssSampledMaxMB: rssMax, rssPeakMB: maxRssMB(), vmHwmMB: vmHwmMB(),
     });
   }
@@ -476,6 +514,7 @@ function modeSummarize() {
   const short = (m) => m.split('/').pop();
   const label = (r) => {
     if (r.variant === 'shipped') return 'shipped';
+    if (r.tag === 'ref') return 'direct-fp32 (same-runner reference in the shipped job)';
     const c = r.cand ?? {};
     return `${r.variant}${c.model_file_name ? ' (' + c.model_file_name + ')' : ''}${c.id && c.id.startsWith('Xenova/') ? ' (Xenova)' : ''}`;
   };
@@ -488,10 +527,10 @@ function modeSummarize() {
   const bench = recs.filter((r) => r.type === 'bench' && r.N);
   const variants = [...new Set(bench.map(label))];
   for (const v of variants) {
-    md += `\n## ${v}\n\n| model | cores | N | chars | n | p50 ms | p95 ms | max ms | CPU s/call | RSS after load MB | RSS peak MB |\n|---|---|---|---|---|---|---|---|---|---|---|\n`;
+    md += `\n## ${v}\n\n| model | CPU | cores | N | chars | n | p50 ms | p95 ms | max ms | CPU s/call | RSS after load MB | RSS peak MB |\n|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
     const rows = bench.filter((r) => label(r) === v).sort((a, b) =>
       a.model.localeCompare(b.model) || a.cores - b.cores || a.N - b.N || a.L - b.L);
-    for (const r of rows) md += `| ${short(r.cand?.id ?? r.model)} | ${r.cores} | ${r.N} | ${r.L} | ${r.n} | ${r.p50} | ${r.p95} | ${r.max} | ${r.cpuSecPerCall} | ${r.rssAfterLoadMB} | ${r.rssPeakMB} |\n`;
+    for (const r of rows) md += `| ${short(r.cand?.id ?? r.model)} | ${(r.meta?.cpuModel ?? '').replace(/ Processor| \d+-Core/g, '')} | ${r.cores} | ${r.N} | ${r.L} | ${r.n} | ${r.p50} | ${r.p95} | ${r.max} | ${r.cpuSecPerCall} | ${r.rssAfterLoadMB} | ${r.rssPeakMB} |\n`;
   }
   const loads = recs.filter((r) => r.type === 'load');
   md += '\n## Loads and ranking check\n\n| variant | model loaded | file(s) | cores | phase | load ms | RSS after load MB | answer rank (of 20) | score min | score max | distinct scores | forward passes per call | error |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n';
