@@ -152,8 +152,8 @@ jobs:
             cold "$MODEL" "$WEIGHTS"
             if [ "$MODEL" != "$ANCHOR_MODEL" ] || [ "$WEIGHTS" != q8avx2 ]; then cold "$ANCHOR_MODEL" q8avx2; fi
             "$NODE" sweep.mjs --mode plan --model "$MODEL" --weights "$WEIGHTS" --job "$JOB" --cache "$WORK/hf" --out "$OUT" \
-              --shapes "$WORK/shapes.txt" --panel "$WORK/panel.txt"
-            echo "shapes:"; cat "$WORK/shapes.txt"; echo "panel:"; cat "$WORK/panel.txt"
+              --shapes "$WORK/shapes.txt" --panel "$WORK/panel.txt" --chunks "$WORK/chunks.txt"
+            echo "shapes:"; cat "$WORK/shapes.txt"; echo "panel:"; cat "$WORK/panel.txt"; echo "chunks:"; cat "$WORK/chunks.txt"
             bench c2l --model "$ANCHOR_MODEL" --weights q8avx2 --N 20 --cap 1024 --ml 512 --opts default --tag anchor
             for cs in c2l c2p c1; do
               while read -r N CAP ML; do
@@ -166,6 +166,12 @@ jobs:
                 [ -n "$N" ] || continue
                 bench "$cs" --model "$MODEL" --weights "$WEIGHTS" --N "$N" --cap "$CAP" --ml "$ML" --opts threads --tag panel
               done < "$WORK/panel.txt"
+              while read -r N CAP ML CH; do
+                [ -n "$N" ] || continue
+                for opts in default threads-nospin; do
+                  bench "$cs" --model "$MODEL" --weights "$WEIGHTS" --N "$N" --cap "$CAP" --ml "$ML" --chunk "$CH" --opts "$opts" --tag chunk
+                done
+              done < "$WORK/chunks.txt"
             done
           fi
           node sweep.mjs --mode summarize --dir "$WORK/out" --json "$WORK/results.json" --md "$WORK/summary.md" > /dev/null

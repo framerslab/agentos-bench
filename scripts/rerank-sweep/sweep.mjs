@@ -41,6 +41,23 @@ const NS = [8, 12, 20];
 const CAPS = [300, 512, 1024];
 const MAXLENS = [128, 256, 512];
 const PANEL = [[20, 1024, 512], [12, 512, 512], [8, 300, 512]];
+// Chunked scoring (outside the requested grid): each capped note is split into
+// sentence-packed chunks of at most CHUNK characters, every (query, chunk) pair
+// goes into the one batched pass, and a note scores the max over its chunks.
+const CHUNKS = [160, 300];
+const CHUNK_ML = 128;
+
+function chunkText(text, size) {
+  const out = [];
+  let cur = '';
+  for (let sent of text.split(/(?<=[.!?])\s+/)) {
+    while (sent.length > size) { if (cur) { out.push(cur); cur = ''; } out.push(sent.slice(0, size)); sent = sent.slice(size); }
+    if (!sent) continue;
+    if (cur && cur.length + 1 + sent.length > size) { out.push(cur); cur = sent; } else cur = cur ? cur + ' ' + sent : sent;
+  }
+  if (cur) out.push(cur);
+  return out.length ? out : [''];
+}
 
 function emit(rec) {
   const line = JSON.stringify({ ...rec, at: new Date().toISOString() });
@@ -324,8 +341,16 @@ async function loadModel(modelId, weights, cacheDir, sessionOptions) {
     for (let i = 0; i < docs.length; i++) scores.push(Number(k === 1 ? logits.data[i] : logits.data[i * k + 1]));
     return { scores, padded: enc.padded, naturalMax: enc.naturalMax, truncated: enc.truncated };
   }
+  async function scoreChunked(query, docs, chunk, maxLength) {
+    const owner = []; const pieces = [];
+    docs.forEach((d, i) => { for (const c of chunkText(d, chunk)) { owner.push(i); pieces.push(c); } });
+    const r = await score(query, pieces, maxLength);
+    const scores = docs.map(() => -Infinity);
+    r.scores.forEach((s, j) => { if (s > scores[owner[j]]) scores[owner[j]] = s; });
+    return { scores, padded: r.padded, pairs: pieces.length, naturalMax: r.naturalMax, truncated: r.truncated };
+  }
   function pairLength(query, doc) { return tokenizer(query, { text_pair: doc }).input_ids.dims.at(-1); }
-  return { T, tokenizer, model, loadMs, events, inputNames, encode, score, pairLength };
+  return { T, tokenizer, model, loadMs, events, inputNames, encode, score, scoreChunked, pairLength };
 }
 
 function onnxFilesIn(cacheDir, modelId) {
@@ -388,6 +413,19 @@ async function modePlan() {
   fs.writeFileSync(path.resolve(args.shapes), [...seen.values()].map((r) => `${r.N} ${r.cap} ${r.ml}`).join('\n') + '\n');
   const panel = PANEL.map(([N, cap, ml]) => rows.find((r) => r.N === N && r.cap === cap && r.ml === ml).timedAs.split('/').join(' '));
   fs.writeFileSync(path.resolve(args.panel), [...new Set(panel)].join('\n') + '\n');
+  if (args.chunks) {
+    const lines = [];
+    const crow = [];
+    for (const N of NS) for (const chunk of CHUNKS) {
+      const { query, docs } = benchInput(set, N, 1024);
+      const pieces = docs.flatMap((d) => chunkText(d, chunk));
+      const enc = m.encode(query, pieces, CHUNK_ML);
+      crow.push({ N, cap: 1024, chunk, ml: CHUNK_ML, pairs: pieces.length, padded: enc.padded });
+      lines.push(`${N} 1024 ${CHUNK_ML} ${chunk}`);
+    }
+    emit({ type: 'plan-chunks', job: args.job, model: args.model, rows: crow });
+    fs.writeFileSync(path.resolve(args.chunks), lines.join('\n') + '\n');
+  }
 }
 
 function pct(sorted, p) {
@@ -398,34 +436,36 @@ function pct(sorted, p) {
 async function modeBench() {
   const cores = Number(args.cores);
   const N = Number(args.N); const cap = Number(args.cap); const ml = Number(args.ml);
+  const chunk = args.chunk ? Number(args.chunk) : null;
   const so = sessionOptionsFor(args.opts, cores);
-  const base = { type: 'bench', job: args.job, tag: args.tag ?? 'grid', model: args.model, weights: args.weights, coreSet: args.coreset, cpus: args.cpus, cores, opts: args.opts, sessionOptions: so, N, cap, ml, meta: meta() };
+  const base = { type: 'bench', job: args.job, tag: args.tag ?? 'grid', model: args.model, weights: args.weights, coreSet: args.coreset, cpus: args.cpus, cores, opts: args.opts, sessionOptions: so, N, cap, ml, chunk, meta: meta() };
   const cacheDir = path.resolve(args.cache);
   const m = await loadModel(args.model, args.weights, cacheDir, so);
   const rssAfterLoad = rssMB();
   const set = buildSet();
   const { query, docs } = benchInput(set, N, cap);
+  const call = () => (chunk ? m.scoreChunked(query, docs, chunk, ml) : m.score(query, docs, ml));
   const warm = [];
-  let padded = null;
+  let padded = null; let pairs = docs.length;
   for (let i = 0; i < WARM_CALLS; i++) {
     const t = performance.now();
-    const r = await m.score(query, docs, ml);
+    const r = await call();
     warm.push(Math.round(performance.now() - t));
-    padded = r.padded;
+    padded = r.padded; pairs = r.pairs ?? docs.length;
   }
   const threads = threadAffinities();
   const times = [];
   const cpu0 = process.cpuUsage();
   for (let i = 0; i < TIMED_CALLS; i++) {
     const t = performance.now();
-    await m.score(query, docs, ml);
+    await call();
     times.push(performance.now() - t);
   }
   const cpu = process.cpuUsage(cpu0);
   const sorted = [...times].sort((a, b) => a - b);
   const r1 = (x) => Math.round(x * 10) / 10;
   emit({
-    ...base, files: m.events, onnxFiles: onnxFilesIn(cacheDir, args.model), loadMs: Math.round(m.loadMs), padded,
+    ...base, files: m.events, onnxFiles: onnxFilesIn(cacheDir, args.model), loadMs: Math.round(m.loadMs), padded, pairs,
     warmMs: warm, n: times.length, p50: r1(pct(sorted, 50)), p95: r1(pct(sorted, 95)), max: r1(sorted.at(-1)),
     cpuSecPerCall: Math.round(((cpu.user + cpu.system) / 1e6 / times.length) * 1000) / 1000,
     threads, threadCount: threads ? Object.values(threads).reduce((a, b) => a + b, 0) : null,
@@ -473,6 +513,18 @@ async function modeQuality() {
       per.push({ id: q.id, kind: q.kind, rank, capOk, lenOk });
     }
     emit({ ...base, cap, ml, ...summarizeRanks(set, ranks), answerInsideCap: inCap / set.length, answerInsideMaxLength: inLen / set.length, paddedMax, truncatedPairs, perQuery: per, onnxFiles: onnxFilesIn(cacheDir, args.model) });
+  }
+  for (const cap of [512, 1024]) for (const chunk of CHUNKS) {
+    const ranks = []; let pairs = 0; let paddedMax = 0;
+    for (const q of set) {
+      const docs = q.notes.map((n) => n.text.slice(0, cap));
+      const r = await m.scoreChunked(q.query, docs, chunk, CHUNK_ML);
+      pairs += r.pairs; paddedMax = Math.max(paddedMax, r.padded);
+      const a = r.scores[q.answerIndex];
+      ranks.push(1 + r.scores.filter((s, i) => i !== q.answerIndex && s >= a).length);
+    }
+    const inCap = set.filter((q) => q.notes[q.answerIndex].end <= cap).length / set.length;
+    emit({ ...base, cap, ml: CHUNK_ML, chunk, ...summarizeRanks(set, ranks), answerInsideCap: inCap, meanPairs: pairs / set.length, paddedMax });
   }
   // The same set ranked with every answer sentence kept inside the text
   // (the quality ceiling of the model on this set).
@@ -540,13 +592,14 @@ function modeSummarize() {
     const mine = rows.filter((x) => x.timedAs === `${r.N}/${r.cap}/${r.ml}`);
     for (const x of (mine.length ? mine : [{ N: r.N, cap: r.cap, ml: r.ml, timedAs: `${r.N}/${r.cap}/${r.ml}` }])) speed.push({ ...r, N: x.N, cap: x.cap, ml: x.ml, timedAs: x.timedAs, shared: x.timedAs !== `${x.N}/${x.cap}/${x.ml}` });
   }
+  for (const r of bench.filter((b) => b.tag === 'chunk')) speed.push({ ...r, shared: false });
   const coreOrder = { c1: 0, c2l: 1, c2p: 2 };
   const coreLabel = { c1: '1', c2l: '2 logical', c2p: '2 physical' };
-  speed.sort((a, b) => a.model.localeCompare(b.model) || a.weights.localeCompare(b.weights) || coreOrder[a.coreSet] - coreOrder[b.coreSet] || a.opts.localeCompare(b.opts) || a.N - b.N || a.cap - b.cap || a.ml - b.ml);
+  speed.sort((a, b) => a.model.localeCompare(b.model) || a.weights.localeCompare(b.weights) || coreOrder[a.coreSet] - coreOrder[b.coreSet] || a.opts.localeCompare(b.opts) || (a.chunk ?? 0) - (b.chunk ?? 0) || a.N - b.N || a.cap - b.cap || a.ml - b.ml);
   md += '\n## Speed (direct batched; p50/p95/max over 30 timed calls after 3 warm-ups)\n\n';
   md += 'Rows marked `=` share a feed shape (N x padded length) with the row named in "timed as" and carry its timing.\n\n';
-  md += '| model | weights file | CPU | cores (CPUs) | session options | N | cap | max_length | padded len | p50 ms | p95 ms | max ms | CPU-s/call | threads | load ms | RSS load / peak MB | timed as |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n';
-  for (const r of speed) md += `| ${shortName(r.model)} | ${wfile(r.weights)} | ${cpuShort(r.meta?.cpuModel)} | ${coreLabel[r.coreSet]} (${r.cpus}) | ${r.opts} | ${r.N} | ${r.cap} | ${r.ml} | ${r.padded} | ${r.p50} | ${r.p95} | ${r.max} | ${r.cpuSecPerCall} | ${r.threadCount} | ${r.loadMs} | ${r.rssAfterLoadMB} / ${r.rssPeakMB} | ${r.shared ? '= ' + r.timedAs : ''} |\n`;
+  md += '| model | weights file | CPU | cores (CPUs) | session options | N | cap | chunk | pairs | max_length | padded len | p50 ms | p95 ms | max ms | CPU-s/call | threads | load ms | RSS load / peak MB | timed as |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n';
+  for (const r of speed) md += `| ${shortName(r.model)} | ${wfile(r.weights)} | ${cpuShort(r.meta?.cpuModel)} | ${coreLabel[r.coreSet]} (${r.cpus}) | ${r.opts} | ${r.N} | ${r.cap} | ${r.chunk ?? '-'} | ${r.pairs ?? r.N} | ${r.ml} | ${r.padded} | ${r.p50} | ${r.p95} | ${r.max} | ${r.cpuSecPerCall} | ${r.threadCount} | ${r.loadMs} | ${r.rssAfterLoadMB} / ${r.rssPeakMB} | ${r.shared ? '= ' + r.timedAs : ''} |\n`;
 
   const panel = bench.filter((b) => b.tag === 'panel' || b.tag === 'grid');
   const panelRows = bench.filter((b) => b.tag === 'panel');
@@ -577,20 +630,20 @@ function modeSummarize() {
   const baseline = recs.find((r) => r.type === 'quality-baseline');
   const f3 = (m) => (m ? `${m.r1} / ${m.r3} / ${m.mrr}` : '-');
   md += '\n## Quality (60 synthetic queries x 20 notes; recall@1 / recall@3 / MRR)\n\n';
-  md += '| model | weights file | cap | max_length | R@1 | R@3 | MRR | exact | paraphrase | recency | distractor | answer inside cap | answer inside max_length |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n';
-  if (baseline) md += `| no rerank (input order) | - | - | - | ${baseline.overall.r1} | ${baseline.overall.r3} | ${baseline.overall.mrr} | ${f3(baseline.exact)} | ${f3(baseline.paraphrase)} | ${f3(baseline.recency)} | ${f3(baseline.distractor)} | - | - |\n`;
-  q.sort((a, b) => a.model.localeCompare(b.model) || a.weights.localeCompare(b.weights) || String(a.cap).localeCompare(String(b.cap)) || a.ml - b.ml);
-  for (const r of q) md += `| ${shortName(r.model)} | ${wfile(r.weights)} | ${r.cap} | ${r.ml} | ${r.overall.r1} | ${r.overall.r3} | ${r.overall.mrr} | ${f3(r.exact)} | ${f3(r.paraphrase)} | ${f3(r.recency)} | ${f3(r.distractor)} | ${r.answerInsideCap != null ? Math.round(r.answerInsideCap * 100) + '%' : '-'} | ${r.answerInsideMaxLength != null ? Math.round(r.answerInsideMaxLength * 100) + '%' : '-'} |\n`;
+  md += '| model | weights file | cap | chunk | max_length | R@1 | R@3 | MRR | exact | paraphrase | recency | distractor | answer inside cap | answer inside max_length |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n';
+  if (baseline) md += `| no rerank (input order) | - | - | - | - | ${baseline.overall.r1} | ${baseline.overall.r3} | ${baseline.overall.mrr} | ${f3(baseline.exact)} | ${f3(baseline.paraphrase)} | ${f3(baseline.recency)} | ${f3(baseline.distractor)} | - | - |\n`;
+  q.sort((a, b) => a.model.localeCompare(b.model) || a.weights.localeCompare(b.weights) || (a.chunk ?? 0) - (b.chunk ?? 0) || String(a.cap).localeCompare(String(b.cap)) || a.ml - b.ml);
+  for (const r of q) md += `| ${shortName(r.model)} | ${wfile(r.weights)} | ${r.cap} | ${r.chunk ?? '-'} | ${r.ml} | ${r.overall.r1} | ${r.overall.r3} | ${r.overall.mrr} | ${f3(r.exact)} | ${f3(r.paraphrase)} | ${f3(r.recency)} | ${f3(r.distractor)} | ${r.answerInsideCap != null ? Math.round(r.answerInsideCap * 100) + '%' : '-'} | ${r.answerInsideMaxLength != null ? Math.round(r.answerInsideMaxLength * 100) + '%' : '-'} |\n`;
 
   // Shortlist: speed rows joined with quality at the same (model, weights, cap, ml).
-  const qual = new Map(q.filter((r) => typeof r.cap === 'number').map((r) => [`${r.model}|${r.weights}|${r.cap}|${r.ml}`, r]));
+  const qual = new Map(q.filter((r) => typeof r.cap === 'number').map((r) => [`${r.model}|${r.weights}|${r.cap}|${r.ml}|${r.chunk ?? ''}`, r]));
   const short = (coreSet, line) => speed.filter((r) => r.coreSet === coreSet && r.p95 <= line)
-    .map((r) => ({ r, qq: qual.get(`${r.model}|${r.weights}|${r.cap}|${r.ml}`) }))
+    .map((r) => ({ r, qq: qual.get(`${r.model}|${r.weights}|${r.cap}|${r.ml}|${r.chunk ?? ''}`) }))
     .filter((x) => x.qq)
     .sort((a, b) => b.qq.overall.mrr - a.qq.overall.mrr || b.qq.overall.r1 - a.qq.overall.r1 || a.r.p95 - b.r.p95);
   const shortTable = (title, list) => {
-    md += `\n## ${title}\n\n| model | weights file | session options | N | cap | max_length | p95 ms | CPU-s/call | R@1 | R@3 | MRR | CPU |\n|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
-    for (const { r, qq } of list.slice(0, 40)) md += `| ${shortName(r.model)} | ${wfile(r.weights)} | ${r.opts} | ${r.N} | ${r.cap} | ${r.ml} | ${r.p95} | ${r.cpuSecPerCall} | ${qq.overall.r1} | ${qq.overall.r3} | ${qq.overall.mrr} | ${cpuShort(r.meta?.cpuModel)} |\n`;
+    md += `\n## ${title}\n\n| model | weights file | session options | N | cap | chunk | max_length | p95 ms | CPU-s/call | R@1 | R@3 | MRR | CPU |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
+    for (const { r, qq } of list.slice(0, 40)) md += `| ${shortName(r.model)} | ${wfile(r.weights)} | ${r.opts} | ${r.N} | ${r.cap} | ${r.chunk ?? '-'} | ${r.ml} | ${r.p95} | ${r.cpuSecPerCall} | ${qq.overall.r1} | ${qq.overall.r3} | ${qq.overall.mrr} | ${cpuShort(r.meta?.cpuModel)} |\n`;
   };
   shortTable('Shortlist: p95 <= 300 ms at 2 logical cores, ranked by quality', short('c2l', 300));
   shortTable('Shortlist: p95 <= 800 ms at 1 core, ranked by quality', short('c1', 800));
