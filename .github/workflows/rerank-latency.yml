@@ -1,0 +1,163 @@
+name: rerank-latency
+
+# Latency bench for local cross-encoder rerankers on a small CPU host.
+# One job per (model, core limit); each runs every implementation as its own
+# process under taskset, then a final job merges the results.
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/rerank-latency.yml
+      - scripts/rerank-latency/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rerank-latency-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  measure:
+    name: measure (${{ matrix.short }}, ${{ matrix.cores }} cores)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { model: cross-encoder/ms-marco-MiniLM-L-6-v2, short: minilm-l6, cores: 1 }
+          - { model: cross-encoder/ms-marco-MiniLM-L-6-v2, short: minilm-l6, cores: 2 }
+          - { model: cross-encoder/ms-marco-MiniLM-L-6-v2, short: minilm-l6, cores: 4 }
+          - { model: cross-encoder/ms-marco-MiniLM-L-12-v2, short: minilm-l12, cores: 1 }
+          - { model: cross-encoder/ms-marco-MiniLM-L-12-v2, short: minilm-l12, cores: 2 }
+          - { model: cross-encoder/ms-marco-MiniLM-L-12-v2, short: minilm-l12, cores: 4 }
+          - { model: BAAI/bge-reranker-base, short: bge-base, cores: 1 }
+          - { model: BAAI/bge-reranker-base, short: bge-base, cores: 2 }
+          - { model: BAAI/bge-reranker-base, short: bge-base, cores: 4 }
+    env:
+      JOB: ${{ matrix.short }}-c${{ matrix.cores }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scratch folder
+        run: echo "WORK=$RUNNER_TEMP/bench" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install packages in a scratch folder
+        run: |
+          set -euo pipefail
+          mkdir -p "$WORK"
+          cp scripts/rerank-latency/measure.mjs "$WORK/"
+          cd "$WORK"
+          npm init -y > /dev/null
+          npm view @framers/agentos@latest version optionalDependencies
+          RANGE=$(npm view @framers/agentos@latest optionalDependencies --json | jq -r '.["@huggingface/transformers"]')
+          echo "transformers range from @framers/agentos optionalDependencies: $RANGE"
+          npm install --no-audit --no-fund @framers/agentos@latest "@huggingface/transformers@$RANGE"
+          npm ls onnxruntime-node @huggingface/transformers @framers/agentos --all || true
+
+      - name: Host and versions
+        run: |
+          set -euo pipefail
+          cd "$WORK"
+          {
+            echo "## Host ($JOB)"
+            echo '```'
+            lscpu
+            echo "nproc: $(nproc)"
+            free -m
+            echo "agentos: $(node -p "require('./node_modules/@framers/agentos/package.json').version")"
+            echo "transformers: $(node -p "require('./node_modules/@huggingface/transformers/package.json').version")"
+            echo "onnxruntime-node: $(npm ls onnxruntime-node --all --parseable --long 2>/dev/null | sed 's/.*onnxruntime-node@//' | sort -u | tr '\n' ' ')"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          lscpu; nproc; free -m
+
+      - name: Published source excerpts
+        run: |
+          set -uo pipefail
+          cd "$WORK"
+          F=node_modules/@framers/agentos/dist/cognition/rag/reranking/providers/LocalCrossEncoderReranker.js
+          echo "== $F"; grep -n "quantized\|\[SEP\]\|text-classification\|for (const pair of batch)\|await this.pipeline\|positiveResult\|batchSize" "$F" || true
+          D=node_modules/@framers/agentos/dist/cognition/rag/reranking/providers/LocalCrossEncoderReranker.d.ts
+          echo "== $D"; sed -n '1,200p' "$D" | grep -n "constructor\|initialize\|rerank(\|interface\|defaultModelId\|batchSize" || true
+          T=node_modules/@huggingface/transformers/src/pipelines.js
+          echo "== $T"; grep -n "class TextClassificationPipeline\|softmax(batch.data)\|multi_label_classification\|async _call(texts" "$T" || true
+          M=node_modules/@huggingface/transformers/src/models.js
+          echo "== $M"; grep -n "dtype not specified\|DEFAULT_DEVICE_DTYPE_MAPPING\[selectedDevice\]\|model_file_name ?? 'model'" "$M" | head -10 || true
+          grep -n "q8\]: '_quantized'\|DEFAULT_DEVICE_DTYPE_MAPPING = " node_modules/@huggingface/transformers/src/utils/dtypes.js || true
+          grep -rn "quantized" node_modules/@huggingface/transformers/src/models.js | head -5 || true
+          for m in "${{ matrix.model }}" "Xenova/$(basename '${{ matrix.model }}')"; do
+            echo "== files in $m"
+            curl -sL --max-time 30 "https://huggingface.co/api/models/$m" | jq -r '.id, (.siblings[]?.rfilename | select(test("onnx|config")))' || true
+          done
+
+      - name: Measure
+        env:
+          MODEL: ${{ matrix.model }}
+          CORES: ${{ matrix.cores }}
+        run: |
+          set -uo pipefail
+          cd "$WORK"
+          mkdir -p "$WORK/out"
+          OUT="$WORK/out/results-$JOB.jsonl"
+          : > "$OUT"
+          CPUS="0-$((CORES-1))"
+          run() {
+            local tl=$1; shift
+            echo "::group::$*"
+            timeout "$tl" taskset -c "$CPUS" node measure.mjs --out "$OUT" --model "$MODEL" --cores "$CORES" --job "$JOB" --cache "$WORK/hf" "$@"
+            local rc=$?
+            if [ $rc -ne 0 ]; then
+              printf '{"type":"process-exit","job":"%s","model":"%s","cores":%s,"args":"%s","rc":%s}\n' "$JOB" "$MODEL" "$CORES" "$*" "$rc" >> "$OUT"
+            fi
+            echo "::endgroup::"
+          }
+          for v in shipped direct-fp32 direct-q8; do
+            run 300 --mode load --variant "$v" --phase cold
+            run 300 --mode load --variant "$v" --phase cache
+            run 540 --mode bench --variant "$v"
+          done
+          node measure.mjs --mode summarize --dir "$WORK/out" --json "$WORK/results.json" --md "$WORK/summary.md"
+          cat "$WORK/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rerank-latency-${{ env.JOB }}
+          path: |
+            ${{ runner.temp }}/bench/out/results-*.jsonl
+            ${{ runner.temp }}/bench/results.json
+          if-no-files-found: warn
+
+  merge:
+    needs: measure
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: rerank-latency-*
+          path: parts
+      - name: Merge
+        run: |
+          set -euo pipefail
+          node scripts/rerank-latency/measure.mjs --mode summarize --dir parts --json results.json --md summary.md
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rerank-latency-results
+          path: |
+            results.json
+            summary.md
