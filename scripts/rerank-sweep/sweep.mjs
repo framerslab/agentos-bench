@@ -542,14 +542,19 @@ async function modeQuality() {
 function modeSummarize() {
   const dir = path.resolve(args.dir);
   const recs = [];
-  const walk = (d) => {
+  // A top-level folder named run-<id> holds an earlier run's artifacts: its
+  // records keep their own job names, prefixed with the run.
+  const walk = (d, run) => {
     for (const e of fs.readdirSync(d, { withFileTypes: true })) {
       const p = path.join(d, e.name);
-      if (e.isDirectory()) walk(p);
-      else if (e.name.endsWith('.jsonl')) for (const line of fs.readFileSync(p, 'utf8').split('\n')) { if (line.trim()) try { recs.push(JSON.parse(line)); } catch { /* skip */ } }
+      if (e.isDirectory()) walk(p, run ?? (d === dir && /^run-/.test(e.name) ? e.name : null));
+      else if (e.name.endsWith('.jsonl')) for (const line of fs.readFileSync(p, 'utf8').split('\n')) {
+        if (!line.trim()) continue;
+        try { const r = JSON.parse(line); if (run && r.job) r.job = `${run}/${r.job}`; recs.push(r); } catch { /* skip */ }
+      }
     }
   };
-  walk(dir);
+  walk(dir, null);
   if (args.json) fs.writeFileSync(path.resolve(args.json), JSON.stringify(recs, null, 1));
   const cpuShort = (s) => (s ?? '').replace(/\(R\)|\(TM\)| CPU| Processor|\s+\d+-Core/g, '').replace(/ @.*$/, '').trim();
   const wfile = (w) => (w === 'q8avx2' ? 'onnx/model_quint8_avx2.onnx' : 'onnx/model.onnx');
@@ -581,14 +586,14 @@ function modeSummarize() {
 
   // Speed: expand every planned (N, cap, ml) to the row that timed its feed shape.
   const plans = new Map();
-  for (const p of recs.filter((r) => r.type === 'plan')) plans.set(`${p.job}`, p.rows);
+  for (const p of recs.filter((r) => r.type === 'plan')) plans.set(`${p.job}|${p.model}`, p.rows);
   const bench = recs.filter((r) => r.type === 'bench' && r.p95 != null);
   const fails = recs.filter((r) => r.type === 'process-exit' || r.type === 'fatal');
   const key = (r) => `${r.job}|${r.tag}|${r.coreSet}|${r.opts}|${r.N}/${r.cap}/${r.ml}`;
   const byKey = new Map(bench.map((r) => [key(r), r]));
   const speed = [];
   for (const r of bench.filter((b) => b.tag === 'grid')) {
-    const rows = plans.get(r.job) ?? [];
+    const rows = plans.get(`${r.job}|${r.model}`) ?? [];
     const mine = rows.filter((x) => x.timedAs === `${r.N}/${r.cap}/${r.ml}`);
     for (const x of (mine.length ? mine : [{ N: r.N, cap: r.cap, ml: r.ml, timedAs: `${r.N}/${r.cap}/${r.ml}` }])) speed.push({ ...r, N: x.N, cap: x.cap, ml: x.ml, timedAs: x.timedAs, shared: x.timedAs !== `${x.N}/${x.cap}/${x.ml}` });
   }
@@ -598,8 +603,8 @@ function modeSummarize() {
   speed.sort((a, b) => a.model.localeCompare(b.model) || a.weights.localeCompare(b.weights) || coreOrder[a.coreSet] - coreOrder[b.coreSet] || a.opts.localeCompare(b.opts) || (a.chunk ?? 0) - (b.chunk ?? 0) || a.N - b.N || a.cap - b.cap || a.ml - b.ml);
   md += '\n## Speed (direct batched; p50/p95/max over 30 timed calls after 3 warm-ups)\n\n';
   md += 'Rows marked `=` share a feed shape (N x padded length) with the row named in "timed as" and carry its timing.\n\n';
-  md += '| model | weights file | CPU | cores (CPUs) | session options | N | cap | chunk | pairs | max_length | padded len | p50 ms | p95 ms | max ms | CPU-s/call | threads | load ms | RSS load / peak MB | timed as |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n';
-  for (const r of speed) md += `| ${shortName(r.model)} | ${wfile(r.weights)} | ${cpuShort(r.meta?.cpuModel)} | ${coreLabel[r.coreSet]} (${r.cpus}) | ${r.opts} | ${r.N} | ${r.cap} | ${r.chunk ?? '-'} | ${r.pairs ?? r.N} | ${r.ml} | ${r.padded} | ${r.p50} | ${r.p95} | ${r.max} | ${r.cpuSecPerCall} | ${r.threadCount} | ${r.loadMs} | ${r.rssAfterLoadMB} / ${r.rssPeakMB} | ${r.shared ? '= ' + r.timedAs : ''} |\n`;
+  md += '| job | model | weights file | CPU | AVX-512 | cores (CPUs) | session options | N | cap | chunk | pairs | max_length | padded len | p50 ms | p95 ms | max ms | CPU-s/call | threads | load ms | RSS load / peak MB | timed as |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n';
+  for (const r of speed) md += `| ${r.job} | ${shortName(r.model)} | ${wfile(r.weights)} | ${cpuShort(r.meta?.cpuModel)} | ${r.meta?.flags?.avx512f ? 'yes' : 'no'} | ${coreLabel[r.coreSet]} (${r.cpus}) | ${r.opts} | ${r.N} | ${r.cap} | ${r.chunk ?? '-'} | ${r.pairs ?? r.N} | ${r.ml} | ${r.padded} | ${r.p50} | ${r.p95} | ${r.max} | ${r.cpuSecPerCall} | ${r.threadCount} | ${r.loadMs} | ${r.rssAfterLoadMB} / ${r.rssPeakMB} | ${r.shared ? '= ' + r.timedAs : ''} |\n`;
 
   const panel = bench.filter((b) => b.tag === 'panel' || b.tag === 'grid');
   const panelRows = bench.filter((b) => b.tag === 'panel');
@@ -630,23 +635,44 @@ function modeSummarize() {
   const baseline = recs.find((r) => r.type === 'quality-baseline');
   const f3 = (m) => (m ? `${m.r1} / ${m.r3} / ${m.mrr}` : '-');
   md += '\n## Quality (60 synthetic queries x 20 notes; recall@1 / recall@3 / MRR)\n\n';
-  md += '| model | weights file | cap | chunk | max_length | R@1 | R@3 | MRR | exact | paraphrase | recency | distractor | answer inside cap | answer inside max_length |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n';
-  if (baseline) md += `| no rerank (input order) | - | - | - | - | ${baseline.overall.r1} | ${baseline.overall.r3} | ${baseline.overall.mrr} | ${f3(baseline.exact)} | ${f3(baseline.paraphrase)} | ${f3(baseline.recency)} | ${f3(baseline.distractor)} | - | - |\n`;
-  q.sort((a, b) => a.model.localeCompare(b.model) || a.weights.localeCompare(b.weights) || (a.chunk ?? 0) - (b.chunk ?? 0) || String(a.cap).localeCompare(String(b.cap)) || a.ml - b.ml);
-  for (const r of q) md += `| ${shortName(r.model)} | ${wfile(r.weights)} | ${r.cap} | ${r.chunk ?? '-'} | ${r.ml} | ${r.overall.r1} | ${r.overall.r3} | ${r.overall.mrr} | ${f3(r.exact)} | ${f3(r.paraphrase)} | ${f3(r.recency)} | ${f3(r.distractor)} | ${r.answerInsideCap != null ? Math.round(r.answerInsideCap * 100) + '%' : '-'} | ${r.answerInsideMaxLength != null ? Math.round(r.answerInsideMaxLength * 100) + '%' : '-'} |\n`;
+  // One quality record per (model, weights, cap, ml, chunk): replicate runs
+  // compute the same deterministic set, so keep the first.
+  const qSeen = new Set();
+  const qUniq = q.filter((r) => { const k = `${r.model}|${r.weights}|${r.cap}|${r.ml}|${r.chunk ?? ''}`; if (qSeen.has(k)) return false; qSeen.add(k); return true; });
+  md +='The last column ranks only the queries whose answer sentence lies inside the cap (and max_length): the model\'s own quality with truncation taken out.\n\n';
+  md += '| model | weights file | cap | chunk | max_length | R@1 | R@3 | MRR | exact | paraphrase | recency | distractor | answer inside cap | answer inside max_length | answer kept: n, R@1 / R@3 / MRR |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n';
+  if (baseline) md += `| no rerank (input order) | - | - | - | - | ${baseline.overall.r1} | ${baseline.overall.r3} | ${baseline.overall.mrr} | ${f3(baseline.exact)} | ${f3(baseline.paraphrase)} | ${f3(baseline.recency)} | ${f3(baseline.distractor)} | - | - | - |\n`;
+  qUniq.sort((a, b) => a.model.localeCompare(b.model) || a.weights.localeCompare(b.weights) || (a.chunk ?? 0) - (b.chunk ?? 0) || String(a.cap).localeCompare(String(b.cap)) || a.ml - b.ml);
+  for (const r of qUniq) {
+    const kept = r.perQuery ? metrics(r.perQuery.filter((x) => x.lenOk).map((x) => x.rank)) : null;
+    md += `| ${shortName(r.model)} | ${wfile(r.weights)} | ${r.cap} | ${r.chunk ?? '-'} | ${r.ml} | ${r.overall.r1} | ${r.overall.r3} | ${r.overall.mrr} | ${f3(r.exact)} | ${f3(r.paraphrase)} | ${f3(r.recency)} | ${f3(r.distractor)} | ${r.answerInsideCap != null ? Math.round(r.answerInsideCap * 100) + '%' : '-'} | ${r.answerInsideMaxLength != null ? Math.round(r.answerInsideMaxLength * 100) + '%' : '-'} | ${kept ? `${kept.n}, ${f3(kept)}` : '-'} |\n`;
+  }
 
   // Shortlist: speed rows joined with quality at the same (model, weights, cap, ml).
-  const qual = new Map(q.filter((r) => typeof r.cap === 'number').map((r) => [`${r.model}|${r.weights}|${r.cap}|${r.ml}|${r.chunk ?? ''}`, r]));
-  const short = (coreSet, line) => speed.filter((r) => r.coreSet === coreSet && r.p95 <= line)
-    .map((r) => ({ r, qq: qual.get(`${r.model}|${r.weights}|${r.cap}|${r.ml}|${r.chunk ?? ''}`) }))
-    .filter((x) => x.qq)
-    .sort((a, b) => b.qq.overall.mrr - a.qq.overall.mrr || b.qq.overall.r1 - a.qq.overall.r1 || a.r.p95 - b.r.p95);
-  const shortTable = (title, list) => {
-    md += `\n## ${title}\n\n| model | weights file | session options | N | cap | chunk | max_length | p95 ms | CPU-s/call | R@1 | R@3 | MRR | CPU |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
-    for (const { r, qq } of list.slice(0, 40)) md += `| ${shortName(r.model)} | ${wfile(r.weights)} | ${r.opts} | ${r.N} | ${r.cap} | ${r.chunk ?? '-'} | ${r.ml} | ${r.p95} | ${r.cpuSecPerCall} | ${qq.overall.r1} | ${qq.overall.r3} | ${qq.overall.mrr} | ${cpuShort(r.meta?.cpuModel)} |\n`;
+  // The target host has AVX2 and no AVX-512, and onnxruntime picks its int8
+  // kernels by the CPU at run time, so only runners without AVX-512 stand for
+  // it. Per configuration keep the worst p95 across such runners, with the
+  // session options that set the thread count to the cores given.
+  const qual = new Map(qUniq.filter((r) => typeof r.cap === 'number').map((r) => [`${r.model}|${r.weights}|${r.cap}|${r.ml}|${r.chunk ?? ''}`, r]));
+  const avx2Rows = (coreSet) => {
+    const worst = new Map();
+    for (const r of speed) {
+      if (r.coreSet !== coreSet || r.opts !== 'threads-nospin' || r.meta?.flags?.avx512f !== false) continue;
+      const k = `${r.model}|${r.weights}|${r.N}|${r.cap}|${r.ml}|${r.chunk ?? ''}`;
+      const w = worst.get(k);
+      if (!w) worst.set(k, { r, runs: 1 });
+      else { w.runs++; if (r.p95 > w.r.p95) w.r = r; }
+    }
+    return [...worst.values()].map(({ r, runs }) => ({ r, runs, qq: qual.get(`${r.model}|${r.weights}|${r.cap}|${r.ml}|${r.chunk ?? ''}`) })).filter((x) => x.qq);
   };
-  shortTable('Shortlist: p95 <= 300 ms at 2 logical cores, ranked by quality', short('c2l', 300));
-  shortTable('Shortlist: p95 <= 800 ms at 1 core, ranked by quality', short('c1', 800));
+  const byQuality = (a, b) => b.qq.overall.mrr - a.qq.overall.mrr || b.qq.overall.r1 - a.qq.overall.r1 || a.r.p95 - b.r.p95;
+  const shortTable = (title, list) => {
+    md += `\n## ${title}\n\n| model | weights file | N | cap | chunk | max_length | p95 ms (worst) | runners | CPU-s/call | R@1 | R@3 | MRR | CPU |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
+    for (const { r, runs, qq } of list.slice(0, 60)) md += `| ${shortName(r.model)} | ${wfile(r.weights)} | ${r.N} | ${r.cap} | ${r.chunk ?? '-'} | ${r.ml} | ${r.p95} | ${runs} | ${r.cpuSecPerCall} | ${qq.overall.r1} | ${qq.overall.r3} | ${qq.overall.mrr} | ${cpuShort(r.meta?.cpuModel)} |\n`;
+  };
+  shortTable('Shortlist (AVX2-only runners, threads = cores, spinning off): p95 <= 300 ms at 2 logical cores, ranked by quality', avx2Rows('c2l').filter((x) => x.r.p95 <= 300).sort(byQuality));
+  shortTable('Shortlist (AVX2-only runners, threads = cores, spinning off): p95 <= 800 ms at 1 core, ranked by quality', avx2Rows('c1').filter((x) => x.r.p95 <= 800).sort(byQuality));
+  shortTable('Shortlist (AVX2-only runners, threads = cores, spinning off): p95 <= 300 ms at 1 core, ranked by quality', avx2Rows('c1').filter((x) => x.r.p95 <= 300).sort(byQuality));
 
   if (fails.length) {
     md += '\n## Process failures\n\n';

@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: rerank-sweep-${{ github.ref }}
@@ -22,9 +23,16 @@ concurrency:
 
 env:
   ANCHOR_MODEL: cross-encoder/ms-marco-MiniLM-L6-v2
+  # Earlier runs of this workflow whose per-job artifacts the merge folds in
+  # (the full per-model grid and the quality set ran there).
+  PRIOR_RUNS: "42804464077 42808403907"
 
 jobs:
+  # The full per-model grid (one runner per model and weights file). It ran
+  # in the runs named in PRIOR_RUNS; on a pull request push only the
+  # AVX2-only proxy below runs.
   measure:
+    if: github.event_name == 'workflow_dispatch'
     name: ${{ matrix.part }} (${{ matrix.short }}, ${{ matrix.weights }})
     runs-on: ubuntu-24.04
     timeout-minutes: 180
@@ -187,11 +195,154 @@ jobs:
             ${{ runner.temp }}/bench/results.json
           if-no-files-found: warn
 
+  # Target proxy: a host with AVX2 and no AVX-512. GitHub assigns the runner
+  # CPU per job, so several replicas start; a replica on a runner with
+  # AVX-512 times only the anchor rows and stops, a replica on an AVX2-only
+  # runner times all four models on that one runner (threads = cores,
+  # spinning off; 1 CPU, 2 SMT siblings, 2 physical cores; the plain grid and
+  # the chunked rows).
+  proxy:
+    name: proxy (${{ matrix.weights }}, replica ${{ matrix.replica }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 170
+    strategy:
+      fail-fast: false
+      matrix:
+        weights: [q8avx2, fp32]
+        replica: [1, 2, 3, 4, 5, 6]
+    env:
+      JOB: proxy-${{ matrix.weights }}-r${{ matrix.replica }}
+      WEIGHTS: ${{ matrix.weights }}
+      MODELS: cross-encoder/ms-marco-TinyBERT-L2-v2 cross-encoder/ms-marco-MiniLM-L2-v2 cross-encoder/ms-marco-MiniLM-L4-v2 cross-encoder/ms-marco-MiniLM-L6-v2
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scratch folder
+        run: echo "WORK=$RUNNER_TEMP/bench" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install packages in a scratch folder
+        run: |
+          set -euo pipefail
+          mkdir -p "$WORK/out"
+          cp scripts/rerank-sweep/sweep.mjs "$WORK/"
+          cd "$WORK"
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund @huggingface/transformers@3.8.1
+
+      - name: Host
+        run: |
+          set -euo pipefail
+          lscpu | grep -E "Model name|^CPU\(s\)|Thread|Core|Flags" | cut -c1-200
+          if grep -q -w avx512f /proc/cpuinfo; then echo "AVX512=1" >> "$GITHUB_ENV"; else echo "AVX512=0" >> "$GITHUB_ENV"; fi
+          {
+            echo "## Host ($JOB)"
+            echo '```'
+            lscpu | grep -E "Model name|^CPU\(s\)|Thread|Core|Socket" | cut -c1-200
+            lscpu -e
+            echo "AVX2: $(grep -c -w avx2 /proc/cpuinfo) CPUs; AVX-512F: $(grep -c -w avx512f /proc/cpuinfo) CPUs"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: CPU-limit cgroups
+        run: |
+          set -euo pipefail
+          lscpu -p=CPU,CORE | grep -v '^#' | tr ',' ' ' | sort -k2,2n -k1,1n > "$WORK/topo"
+          cat "$WORK/topo"
+          A=$(awk '$1==0{print $2}' "$WORK/topo")
+          SIB=$(awk -v c="$A" '$2==c{print $1}' "$WORK/topo" | head -2 | paste -sd, -)
+          OTHER=$(awk -v c="$A" '$2!=c{print $1; exit}' "$WORK/topo")
+          C1=0
+          C2L=""; if [ "$(echo "$SIB" | tr ',' '\n' | wc -l)" -ge 2 ]; then C2L="$SIB"; fi
+          C2P=""; if [ -n "$OTHER" ]; then C2P="0,$OTHER"; fi
+          echo "C1=$C1 C2L=$C2L C2P=$C2P"
+          echo "+cpuset" | sudo tee /sys/fs/cgroup/cgroup.subtree_control
+          for pair in "c1:$C1" "c2l:$C2L" "c2p:$C2P"; do
+            name=${pair%%:*}; cpus=${pair#*:}
+            [ -n "$cpus" ] || { echo "no CPU set for $name"; continue; }
+            sudo mkdir -p "/sys/fs/cgroup/bench-$name"
+            echo "$cpus" | sudo tee "/sys/fs/cgroup/bench-$name/cpuset.cpus"
+          done
+          { echo "C1=$C1"; echo "C2L=$C2L"; echo "C2P=$C2P"; } >> "$GITHUB_ENV"
+          echo "CPU sets: c1=$C1 c2l=$C2L c2p=$C2P" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Measure
+        run: |
+          set +e
+          set -uo pipefail
+          cd "$WORK"
+          OUT="$WORK/out/results-$JOB.jsonl"
+          NODE=$(command -v node)
+          fail() { printf '{"type":"process-exit","job":"%s","args":"%s","rc":%s}\n' "$JOB" "$1" "$2" >> "$OUT"; }
+          cold() {
+            for try in 1 2; do
+              timeout 600 "$NODE" sweep.mjs --mode load --phase cold --model "$1" --weights "$2" --job "$JOB" --cache "$WORK/hf" --out "$OUT" && return 0
+              fail "load $1 $2 try $try" $?
+            done
+          }
+          declare -A CPUS=([c1]="$C1" [c2l]="$C2L" [c2p]="$C2P")
+          bench() {
+            local cs=$1; shift
+            local cpus=${CPUS[$cs]}
+            [ -n "$cpus" ] || return 0
+            local n; n=$(echo "$cpus" | tr ',' '\n' | wc -l)
+            echo "::group::$cs ($cpus): $*"
+            timeout 900 bash -c 'sudo sh -c "echo $$ > /sys/fs/cgroup/bench-$0/cgroup.procs" && exec taskset -c "$1" "${@:2}"' \
+              "$cs" "$cpus" "$NODE" sweep.mjs --mode bench --job "$JOB" --cache "$WORK/hf" --out "$OUT" \
+              --coreset "$cs" --cpus "$cpus" --cores "$n" "$@"
+            local rc=$?
+            [ $rc -eq 0 ] || fail "bench $cs $*" $rc
+            echo "::endgroup::"
+          }
+          cold "$ANCHOR_MODEL" q8avx2
+          bench c2l --model "$ANCHOR_MODEL" --weights q8avx2 --N 20 --cap 1024 --ml 512 --opts default --tag anchor
+          bench c2l --model "$ANCHOR_MODEL" --weights q8avx2 --N 20 --cap 1024 --ml 512 --opts threads-nospin --tag anchor
+          if [ "$AVX512" = 1 ]; then
+            echo "Runner has AVX-512: anchor rows only."
+          else
+            for m in $MODELS; do cold "$m" "$WEIGHTS"; done
+            for m in $MODELS; do
+              s=$(basename "$m")
+              "$NODE" sweep.mjs --mode plan --model "$m" --weights "$WEIGHTS" --job "$JOB" --cache "$WORK/hf" --out "$OUT" \
+                --shapes "$WORK/shapes-$s.txt" --panel "$WORK/panel-$s.txt" --chunks "$WORK/chunks-$s.txt"
+            done
+            # The 2-logical-core set first (the line that decides), then 1 CPU,
+            # then 2 physical cores; small models first within each.
+            for cs in c2l c1 c2p; do
+              for m in $MODELS; do
+                s=$(basename "$m")
+                while read -r N CAP ML; do
+                  [ -n "$N" ] || continue
+                  bench "$cs" --model "$m" --weights "$WEIGHTS" --N "$N" --cap "$CAP" --ml "$ML" --opts threads-nospin --tag grid
+                done < "$WORK/shapes-$s.txt"
+                while read -r N CAP ML CH; do
+                  [ -n "$N" ] || continue
+                  bench "$cs" --model "$m" --weights "$WEIGHTS" --N "$N" --cap "$CAP" --ml "$ML" --chunk "$CH" --opts threads-nospin --tag chunk
+                done < "$WORK/chunks-$s.txt"
+              done
+            done
+          fi
+          node sweep.mjs --mode summarize --dir "$WORK/out" --json "$WORK/results.json" --md "$WORK/summary.md" > /dev/null
+          cat "$WORK/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rerank-sweep-${{ env.JOB }}
+          path: |
+            ${{ runner.temp }}/bench/out/results-*.jsonl
+            ${{ runner.temp }}/bench/results.json
+          if-no-files-found: warn
+
   merge:
-    needs: measure
+    needs: [measure, proxy]
     if: always()
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -201,6 +352,17 @@ jobs:
         with:
           pattern: rerank-sweep-*
           path: parts
+      - name: Earlier runs' artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          for id in $PRIOR_RUNS; do
+            mkdir -p "parts/run-$id"
+            gh run download "$id" -R "$GITHUB_REPOSITORY" -p 'rerank-sweep-speed-*' -p 'rerank-sweep-quality-*' -D "parts/run-$id" \
+              || echo "::warning::could not download the artifacts of run $id"
+          done
+          find parts -name '*.jsonl' | sort
       - name: Merge
         run: |
           set -euo pipefail
