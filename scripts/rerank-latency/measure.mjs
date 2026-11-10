@@ -108,6 +108,9 @@ function meta() {
     cpusListed: os.cpus().length,
     availableParallelism: os.availableParallelism(),
     ...cgroupInfo(),
+    siblings: [0, 1, 2, 3].map((i) => {
+      try { return fs.readFileSync(`/sys/devices/system/cpu/cpu${i}/topology/thread_siblings_list`, 'utf8').trim(); } catch { return null; }
+    }),
     totalMemMB: MB(os.totalmem()),
     node: process.version,
     agentos: pkgVersion('@framers/agentos'),
@@ -515,6 +518,7 @@ function modeSummarize() {
   const label = (r) => {
     if (r.variant === 'shipped') return 'shipped';
     if (r.tag === 'ref') return 'direct-fp32 (same-runner reference in the shipped job)';
+    if (r.tag === 'panel') return `panel: ${r.variant}${r.cand?.model_file_name ? ' (' + r.cand.model_file_name + ')' : ''}${r.cand?.id?.startsWith('Xenova/') ? ' (Xenova)' : ''}`;
     const c = r.cand ?? {};
     return `${r.variant}${c.model_file_name ? ' (' + c.model_file_name + ')' : ''}${c.id && c.id.startsWith('Xenova/') ? ' (Xenova)' : ''}`;
   };

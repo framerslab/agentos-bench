@@ -28,7 +28,9 @@ jobs:
       fail-fast: false
       matrix:
         short: [minilm-l6, minilm-l12, bge-base]
-        variant: [shipped, direct-fp32, direct-q8]
+        # panel: the 20-candidate, 1,024-character row for every implementation
+        # of the model on one runner, so implementations compare on one CPU.
+        variant: [shipped, direct-fp32, direct-q8, panel]
         include:
           - { short: minilm-l6, model: cross-encoder/ms-marco-MiniLM-L-6-v2 }
           - { short: minilm-l12, model: cross-encoder/ms-marco-MiniLM-L-12-v2 }
@@ -105,6 +107,7 @@ jobs:
           MODEL: ${{ matrix.model }}
           VARIANT: ${{ matrix.variant }}
         run: |
+          set +e
           set -uo pipefail
           cd "$WORK"
           mkdir -p "$WORK/out"
@@ -119,18 +122,30 @@ jobs:
             timeout "$tl" bash -c 'sudo sh -c "echo $$ > /sys/fs/cgroup/bench-c$0/cgroup.procs" && exec taskset -c "0-$(($0-1))" "$@"' \
               "$c" "$NODE" measure.mjs --out "$OUT" --model "$MODEL" --cores "$c" --job "$JOB" --cache "$WORK/hf" "$@"
             local rc=$?
+            LAST_RC=$rc
             if [ $rc -ne 0 ]; then
               printf '{"type":"process-exit","job":"%s","model":"%s","cores":%s,"args":"%s","rc":%s}\n' "$JOB" "$MODEL" "$c" "$*" "$rc" >> "$OUT"
             fi
             echo "::endgroup::"
           }
-          run 4 300 --mode load --variant "$VARIANT" --phase cold
-          if [ "$VARIANT" = shipped ]; then run 4 300 --mode load --variant direct-fp32 --phase cold; fi
-          for c in 2 4 1; do
-            run "$c" 300 --mode load --variant "$VARIANT" --phase cache
-            run "$c" 720 --mode bench --variant "$VARIANT"
-            if [ "$VARIANT" = shipped ]; then run "$c" 300 --mode bench --variant direct-fp32 --shapes key --tag ref; fi
-          done
+          cold() {
+            run 4 600 --mode load --variant "$1" --phase cold
+            if [ "$LAST_RC" -ne 0 ]; then run 4 600 --mode load --variant "$1" --phase cold; fi
+          }
+          if [ "$VARIANT" = panel ]; then
+            for v in shipped direct-fp32 direct-q8; do cold "$v"; done
+            for c in 2 4 1; do
+              for v in shipped direct-fp32 direct-q8; do run "$c" 400 --mode bench --variant "$v" --shapes key --tag panel; done
+            done
+          else
+            cold "$VARIANT"
+            if [ "$VARIANT" = shipped ]; then cold direct-fp32; fi
+            for c in 2 4 1; do
+              run "$c" 300 --mode load --variant "$VARIANT" --phase cache
+              run "$c" 720 --mode bench --variant "$VARIANT"
+              if [ "$VARIANT" = shipped ]; then run "$c" 300 --mode bench --variant direct-fp32 --shapes key --tag ref; fi
+            done
+          fi
           node measure.mjs --mode summarize --dir "$WORK/out" --json "$WORK/results.json" --md "$WORK/summary.md"
           cat "$WORK/summary.md" >> "$GITHUB_STEP_SUMMARY"
 
