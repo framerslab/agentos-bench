@@ -1,0 +1,208 @@
+name: rerank-sweep
+
+# Speed and quality sweep for small local cross-encoder rerankers on a small
+# CPU host. Speed jobs: one per (model, weights file); every row is one node
+# process inside a cpuset cgroup (1 CPU, 2 SMT siblings of one core, or one CPU
+# of each of two cores), all on the same runner. Quality jobs: one per
+# (model, weights file), a fixed synthetic set. A final job merges the results.
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/rerank-sweep.yml
+      - scripts/rerank-sweep/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rerank-sweep-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ANCHOR_MODEL: cross-encoder/ms-marco-MiniLM-L6-v2
+
+jobs:
+  measure:
+    name: ${{ matrix.part }} (${{ matrix.short }}, ${{ matrix.weights }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        short: [tinybert-l2, minilm-l2, minilm-l4, minilm-l6]
+        weights: [fp32, q8avx2]
+        part: [speed, quality]
+        include:
+          - { short: tinybert-l2, model: cross-encoder/ms-marco-TinyBERT-L2-v2 }
+          - { short: minilm-l2, model: cross-encoder/ms-marco-MiniLM-L2-v2 }
+          - { short: minilm-l4, model: cross-encoder/ms-marco-MiniLM-L4-v2 }
+          - { short: minilm-l6, model: cross-encoder/ms-marco-MiniLM-L6-v2 }
+    env:
+      JOB: ${{ matrix.part }}-${{ matrix.short }}-${{ matrix.weights }}
+      MODEL: ${{ matrix.model }}
+      WEIGHTS: ${{ matrix.weights }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scratch folder
+        run: echo "WORK=$RUNNER_TEMP/bench" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install packages in a scratch folder
+        run: |
+          set -euo pipefail
+          mkdir -p "$WORK/out"
+          cp scripts/rerank-sweep/sweep.mjs "$WORK/"
+          cd "$WORK"
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund @huggingface/transformers@3.8.1
+          npm ls onnxruntime-node @huggingface/transformers --all || true
+
+      - name: Host
+        run: |
+          set -euo pipefail
+          lscpu
+          lscpu -e
+          grep -o -w 'avx2\|avx512f\|avx512_vnni\|avx_vnni' /proc/cpuinfo | sort | uniq -c || true
+          nproc; free -m
+          {
+            echo "## Host ($JOB)"
+            echo '```'
+            lscpu | grep -E "Model name|^CPU\(s\)|Thread|Core|Socket" | cut -c1-200
+            lscpu -e
+            echo "AVX2: $(grep -c -w avx2 /proc/cpuinfo) CPUs; AVX-512F: $(grep -c -w avx512f /proc/cpuinfo) CPUs"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Hub listing
+        if: matrix.part == 'quality'
+        run: |
+          set -uo pipefail
+          cd "$WORK"
+          node sweep.mjs --mode hub --models "$MODEL" --job "$JOB" --out "$WORK/out/results-$JOB.jsonl"
+
+      - name: CPU-limit cgroups
+        if: matrix.part == 'speed'
+        run: |
+          set -euo pipefail
+          # Pick CPUs from the topology: c1 = one CPU; c2l = the two SMT
+          # siblings of one physical core; c2p = one CPU on each of two cores.
+          lscpu -e=CPU,CORE --no-headings | awk '{print $1, $2}' | sort -k2,2n -k1,1n > "$WORK/topo"
+          cat "$WORK/topo"
+          A=$(awk '$1==0{print $2}' "$WORK/topo")
+          SIB=$(awk -v c="$A" '$2==c{print $1}' "$WORK/topo" | head -2 | paste -sd, -)
+          OTHER=$(awk -v c="$A" '$2!=c{print $1; exit}' "$WORK/topo")
+          C1=0
+          C2L=""; if [ "$(echo "$SIB" | tr ',' '\n' | wc -l)" -ge 2 ]; then C2L="$SIB"; fi
+          C2P=""; if [ -n "$OTHER" ]; then C2P="0,$OTHER"; fi
+          echo "C1=$C1 C2L=$C2L C2P=$C2P"
+          echo "+cpuset" | sudo tee /sys/fs/cgroup/cgroup.subtree_control
+          for pair in "c1:$C1" "c2l:$C2L" "c2p:$C2P"; do
+            name=${pair%%:*}; cpus=${pair#*:}
+            [ -n "$cpus" ] || { echo "no CPU set for $name"; continue; }
+            sudo mkdir -p "/sys/fs/cgroup/bench-$name"
+            echo "$cpus" | sudo tee "/sys/fs/cgroup/bench-$name/cpuset.cpus"
+            echo "bench-$name effective: $(cat /sys/fs/cgroup/bench-$name/cpuset.cpus.effective)"
+          done
+          { echo "C1=$C1"; echo "C2L=$C2L"; echo "C2P=$C2P"; } >> "$GITHUB_ENV"
+          echo "CPU sets: c1=$C1 c2l=$C2L c2p=$C2P" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Measure
+        run: |
+          set +e
+          set -uo pipefail
+          cd "$WORK"
+          OUT="$WORK/out/results-$JOB.jsonl"
+          NODE=$(command -v node)
+          LAST_RC=0
+          fail() { printf '{"type":"process-exit","job":"%s","model":"%s","args":"%s","rc":%s}\n' "$JOB" "$MODEL" "$1" "$2" >> "$OUT"; }
+          cold() {
+            for try in 1 2; do
+              timeout 600 "$NODE" sweep.mjs --mode load --phase cold --model "$1" --weights "$2" --job "$JOB" --cache "$WORK/hf" --out "$OUT"
+              LAST_RC=$?; [ $LAST_RC -eq 0 ] && break
+              fail "load $1 $2 try $try" $LAST_RC
+            done
+          }
+          if [ "${{ matrix.part }}" = quality ]; then
+            cold "$MODEL" "$WEIGHTS"
+            timeout 3000 "$NODE" sweep.mjs --mode quality --model "$MODEL" --weights "$WEIGHTS" --job "$JOB" --cache "$WORK/hf" --out "$OUT"
+            rc=$?; [ $rc -eq 0 ] || fail "quality" $rc
+          else
+            declare -A CPUS=([c1]="$C1" [c2l]="$C2L" [c2p]="$C2P")
+            # bench <coreset> <args...>: one node process inside the cpuset
+            # cgroup, also under taskset to the same CPUs.
+            bench() {
+              local cs=$1; shift
+              local cpus=${CPUS[$cs]}
+              [ -n "$cpus" ] || return 0
+              local n; n=$(echo "$cpus" | tr ',' '\n' | wc -l)
+              echo "::group::$cs ($cpus): $*"
+              timeout 900 bash -c 'sudo sh -c "echo $$ > /sys/fs/cgroup/bench-$0/cgroup.procs" && exec taskset -c "$1" "${@:2}"' \
+                "$cs" "$cpus" "$NODE" sweep.mjs --mode bench --job "$JOB" --cache "$WORK/hf" --out "$OUT" \
+                --coreset "$cs" --cpus "$cpus" --cores "$n" "$@"
+              local rc=$?
+              [ $rc -eq 0 ] || fail "bench $cs $*" $rc
+              echo "::endgroup::"
+            }
+            cold "$MODEL" "$WEIGHTS"
+            if [ "$MODEL" != "$ANCHOR_MODEL" ] || [ "$WEIGHTS" != q8avx2 ]; then cold "$ANCHOR_MODEL" q8avx2; fi
+            "$NODE" sweep.mjs --mode plan --model "$MODEL" --weights "$WEIGHTS" --job "$JOB" --cache "$WORK/hf" --out "$OUT" \
+              --shapes "$WORK/shapes.txt" --panel "$WORK/panel.txt"
+            echo "shapes:"; cat "$WORK/shapes.txt"; echo "panel:"; cat "$WORK/panel.txt"
+            bench c2l --model "$ANCHOR_MODEL" --weights q8avx2 --N 20 --cap 1024 --ml 512 --opts default --tag anchor
+            for cs in c2l c2p c1; do
+              while read -r N CAP ML; do
+                [ -n "$N" ] || continue
+                for opts in default threads-nospin; do
+                  bench "$cs" --model "$MODEL" --weights "$WEIGHTS" --N "$N" --cap "$CAP" --ml "$ML" --opts "$opts" --tag grid
+                done
+              done < "$WORK/shapes.txt"
+              while read -r N CAP ML; do
+                [ -n "$N" ] || continue
+                bench "$cs" --model "$MODEL" --weights "$WEIGHTS" --N "$N" --cap "$CAP" --ml "$ML" --opts threads --tag panel
+              done < "$WORK/panel.txt"
+            done
+          fi
+          node sweep.mjs --mode summarize --dir "$WORK/out" --json "$WORK/results.json" --md "$WORK/summary.md" > /dev/null
+          cat "$WORK/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rerank-sweep-${{ env.JOB }}
+          path: |
+            ${{ runner.temp }}/bench/out/results-*.jsonl
+            ${{ runner.temp }}/bench/results.json
+          if-no-files-found: warn
+
+  merge:
+    needs: measure
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: rerank-sweep-*
+          path: parts
+      - name: Merge
+        run: |
+          set -euo pipefail
+          node scripts/rerank-sweep/sweep.mjs --mode summarize --dir parts --json results.json --md summary.md > /dev/null
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rerank-sweep-results
+          path: |
+            results.json
+            summary.md
