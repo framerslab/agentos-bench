@@ -635,17 +635,25 @@ function modeSummarize() {
   const baseline = recs.find((r) => r.type === 'quality-baseline');
   const f3 = (m) => (m ? `${m.r1} / ${m.r3} / ${m.mrr}` : '-');
   md += '\n## Quality (60 synthetic queries x 20 notes; recall@1 / recall@3 / MRR)\n\n';
-  // One quality record per (model, weights, cap, ml, chunk): replicate runs
-  // compute the same deterministic set, so keep the first.
-  const qSeen = new Set();
-  const qUniq = q.filter((r) => { const k = `${r.model}|${r.weights}|${r.cap}|${r.ml}|${r.chunk ?? ''}`; if (qSeen.has(k)) return false; qSeen.add(k); return true; });
+  // One quality record per (model, weights, cap, ml, chunk). fp32 rows are
+  // identical on every runner; the int8 kernels differ between AVX2 and
+  // AVX-512 runners (MRR within about 0.015), so prefer a record from an
+  // AVX2-only runner, the target's kernels.
+  const qBest = new Map();
+  for (const r of q) {
+    const k = `${r.model}|${r.weights}|${r.cap}|${r.ml}|${r.chunk ?? ''}`;
+    const cur = qBest.get(k);
+    if (!cur || (cur.meta?.flags?.avx512f !== false && r.meta?.flags?.avx512f === false)) qBest.set(k, r);
+  }
+  const qUniq = [...qBest.values()];
+  md += 'Each row comes from one quality job; for the quantized file a job on a runner without AVX-512 is preferred (the CPU column), because the int8 kernels differ by CPU.\n\n';
   md +='The last column ranks only the queries whose answer sentence lies inside the cap (and max_length): the model\'s own quality with truncation taken out.\n\n';
-  md += '| model | weights file | cap | chunk | max_length | R@1 | R@3 | MRR | exact | paraphrase | recency | distractor | answer inside cap | answer inside max_length | answer kept: n, R@1 / R@3 / MRR |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n';
-  if (baseline) md += `| no rerank (input order) | - | - | - | - | ${baseline.overall.r1} | ${baseline.overall.r3} | ${baseline.overall.mrr} | ${f3(baseline.exact)} | ${f3(baseline.paraphrase)} | ${f3(baseline.recency)} | ${f3(baseline.distractor)} | - | - | - |\n`;
+  md += '| model | weights file | cap | chunk | max_length | R@1 | R@3 | MRR | exact | paraphrase | recency | distractor | answer inside cap | answer inside max_length | answer kept: n, R@1 / R@3 / MRR | CPU |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n';
+  if (baseline) md += `| no rerank (input order) | - | - | - | - | ${baseline.overall.r1} | ${baseline.overall.r3} | ${baseline.overall.mrr} | ${f3(baseline.exact)} | ${f3(baseline.paraphrase)} | ${f3(baseline.recency)} | ${f3(baseline.distractor)} | - | - | - | - |\n`;
   qUniq.sort((a, b) => a.model.localeCompare(b.model) || a.weights.localeCompare(b.weights) || (a.chunk ?? 0) - (b.chunk ?? 0) || String(a.cap).localeCompare(String(b.cap)) || a.ml - b.ml);
   for (const r of qUniq) {
     const kept = r.perQuery ? metrics(r.perQuery.filter((x) => x.lenOk).map((x) => x.rank)) : null;
-    md += `| ${shortName(r.model)} | ${wfile(r.weights)} | ${r.cap} | ${r.chunk ?? '-'} | ${r.ml} | ${r.overall.r1} | ${r.overall.r3} | ${r.overall.mrr} | ${f3(r.exact)} | ${f3(r.paraphrase)} | ${f3(r.recency)} | ${f3(r.distractor)} | ${r.answerInsideCap != null ? Math.round(r.answerInsideCap * 100) + '%' : '-'} | ${r.answerInsideMaxLength != null ? Math.round(r.answerInsideMaxLength * 100) + '%' : '-'} | ${kept ? `${kept.n}, ${f3(kept)}` : '-'} |\n`;
+    md += `| ${shortName(r.model)} | ${wfile(r.weights)} | ${r.cap} | ${r.chunk ?? '-'} | ${r.ml} | ${r.overall.r1} | ${r.overall.r3} | ${r.overall.mrr} | ${f3(r.exact)} | ${f3(r.paraphrase)} | ${f3(r.recency)} | ${f3(r.distractor)} | ${r.answerInsideCap != null ? Math.round(r.answerInsideCap * 100) + '%' : '-'} | ${r.answerInsideMaxLength != null ? Math.round(r.answerInsideMaxLength * 100) + '%' : '-'} | ${kept ? `${kept.n}, ${f3(kept)}` : '-'} | ${cpuShort(r.meta?.cpuModel)} |\n`;
   }
 
   // Shortlist: speed rows joined with quality at the same (model, weights, cap, ml).
@@ -667,8 +675,8 @@ function modeSummarize() {
   };
   const byQuality = (a, b) => b.qq.overall.mrr - a.qq.overall.mrr || b.qq.overall.r1 - a.qq.overall.r1 || a.r.p95 - b.r.p95;
   const shortTable = (title, list) => {
-    md += `\n## ${title}\n\n| model | weights file | N | cap | chunk | max_length | p95 ms (worst) | runners | CPU-s/call | R@1 | R@3 | MRR | CPU |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
-    for (const { r, runs, qq } of list.slice(0, 60)) md += `| ${shortName(r.model)} | ${wfile(r.weights)} | ${r.N} | ${r.cap} | ${r.chunk ?? '-'} | ${r.ml} | ${r.p95} | ${runs} | ${r.cpuSecPerCall} | ${qq.overall.r1} | ${qq.overall.r3} | ${qq.overall.mrr} | ${cpuShort(r.meta?.cpuModel)} |\n`;
+    md += `\n## ${title}\n\nQuality columns come from the 60-query set with all 20 candidates reranked; a row with N under 20 also needs the first stage to place the answer in its top N, which this bench does not measure.\n\n| model | weights file | N | cap | chunk | max_length | p95 ms (worst) | runners | CPU-s/call | R@1 | R@3 | MRR | CPU |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n`;
+    for (const { r, runs, qq } of list.slice(0, 200)) md += `| ${shortName(r.model)} | ${wfile(r.weights)} | ${r.N} | ${r.cap} | ${r.chunk ?? '-'} | ${r.ml} | ${r.p95} | ${runs} | ${r.cpuSecPerCall} | ${qq.overall.r1} | ${qq.overall.r3} | ${qq.overall.mrr} | ${cpuShort(r.meta?.cpuModel)} |\n`;
   };
   shortTable('Shortlist (AVX2-only runners, threads = cores, spinning off): p95 <= 300 ms at 2 logical cores, ranked by quality', avx2Rows('c2l').filter((x) => x.r.p95 <= 300).sort(byQuality));
   shortTable('Shortlist (AVX2-only runners, threads = cores, spinning off): p95 <= 800 ms at 1 core, ranked by quality', avx2Rows('c1').filter((x) => x.r.p95 <= 800).sort(byQuality));

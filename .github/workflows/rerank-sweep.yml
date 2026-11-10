@@ -25,12 +25,11 @@ env:
   ANCHOR_MODEL: cross-encoder/ms-marco-MiniLM-L6-v2
   # Earlier runs of this workflow whose per-job artifacts the merge folds in
   # (the full per-model grid and the quality set ran there).
-  PRIOR_RUNS: "42804464077 42808403907"
+  PRIOR_RUNS: "42804464077 42808403907 42815790672"
 
 jobs:
   # The full per-model grid (one runner per model and weights file). It ran
-  # in the runs named in PRIOR_RUNS; on a pull request push only the
-  # AVX2-only proxy below runs.
+  # in the first two runs named in PRIOR_RUNS.
   measure:
     if: github.event_name == 'workflow_dispatch'
     name: ${{ matrix.part }} (${{ matrix.short }}, ${{ matrix.weights }})
@@ -201,7 +200,10 @@ jobs:
   # runner times all four models on that one runner (threads = cores,
   # spinning off; 1 CPU, 2 SMT siblings, 2 physical cores; the plain grid and
   # the chunked rows).
+  # It ran in the last run named in PRIOR_RUNS; a pull request push now only
+  # re-merges.
   proxy:
+    if: github.event_name == 'workflow_dispatch'
     name: proxy (${{ matrix.weights }}, replica ${{ matrix.replica }})
     runs-on: ubuntu-24.04
     timeout-minutes: 170
@@ -349,6 +351,7 @@ jobs:
         with:
           node-version: 22
       - uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           pattern: rerank-sweep-*
           path: parts
