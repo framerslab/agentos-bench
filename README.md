@@ -76,11 +76,45 @@ Direct apples-to-apples reproductions of vendor-published methods, instrumented 
 
 ## Transparency stack
 
-- **Per-cell run JSON at seed 42** — [`results/runs/`](results/runs/). LongMemEval-M run JSONs exceed the GitHub 100 MB recommendation and are gitignored; their `--summary.json` siblings are committed.
+- **Per-cell run JSON at seed 42** — [`results/runs/`](results/runs/), stored with Git LFS (see [Run files](#run-files)).
 - **95% confidence interval** computed by resampling per-case scores 10 000 times at seed 42 for every reported aggregate
 - **Judge false-positive rate probe** per benchmark — LongMemEval-S 1% [0%, 3%], LongMemEval-M 2% [0%, 5%], LOCOMO 0% [0%, 0%].
 - **8 negative architecture findings** documented at [`results/eval-matrix-v1/transparency-notes.md`](results/eval-matrix-v1/transparency-notes.md): Stage L Anthropic Contextual Retrieval, Stage I Mem0-v3-style entity-linking re-rank, Stage H hierarchical retrieval, two-call reader compounded with M-tuned, M-tuned flags compounded on S, all-OM Mastra-architecture clone on S, gpt-4o classifier upgrade, and 7 stress-tested adjacent configurations on the 84.8% baseline.
 - **Per-vendor caveats** — every cross-vendor accuracy/cost/latency comparison row footnotes which dimensions are apples-to-apples vs not. Mastra and Supermemory do not publish $/correct or per-case latency, so direct comparisons against them on those axes are unmeasurable until vendor-reproduction adapters land.
+
+## Run files
+
+The run JSON and CSV files under `results/runs/` are stored with [Git LFS](https://git-lfs.com). A plain clone holds small pointer files; the full files download on demand.
+
+Fetch one run with Git:
+
+```bash
+git lfs install
+GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/framerslab/agentos-bench.git
+cd agentos-bench
+git lfs pull --include "results/runs/2026-04-28T19-06-42-271--longmemeval-s--gpt-4o--full-cognitive--ingest.json"
+```
+
+Or download it directly, without Git:
+
+```bash
+curl -L -O https://media.githubusercontent.com/media/framerslab/agentos-bench/master/results/runs/2026-04-28T19-06-42-271--longmemeval-s--gpt-4o--full-cognitive--ingest.json
+```
+
+That file is the 85.6% LongMemEval-S run (`passedCases` 428 of `totalCases` 500). A plain `git clone` with Git LFS installed downloads every run file, about 2 GB.
+
+Four run files from crashed runs are not published; their pointers stay in the tree and their downloads answer 404:
+
+- `2026-04-27T02-57-10-370--beam-100k--gpt-4o--full-cognitive--ingest.json`
+- `2026-04-28T23-35-11-601--longmemeval-m--gpt-4o--full-cognitive--ingest.json`
+- `2026-04-29T02-41-18-648--longmemeval-s--gpt-4o--full-cognitive--ingest.json`
+- `2026-04-29T02-48-19-633--longmemeval-s--gpt-4o--full-cognitive--ingest.json`
+
+The run files quote questions, conversations and answers from the benchmark datasets, which keep their own licences:
+
+- LongMemEval: MIT, Copyright (c) 2024 Di Wu ([licence](https://github.com/xiaowu0162/LongMemEval/blob/main/LICENSE))
+- LOCOMO: CC BY-NC 4.0 ([licence](https://github.com/snap-research/locomo/blob/main/LICENSE.txt)); the LOCOMO run files are for non-commercial use
+- BEAM: CC BY-SA 4.0 ([dataset card](https://huggingface.co/datasets/Mohammadta/BEAM)); the BEAM run files are shared under the same licence
 
 ## Repository layout
 
@@ -96,7 +130,7 @@ docs/                 Blog post and architecture notes
 results/
   LEADERBOARD.md            Top-level results table for all benchmarks
   eval-matrix-v1/           v1 publication artifacts (transparency-notes, comparison-table)
-  runs/                     Per-cell run JSONs (committed unless > 100 MB)
+  runs/                     Per-cell run JSONs and CSVs (Git LFS)
 tests/                Vitest unit + contract tests (~80 tests pinning shipping behavior)
 vendors/              Vendor-reproduction adapters (run their methods in our harness)
 ```
