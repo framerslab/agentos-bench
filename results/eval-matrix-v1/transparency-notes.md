@@ -23,7 +23,7 @@ The publishable claim is not "AgentOS beats every vendor on every benchmark." It
 | Per-case artifacts | One run JSON per cell | Saved to `results/runs/<timestamp>--<benchmark>--gpt-4o--full-cognitive--ingest.json`. LongMemEval-M run JSONs exceed 100 MB; the matching `--summary.json` is committed and the full run JSON is gitignored. |
 | Cost tracking | `totalUsd` = full pipeline (ingest + reader + judge + reranker) | `costPerCorrect` = `totalUsd / passedCases`. |
 | Single-provider reproducibility | Classifiers and judges all on OpenAI | No Claude or Gemini dependency for any shipping configuration. Cohere only for the rerank stage. |
-| Embedder | `text-embedding-3-small` on the S headline (85.6%) and the M headline (70.2%); `CharHashEmbedder` (lexical FNV-1a hash) preserved on the bench-default fallback row (S 76.6%, M 45.4%) for auditable gap tracking. | **Updated 2026-04-29**: the validated agentos-as-deployed configuration on S is **85.6% [82.4%, 88.6%]** at $0.0090/correct (canonical+RR + reader router) and on M is **70.2% [66.0%, 74.0%]** at $0.0078/correct (M-tuned + sem-embed + reader router + reader-top-K=5). The 76.6% S CharHash row and the 45.4% M CharHash row stay in the leaderboard as "bench-default fallback" references so the gap is auditable. See [S 85.6% blog post](../../../../apps/agentos-live-docs/blog/2026-04-28-reader-router-pareto-win.md) and the M 70.2% row's footnote in [LEADERBOARD.md](../LEADERBOARD.md). |
+| Embedder | `text-embedding-3-small` on the S headline (85.6%) and the M headline (70.2%); `CharHashEmbedder` (lexical FNV-1a hash) preserved on the bench-default fallback row (S 76.6%, M 45.4%) for auditable gap tracking. | **Updated 2026-04-29**: the validated agentos-as-deployed configuration on S is **85.6% [82.4%, 88.6%]** at $0.0090/correct (canonical+RR + reader router) and on M is **70.2% [66.0%, 74.0%]** at $0.0078/correct (M-tuned + sem-embed + reader router + reader-top-K=5). The 76.6% S CharHash row and the 45.4% M CharHash row stay in the leaderboard as "bench-default fallback" references so the gap is auditable. See the S 85.6% and M 70.2% rows' footnotes in [LEADERBOARD.md](../LEADERBOARD.md). |
 | Reranker | Cohere `rerank-v3.5` | Cross-encoder over the merged BM25 + dense pool. Required for every Tier 1+ row. |
 | `reader-top-k` | 20 | Top 20 chunks after rerank fed to the reader. |
 
@@ -46,9 +46,9 @@ The Stage G judge-adversarial probe synthesizes topically-adjacent wrong answers
 
 | Benchmark | Judge FPR | 95% CI | n probed | Source |
 |---|---:|---:|---:|---|
-| LongMemEval-S | 1% | [0%, 3%] | 100 | [Stage G, 2026-04-24](../../docs/SESSION_2026-04-24_TRANSPARENT_NEGATIVES.md) |
-| LongMemEval-M | **2%** | **[0%, 5%]** | 100 | [Stage G-M, 2026-04-26](../../docs/STAGE_G_LONGMEMEVAL_M_FINDINGS_2026-04-26.md) |
-| LOCOMO | 0% | [0%, 0%] | 100 | [Stage G-LOCOMO, 2026-04-24](../../docs/STAGE_G_LOCOMO_JUDGE_FPR_PROBE_2026-04-24.md) |
+| LongMemEval-S | 1% | [0%, 3%] | 100 | Stage G, 2026-04-24 |
+| LongMemEval-M | **2%** | **[0%, 5%]** | 100 | Stage G-M, 2026-04-26 |
+| LOCOMO | 0% | [0%, 0%] | 100 | Stage G-LOCOMO, 2026-04-24 |
 | BEAM 100K | unprobed | — | — | Deferred to v2 (BEAM adapter not yet implemented). |
 
 Comparison anchor: Penfield Labs measured **62.81%** FPR on LOCOMO's default `gpt-4o-mini` judge with the original LOCOMO rubric. The 63 pp gap vs our 0% is a judge-model + rubric-strictness artifact, not an intrinsic property of LOCOMO's gold answers. Any vendor publishing a LOCOMO number measured with the default judge inherits up to 63 pp of accepted-wrong-answer noise.
@@ -120,7 +120,7 @@ Every reference row in [comparison-table.md](comparison-table.md) §"Reference r
 | Full-context `gpt-4o` baseline | 60.2% | LongMemEval paper. No memory architecture; whole conversation in context. |
 | Mastra Observational Memory | 84.2% (`gpt-4o`) | Observer is `gemini-2.5-flash`. Reader is `gpt-4o`. Cross-provider; not single-provider reproducible. **Within statistical CI of our 83.2% gpt-4o baseline.** |
 | Mastra Observational Memory (architecture clone, our retrieval) | **76.0%** [72.2%, 79.6%] (`gpt-4o`) | **Apples-to-apples test 2026-04-27.** All-OM dispatch + `gpt-5-mini` observer (matching Mastra's 94.9% architecture) on our retrieval stack (full-cognitive + Cohere rerank-v3.5 + `text-embedding-3-small`) at `gpt-4o` reader. **−7.2 pp vs our 83.2% baseline at the same reader.** Confirms Mastra's architecture lift on S is reader/observer-tier driven (their 94.9% uses `gpt-5-mini` reader + `gpt-5-mini` observer; +10.7 pp over their gpt-4o number is reader + observer combined), not the all-OM-on-S dispatch pattern. Run JSON: `results/runs/2026-04-27T21-31-50-806--longmemeval-s--gpt-4o--full-cognitive--ingest.json`. |
-| Mem0 v3 (managed platform) | 94.4% | Managed platform at a top_200 retrieval budget; Mem0 states it includes proprietary optimizations not in the open-source SDK and does not name the answerer model or the LongMemEval variant for that run ([Mem0 docs](https://docs.mem0.ai/core-concepts/memory-evaluation)); its open-source harness downloads the S set by default. Mem0 also publishes 94.8% at top_50 and 91.0% for its self-hosted OSS pipeline with GPT-5 as answerer and judge ([memory-benchmarks](https://github.com/mem0ai/memory-benchmarks#results)). |
+| Mem0 v3 (managed platform) | 94.4% | Managed platform at a top_200 retrieval budget; Mem0 states it includes proprietary optimizations not in the open-source SDK and does not name the reader (answerer model) or the LongMemEval variant for that run ([Mem0 docs](https://docs.mem0.ai/core-concepts/memory-evaluation)); its open-source harness downloads the S set by default. Mem0 also publishes 94.8% at top_50 and 91.0% for its self-hosted OSS pipeline with GPT-5 as answerer and judge ([memory-benchmarks](https://github.com/mem0ai/memory-benchmarks#results)). |
 | Hindsight Gemini-3-pro | 91.4% | Reader is `gemini-3-pro`. Bench harness uses Gemini judge (`vectorize-io/agent-memory-benchmark`). Apples-to-apples for our `gpt-4o` reader is OSS-20B 83.6% / OSS-120B 89.0%. |
 | Hindsight OSS-120B | 89.0% | Same Gemini-judge harness caveat. |
 | Hindsight OSS-20B | 83.6% | Same Gemini-judge harness caveat. |
@@ -149,7 +149,7 @@ The aggregate lift is statistically within bootstrap-CI overlap with the gpt-4o-
 
 **Architecture novelty**: where Tier 3's policy router dispatches per query *between retrieval architectures* (canonical-hybrid vs OM-v11) at a fixed reader, the reader router dispatches per query *between reader models* at a fixed retrieval architecture. Both consume the same gpt-5-mini classifier, so adding the reader router on top of the policy router costs zero extra LLM calls per case. The two routers are orthogonal axes of the same dispatch primitive — a product surface no other published memory library exposes today.
 
-**Productionization**: the calibration table + dispatch ship in agentos-bench at the commit alongside this note. The companion `ReaderRouter` primitive in `@framers/agentos/memory-router` is queued for v0.5.5 release so consumers of `@framers/agentos` can wire per-category reader dispatch directly without rebuilding the bench harness.
+**Productionization**: the calibration table + dispatch ship in agentos-bench at the commit alongside this note. `@framers/agentos/memory-router` exports the same dispatch as `selectReader` with its preset tables, so consumers of `@framers/agentos` can wire per-category reader dispatch directly without rebuilding the bench harness.
 
 ### 5.5.0 NEW HEADLINE 2026-04-28 — Canonical-hybrid + standalone classifier breaks the 84.8% Pareto
 
@@ -169,7 +169,7 @@ The 84.8% reader-router-with-Tier-3 headline assumed the Tier 3 minimize-cost po
 
 The 4.6× cheaper and 5.3× faster comparisons are **AgentOS-internal**: both the prior 84.8% reader-router-with-policy run and the 85.6% canonical-hybrid + reader-router run were executed at full Phase B N=500 on the same hardware, same OpenAI/Cohere API endpoints, same per-case `costTracker.record()` instrumentation, same wall-clock latency capture. Apples-to-apples intra-AgentOS Pareto delta. **Cost and latency are NOT measured against external vendors (Mastra, Supermemory, EmergenceMem) because those vendors do not publish $/correct or per-case latency numbers in their published research.** Apples-to-apples cost/latency comparisons against external libraries would require cloning their stacks and re-running the bench — out of scope for v1.
 
-The accuracy comparison vs Mastra OM gpt-4o is apples-to-apples on the dimensions we can verify (same dataset, same answer reader tier), with the standing caveat that judge methodology differs across vendors (Mastra's judge model/rubric not publicly disclosed).
+The accuracy comparison vs Mastra OM gpt-4o shares the dataset but not the reader: this run sends 265 of 500 cases to gpt-5-mini, and at a matched gpt-4o reader the same retrieval scores 84.2%, level with Mastra OM. Judge methodology also differs across vendors (Mastra's judge model/rubric not publicly disclosed).
 
 **Architectural finding.**
 
@@ -338,7 +338,7 @@ agentos-bench at 70.2% is the first **open-source** memory library on the public
 | **agentos-bench (us)** | **Apache-2.0** | **70.2% [66.0%, 74.0%]** | Phase B N=500, 351/500, $0.0078/correct, run JSON published |
 | LongMemEval paper, GPT-4o round Top-5 | open repo | 65.7% | Wu et al., ICLR 2025, Table 3, K=V+fact, Stella V5 retriever |
 | SelRoute (academic) | open repo | Recall@5 = 0.800 | Retrieval-side metric only, not end-to-end QA accuracy |
-| Mem0 v3 | Apache 2.0 | — (not published) | Reports 94.4% with the variant not named ([Mem0 docs](https://docs.mem0.ai/core-concepts/memory-evaluation)); its open-source harness runs S by default; no M result published |
+| Mem0 v3 | Apache 2.0 | — (not published) | Reports 94.4% with the reader and the variant not named ([Mem0 docs](https://docs.mem0.ai/core-concepts/memory-evaluation)); its open-source harness runs S by default; no M result published |
 | Mastra OM | Apache 2.0 | — (not published) | Reports 84.2-94.9% on S only |
 | Zep | Apache 2.0 | — (not published) | Explicitly skipped: "due to gpt-4o's 128k context window we chose S over M" |
 | Hindsight | open repo | — (not published) | Paper [arxiv 2512.12818](https://arxiv.org/abs/2512.12818) reports 91.4% on S only |

@@ -1,6 +1,6 @@
 # agentos-bench
 
-Open benchmark harness for [`@framers/agentos`](https://github.com/framersai/agentos) memory primitives. Source-only repository, clone and run via the local CLI; not published to npm.
+Open benchmark harness for [`@framers/agentos`](https://github.com/framerslab/agentos) memory primitives. Source-only repository, clone and run via the local CLI; not published to npm.
 
 Covers [LongMemEval](https://github.com/xiaowu0162/LongMemEval) (S, M, Oracle variants), [LOCOMO](https://github.com/snap-research/locomo), [BEAM](https://github.com/vectorize-io/agent-memory-benchmark), and a suite of cognitive-mechanism micro-benchmarks. Every published number ships with a per-cell run JSON at fixed seed, a 95% confidence interval, judge false-positive rate probed per benchmark, and explicit methodology disclosures for every cross-vendor comparison.
 
@@ -30,39 +30,29 @@ Methodology, per-category breakdowns, and all documented negative architecture f
 
 ## What ships in agentos
 
-The bench's `MemoryRouter` and `ReaderRouter` primitives ship in [`@framers/agentos`](https://github.com/framersai/agentos) so consumers can wire the same dispatch logic directly:
+The bench's routing primitives ship in [`@framers/agentos`](https://github.com/framerslab/agentos) under `@framers/agentos/memory-router`: the `MemoryRouter` class, which picks a recall backend per query, and `selectReader`, which maps a question category to a reader tier through a preset table.
 
 ```ts
-import { Memory } from '@framers/agentos';
-import { ReaderRouter } from '@framers/agentos/memory-router';
-import { OpenAIEmbedder } from '@framers/agentos-bench/cognitive';
+import { selectReader } from '@framers/agentos/memory-router';
 
-const mem = await Memory.createSqlite({
-  path: './memory.sqlite',
-  embedder: new OpenAIEmbedder('text-embedding-3-small'),
-  // No policyRouter, no observationalMemory — canonical-hybrid for all cases
-  readerRouter: new ReaderRouter({
-    preset: 'min-cost-best-cat-2026-04-28',
-    classifier: gpt5miniClassifier,
-    readers: { 'gpt-4o': gpt4o, 'gpt-5-mini': gpt5mini },
-  }),
-});
+selectReader('temporal-reasoning', 'min-cost-best-cat-2026-04-28'); // 'gpt-4o'
+selectReader('multi-session', 'min-cost-best-cat-2026-04-28');      // 'gpt-5-mini'
 ```
 
 ## Quickstart — reproduce the 85.6% headline
 
 ```bash
-git clone https://github.com/framersai/agentos-bench
+git clone https://github.com/framerslab/agentos-bench
 cd agentos-bench
 pnpm install
 pnpm build
 
 # Set OPENAI_API_KEY and COHERE_API_KEY in your environment
 
-# Download LongMemEval-S dataset (per upstream instructions at
-# https://github.com/xiaowu0162/LongMemEval) into data/longmemeval/longmemeval_s.json
+# Download the LongMemEval-S dataset into data/longmemeval/longmemeval_s.json
+pnpm bench setup --benchmark longmemeval-s
 
-NODE_OPTIONS="--max-old-space-size=8192" pnpm exec tsx src/cli.ts run longmemeval-s \
+NODE_OPTIONS="--max-old-space-size=8192" pnpm bench run longmemeval-s \
   --reader gpt-4o \
   --memory full-cognitive --replay ingest \
   --hybrid-retrieval --rerank cohere \
@@ -87,7 +77,7 @@ Direct apples-to-apples reproductions of vendor-published methods, instrumented 
 
 - **Per-cell run JSON at seed 42** — [`results/runs/`](results/runs/). LongMemEval-M run JSONs exceed the GitHub 100 MB recommendation and are gitignored; their `--summary.json` siblings are committed.
 - **95% confidence interval** computed by resampling per-case scores 10 000 times at seed 42 for every reported aggregate
-- **Judge false-positive rate probe** per benchmark — LongMemEval-S 1% [0%, 3%], LongMemEval-M 2% [0%, 5%], LOCOMO 0% [0%, 0%]. See [`docs/SESSION_2026-04-24_TRANSPARENT_NEGATIVES.md`](docs/SESSION_2026-04-24_TRANSPARENT_NEGATIVES.md), [`docs/STAGE_G_LONGMEMEVAL_M_FINDINGS_2026-04-26.md`](docs/STAGE_G_LONGMEMEVAL_M_FINDINGS_2026-04-26.md), [`docs/STAGE_G_LOCOMO_JUDGE_FPR_PROBE_2026-04-24.md`](docs/STAGE_G_LOCOMO_JUDGE_FPR_PROBE_2026-04-24.md).
+- **Judge false-positive rate probe** per benchmark — LongMemEval-S 1% [0%, 3%], LongMemEval-M 2% [0%, 5%], LOCOMO 0% [0%, 0%].
 - **8 negative architecture findings** documented at [`results/eval-matrix-v1/transparency-notes.md`](results/eval-matrix-v1/transparency-notes.md): Stage L Anthropic Contextual Retrieval, Stage I Mem0-v3-style entity-linking re-rank, Stage H hierarchical retrieval, two-call reader compounded with M-tuned, M-tuned flags compounded on S, all-OM Mastra-architecture clone on S, gpt-4o classifier upgrade, and 7 stress-tested adjacent configurations on the 84.8% baseline.
 - **Per-vendor caveats** — every cross-vendor accuracy/cost/latency comparison row footnotes which dimensions are apples-to-apples vs not. Mastra and Supermemory do not publish $/correct or per-case latency, so direct comparisons against them on those axes are unmeasurable until vendor-reproduction adapters land.
 
@@ -101,7 +91,7 @@ src/
   cognitive/          Embedders + cognitive-memory wiring
   memory-router/      Reader router calibration tables (mirror of agentos's MemoryRouter)
   readers/            HTTP reader adapters (OpenAI, Anthropic) + MockReader for tests
-docs/                 Findings docs (per-stage Phase A/B writeups), specs, plans
+docs/                 Blog post and architecture notes
 results/
   LEADERBOARD.md            Top-level results table for all benchmarks
   eval-matrix-v1/           v1 publication artifacts (transparency-notes, comparison-table)
@@ -115,7 +105,7 @@ vendors/              Vendor-reproduction adapters (run their methods in our har
 The CLI surface is the primary user-facing API; entrypoint at [`src/cli.ts`](src/cli.ts). Programmatic API surfaces:
 
 - `BenchmarkRunner` ([`src/core/BenchmarkRunner.ts`](src/core/BenchmarkRunner.ts)): orchestrates a benchmark run with configurable readers, judge, retrieval, and concurrency.
-- `MemoryRouter` and `ReaderRouter` are re-exported via [`@framers/agentos`](https://github.com/framersai/agentos) so consumer apps share dispatch logic with the bench.
+- `MemoryRouter` and `selectReader` ship in [`@framers/agentos`](https://github.com/framerslab/agentos) (`@framers/agentos/memory-router`) so consumer apps share dispatch logic with the bench.
 - Cognitive embedder factory at [`src/cognitive/createCognitiveManager.ts`](src/cognitive/createCognitiveManager.ts).
 - Per-benchmark adapters under [`src/benchmarks/`](src/benchmarks/) implement a common runner contract.
 
@@ -127,22 +117,19 @@ Every public entrypoint has TSDoc; type-checked via `pnpm exec tsc --noEmit -p t
 - Reproduce the LongMemEval-M 70.2% headline:
 
   ```bash
-  NODE_OPTIONS="--max-old-space-size=8192" pnpm exec tsx src/cli.ts run longmemeval-m \
+  NODE_OPTIONS="--max-old-space-size=8192" pnpm bench run longmemeval-m \
     --reader gpt-4o \
     --memory full-cognitive --replay ingest \
     --hybrid-retrieval --rerank cohere \
+    --rerank-candidate-multiplier 5 \
+    --hyde \
     --embedder-model text-embedding-3-small \
     --reader-router min-cost-best-cat-2026-04-28 \
     --reader-top-k 5 \
     --concurrency 5 \
     --bootstrap-resamples 10000
   ```
-- Vendor reproduction (e.g., Mastra OM):
-
-  ```bash
-  pnpm exec tsx vendors/mastra-om/run.ts --reader gpt-4o
-  ```
-- Per-stage findings + scenarios are under [`docs/`](docs/) and [`scenarios/`](scenarios/) (one folder per stage with run JSONs and analysis).
+- Vendor reproduction (EmergenceMem Simple Fast): see [`vendors/emergence-simple-fast/README.md`](vendors/emergence-simple-fast/README.md).
 
 ## License
 
