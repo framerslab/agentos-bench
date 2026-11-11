@@ -4,7 +4,7 @@ This directory wraps the open-source [`EmergenceAI/emergence_simple_fast`](https
 
 ## Why this exists
 
-The v1 LongMemEval-S publication claimed that AgentOS canonical-hybrid + reader router is roughly 2-3× cheaper per correct than EmergenceMem Internal (86.0%); that AgentOS result came from a run that called Cohere's reranker and is being re-run without a remote reranker. That claim was *inferred* from three measurable proxies (1.6× faster median latency, 53% gpt-5-mini reader dispatch, 2 vs 2-3 LLM calls per case) but **not directly measured**. EmergenceMem's Internal model is closed-source so cost-per-correct on the 86% number cannot be measured directly — but their **Simple Fast** open-source variant (79% accuracy at 3.59 s/item median) is fully measurable. Wiring their reference implementation into our cost/latency harness gives us at least one apples-to-apples vendor reproduction in the matrix.
+The v1 LongMemEval-S publication claimed that AgentOS canonical-hybrid + reader router (85.6% [82.4%, 88.6%]) is roughly 2-3× cheaper per correct than EmergenceMem Internal (86.0%). That claim was *inferred* from three measurable proxies (1.6× faster median latency, 53% gpt-5-mini reader dispatch, 2 vs 2-3 LLM calls per case) but **not directly measured**. EmergenceMem's Internal model is closed-source so cost-per-correct on the 86% number cannot be measured directly — but their **Simple Fast** open-source variant (79% accuracy at 3.59 s/item median) is fully measurable. Wiring their reference implementation into our cost/latency harness gives us at least one apples-to-apples vendor reproduction in the matrix.
 
 ## What's apples-to-apples
 
