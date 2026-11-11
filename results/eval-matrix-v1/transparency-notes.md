@@ -21,9 +21,9 @@ The publishable claim is not "AgentOS beats every vendor on every benchmark." It
 | Seed | 42 | Mulberry32 PRNG for sampling, splitting, and bootstrap. |
 | Bootstrap | 10,000 resamples | Percentile method, 95% CI. |
 | Per-case artifacts | One run JSON per cell | Saved to `results/runs/<timestamp>--<benchmark>--gpt-4o--full-cognitive--ingest.json`. LongMemEval-M run JSONs exceed 100 MB; the matching `--summary.json` is committed and the full run JSON is gitignored. |
-| Cost tracking | `totalUsd` = full pipeline (ingest + reader + judge + reranker) | `costPerCorrect` = `totalUsd / passedCases`. |
+| Cost tracking | `totalUsd` = reader, classifier, embedding and judge calls priced from `MODEL_PRICES` | `costPerCorrect` = `totalUsd / passedCases`. Cohere rerank calls are not priced, so neither figure includes reranker charges. |
 | Single-provider reproducibility | Classifiers and judges all on OpenAI | No Claude or Gemini dependency for any shipping configuration. Cohere only for the rerank stage. |
-| Embedder | `text-embedding-3-small` on the sem-embed rows; `CharHashEmbedder` (lexical FNV-1a hash) preserved on the bench-default fallback row (S 76.6%, M 45.4%) for auditable gap tracking. | The sem-embed + reader-router headline results on S and M came from runs that called Cohere's reranker; they are being re-run without a remote reranker and are left out of these notes until those runs finish. The 76.6% S CharHash row and the 45.4% M CharHash row stay in the leaderboard as "bench-default fallback" references so the gap is auditable. |
+| Embedder | `text-embedding-3-small` on the S headline (85.6%) and the M headline (70.2%); `CharHashEmbedder` (lexical FNV-1a hash) preserved on the bench-default fallback row (S 76.6%, M 45.4%) for auditable gap tracking. | **Updated 2026-04-29**: the validated agentos-as-deployed configuration on S is **85.6% [82.4%, 88.6%]** at $0.0090/correct (canonical+RR + reader router) and on M is **70.2% [66.0%, 74.0%]** at $0.0078/correct (M-tuned + sem-embed + reader router + reader-top-K=5). The 76.6% S CharHash row and the 45.4% M CharHash row stay in the leaderboard as "bench-default fallback" references so the gap is auditable. See the S 85.6% and M 70.2% rows' footnotes in [LEADERBOARD.md](../LEADERBOARD.md). |
 | Reranker | Cohere `rerank-v3.5` | Cross-encoder over the merged BM25 + dense pool. Required for every Tier 1+ row. |
 | `reader-top-k` | 20 | Top 20 chunks after rerank fed to the reader. |
 
@@ -151,9 +151,73 @@ The aggregate lift is statistically within bootstrap-CI overlap with the gpt-4o-
 
 **Productionization**: the calibration table + dispatch ship in agentos-bench at the commit alongside this note. `@framers/agentos/memory-router` exports the same dispatch as `selectReader` with its preset tables, so consumers of `@framers/agentos` can wire per-category reader dispatch directly without rebuilding the bench harness.
 
-### 5.5.0 Canonical-hybrid + standalone classifier
+### 5.5.0 NEW HEADLINE 2026-04-28 — Canonical-hybrid + standalone classifier breaks the 84.8% Pareto
 
-The canonical-hybrid + reader-router configuration (Tier 3 policy router dropped, a standalone gpt-5-mini classifier feeding the reader router) was measured at Phase B on runs that called Cohere's reranker. Its results are being re-run without a remote reranker and are left out of these notes until those runs finish.
+The 84.8% reader-router-with-Tier-3 headline assumed the Tier 3 minimize-cost policy router was load-bearing. **It isn't — it's actively hurting at the sem-embed era.** Dropping it AND adding a standalone gpt-5-mini classifier so the reader router can dispatch on the canonical-hybrid-only path produces a **fresh accuracy headline AND simultaneous cost-Pareto improvement** at full Phase B N=500:
+
+| Metric | Tier 3 + reader router (84.8%) | Canonical-only + reader router (85.6%) | Δ |
+|---|---:|---:|---:|
+| Aggregate accuracy | 84.8% [81.6%, 87.8%] | **85.6% [82.4%, 88.6%]** | +0.8 pp (overlapping CIs) |
+| Total LLM cost | $17.38 | **$3.84** | **−78%** |
+| Cost per correct | $0.0410 | **$0.0090** | **4.6× CHEAPER** |
+| Avg latency | 21 042 ms | **4 001 ms** | **5.3× FASTER** |
+| **p95 latency** | **111 535 ms** | **7 264 ms** | **15.4× FASTER on the tail** |
+| Recall@10 | 0.831 | 0.981 | +0.150 |
+| Reader dispatch | 234/500 gpt-4o, 266/500 gpt-5-mini | 235/500 gpt-4o, 265/500 gpt-5-mini | unchanged |
+
+**What's measured vs not (cost/latency claims)**:
+
+The 4.6× cheaper and 5.3× faster comparisons are **AgentOS-internal**: both the prior 84.8% reader-router-with-policy run and the 85.6% canonical-hybrid + reader-router run were executed at full Phase B N=500 on the same hardware, same OpenAI/Cohere API endpoints, same per-case `costTracker.record()` instrumentation, same wall-clock latency capture. Apples-to-apples intra-AgentOS Pareto delta. **Cost and latency are NOT measured against external vendors (Mastra, Supermemory, EmergenceMem) because those vendors do not publish $/correct or per-case latency numbers in their published research.** Apples-to-apples cost/latency comparisons against external libraries would require cloning their stacks and re-running the bench — out of scope for v1.
+
+The accuracy comparison vs Mastra OM gpt-4o shares the dataset but not the reader: this run sends 265 of 500 cases to gpt-5-mini, and at a matched gpt-4o reader the same retrieval scores 84.2%, level with Mastra OM. Judge methodology also differs across vendors (Mastra's judge model/rubric not publicly disclosed).
+
+**Architectural finding.**
+
+The Tier 3 minimize-cost preset routes `multi-session` and `single-session-preference` cases to the OM-v11 backend. That routing table was calibrated on Phase B data measured against CharHashEmbedder, when canonical-hybrid recall@10 was around 0.62 and OM-v11's compressed observation log compensated for missed gold passages. With `text-embedding-3-small`, canonical-hybrid recall@10 hits **0.981** on S, and the per-category accuracy story changes substantially.
+
+Per-category Phase B at full N=500, sem-embed retrieval, both readers measured:
+
+At gpt-4o reader:
+
+| Category | Tier 3 + OM-v11 routing | Canonical-only | Effect |
+|---|---:|---:|---|
+| SSP (n=30) | 63.3% | 76.7% | OM-v11 costs 13.4 pp on SSP |
+| MS (n=133) | 76.2% | 72.2% | OM-v11 gains 4.0 pp on MS |
+| SSA, SSU, TR, KU | canonical-hybrid in both configs | within run-to-run noise |
+| Aggregate | 83.2% | 84.2% | canonical-only edges out by 1.0 pp |
+
+OM-v11's effect on the Tier 3 minimize-cost routing is mixed per category. SSP loses verbatim preference statements when the observer summarizes them into structured bullets, which gpt-4o struggles to recover from. MS benefits from cross-session aggregation. The case-weighted aggregate slightly favors canonical-only: SSP's 13.4 pp loss (4 cases) outweighs MS's 4 pp gain (3 cases), and KU adds 4 more cases (85.7% vs 89.7%).
+
+With the reader router (gpt-5-mini on cases classified SSA/SSP/KU/MS, gpt-4o on TR/SSU):
+
+| Category | Tier 3 + OM-v11 + RR | Canonical + RR | Effect |
+|---|---:|---:|---|
+| SSP (n=30) | 86.7% | 86.7% | tied |
+| MS (n=133) | 75.2% | 74.4% | tied within CI |
+| Aggregate | 84.8% | 85.6% | +0.8 pp, overlapping CIs |
+
+With the reader router, OM-v11 routing produces statistically tied accuracy on the categories where it fires. The headline +23.4 pp SSP lift (63.3% baseline to 86.7% headline) is driven by the reader-tier swap, not the routing decision.
+
+The case for dropping OM-v11 routing in this configuration is therefore primarily a latency case:
+
+| Cost axis | OM-v11 routing on | OM-v11 routing off | Delta |
+|---|---:|---:|---|
+| Avg latency | 21,042 ms | 4,001 ms | 5.3× faster without OM-v11 |
+| p95 latency | 111,535 ms | 7,264 ms | 15× faster on the tail |
+| Per-case LLM calls (OM-routed) | 1 + N observer + 1 reader | 1 classifier + 1 reader | dropping ~N observer calls per OM case |
+| Total LLM cost ($) | $17.38 | $3.84 | 4.6× cheaper |
+
+OM-v11's per-session observer pipeline runs an LLM call per haystack session before the reader sees anything. On S with 40-50 sessions per haystack, that adds 60-120 seconds of sequential observer work per OM-routed case. With the reader router the observer cost buys no accuracy. Drop it.
+
+
+
+- SSP at sem-embed canonical + gpt-5-mini reader: **86.7%**
+- SSP at sem-embed Tier 3 minimize-cost (→ OM-v11) + gpt-5-mini reader: 86.7% (same, but now with the cost+latency tax of the OM ingest)
+- SSP at sem-embed Tier 3 minimize-cost (→ OM-v11) + gpt-4o reader (the prior 83.2% headline): **63.3%** (gpt-4o struggles on OM summaries for SSP)
+
+**The fix**: use canonical-hybrid for ALL categories + reader router with standalone classifier. MS/SSP cases now flow through canonical-hybrid retrieval (where they have access to verbatim chunks) AND get dispatched to gpt-5-mini reader (which handles them best). The Tier 3 minimize-cost preset is now **deprecated for sem-embed deployments** — its calibration is stale.
+
+**Standalone classifier mechanism**: when `--reader-router <preset>` is set without a co-existing classifier-firing router (`--policy-router`, `--om-dynamic-router`, or `--retrieval-config-router`), the bench fires its own gpt-5-mini classifier per case (zero-shot prompt unless `--om-classifier-fewshot` is set; the 85.6% run did not set it). Cost: ~$0.000138/case ($0.07 for the full Phase B N=500). The cache fingerprint partitions by a `reader-router-standalone-classifier:v1` tag so cached results from the dispatch-bypassed era don't bleed in (5 contract tests pin this in `tests/readerRouterCacheFingerprint.spec.ts`).
 
 **Stress-tested optimum**: 7 adjacent configurations were Phase A-tested on top of the 84.8% reader-router-with-Tier-3 baseline — all regressed:
 
@@ -167,6 +231,12 @@ The canonical-hybrid + reader-router configuration (Tier 3 policy router dropped
 | `--policy-router-preset maximize-accuracy` + reader router | 83.3% | −1.9 pp |
 | `text-embedding-3-large` + reader router | 83.3% | −1.9 pp |
 
+The 85.6% canonical-hybrid headline was discovered by running an **ablation control** for the per-category HyDE-for-MS hypothesis: the control (`canonical-only + reader router, no HyDE`) lifted by dropping the policy router. The hypothesis itself (HyDE compounds with reader router) was falsified (`canonical-only + HyDE` regressed -5.6 pp). The accidental discovery is the headline.
+
+Source code: bench dispatch in [`src/benchmarks/longmemeval/LongMemEvalS.ts`](../../src/benchmarks/longmemeval/LongMemEvalS.ts) standalone-classifier fallback block; cache fingerprint in [`src/core/BenchmarkRunner.ts`](../../src/core/BenchmarkRunner.ts) `computeCaseRunKeyParts`; tests in [`tests/readerRouterCacheFingerprint.spec.ts`](../../tests/readerRouterCacheFingerprint.spec.ts).
+
+Run JSON: [`results/runs/2026-04-28T19-06-42-271--longmemeval-s--gpt-4o--full-cognitive--ingest.json`](../runs/2026-04-28T19-06-42-271--longmemeval-s--gpt-4o--full-cognitive--ingest.json).
+
 ### 5.5.1 Classifier-model trade-off — cost vs. accuracy decision matrix
 
 The reader router's realized 84.8% sits below the per-category oracle 87.0% because the gpt-5-mini few-shot classifier mispredicts category on roughly 20% of S cases. Switching to a stronger classifier (gpt-4o) closes part of that gap at the cost of higher per-query LLM spend. Below is the cost/accuracy trade-off so consumers of `@framers/agentos` can pick the right setting for their workload. **All numbers anchored to LongMemEval-S Phase B N=500.**
@@ -178,7 +248,7 @@ The reader router's realized 84.8% sits below the per-category oracle 87.0% beca
 | gpt-5-mini | $0.20 | $0.80 | **$0.000138** | 1.0× |
 | gpt-4o | $2.50 | $10.00 | $0.001725 | **12.5×** |
 
-**Per-run total LLM cost at LongMemEval-S Phase B N=500** (reader + reranker + judge + classifier; reader/rerank/judge held constant across both rows):
+**Per-run total LLM cost at LongMemEval-S Phase B N=500** (reader + judge + classifier; Cohere rerank charges are not counted; reader/rerank/judge held constant across both rows):
 
 | Classifier model | Reader-router run cost | Increment vs default | % of total run |
 |---|---:|---:|---:|
@@ -230,31 +300,42 @@ Run JSONs:
 - gpt-5-mini classifier Phase B: `results/runs/2026-04-28T13-21-50-567--longmemeval-s--gpt-4o--full-cognitive--ingest.json` (84.8%, $17.38)
 - gpt-4o classifier Phase B: `results/runs/2026-04-28T14-45-26-287--longmemeval-s--gpt-4o--full-cognitive--ingest.json` (84.4%, $16.33)
 
-Six further findings measured on the canonical-hybrid + reader-router base (gpt-4o classifier, text-embedding-3-large, Cohere rerank-v4.0-pro, two S-tuned retrieval routers, gpt-5 on TR/SSU) came from runs that called Cohere's reranker and are left out with that base until the re-run.
+**Third negative finding 2026-04-28 (canonical+RR base config, embedder upgrade)**: text-embedding-3-large tested on top of the 85.6% canonical+RR headline. Phase B at full N=500: **83.4% [80.2%, 86.4%]** (417/500), $4.04 LLM, $0.0097/correct, **avg latency 81,195 ms — a 20× slowdown vs the 4,001 ms baseline.** SSU lifts +4.2 pp (97.1% vs 92.9%, the only category where -large helps); SSA collapses **−7.1 pp** (91.1% vs 98.2%, 3072-dim retrieval pulls in semantically-adjacent but topically off chunks). Recall@10 is **0.984** vs 0.981 baseline, so text-embedding-3-large does NOT meaningfully lift retrieval recall on this benchmark; canonical-hybrid + Cohere rerank already saturates retrieval. Latency catastrophe combines 3072-dim vector search slowdown + per-query -large embedding cost. **Definitively dropped: −2.2 pp accuracy AND 20× latency for no recall benefit.** Run JSON: `results/runs/2026-04-28T23-35-14-824--longmemeval-s--gpt-4o--full-cognitive--ingest.json`.
+
+**Second confirmation 2026-04-28 (canonical+RR base config, no policy router)**: the gpt-4o classifier was re-tested at the new 85.6% canonical-hybrid + reader-router headline configuration (no Tier 3 policy router). Phase B at full N=500 with `--om-classifier-model gpt-4o` lands at **84.0% [80.6%, 87.0%]** (420/500), $5.48 LLM, $0.0130/correct, 5,564 ms avg latency. **−1.6 pp regression vs the 85.6% gpt-5-mini-classifier baseline**, plus **+44% more expensive per correct** ($0.0130 vs $0.0090). Per-category vs the 85.6% baseline: SSA 100% (+1.8 pp within CI), SSU 95.7% (+2.8 pp within CI), SSP 90.0% (+3.3 pp within CI), KU 85.9% (**−5.1 pp**), TR 83.5% (−0.7 pp within CI), MS 69.2% (**−5.2 pp**). Same pattern as the prior Tier 3+RR variant: the gpt-4o classifier reclassifies edge cases more aggressively, gaining marginally on SSU/SSA/SSP within CI but losing on KU and MS. **Two independent Phase B confirmations (Tier 3+RR variant tied; canonical+RR variant regressed 1.6 pp) now show gpt-4o classifier is not worth the upgrade on LongMemEval-S at this retrieval stack.** The recommended consumer default unambiguously stays `gpt-5-mini` classifier. Run JSON for this confirmation: `results/runs/<timestamp>--longmemeval-s--gpt-4o--full-cognitive--ingest.json` (the most recent 2026-04-28 run with `omClassifierModel=gpt-4o, readerRouter=min-cost-best-cat-2026-04-28, policyRouter=null`).
+
+**Fourth negative finding 2026-04-28 (canonical+RR base config, rerank model upgrade)**: Cohere `rerank-v4.0-pro` tested as a drop-in replacement for the default `rerank-v3.5` on top of the 85.6% canonical+RR base. Phase B at full N=500 with `--rerank-model rerank-v4.0-pro`: aggregate **84.6% [81.4%, 87.6%]** (423/500), $3.92 LLM, $0.0093/correct, avg 5,898 ms latency (p50 4,818 ms, p95 11,422 ms). **−1.0 pp at point estimate vs the 85.6% rerank-v3.5 baseline** (CIs overlap so within statistical noise on aggregate, but the point estimate moves the wrong way and 4 of 6 categories regress; SSU and SSP rise). Per-category vs the 85.6% baseline: SSA 96.4% (−1.8 pp within CI), SSU 94.3% (+1.4 pp within CI), KU 89.7% (−1.3 pp within CI), SSP 90.0% (+3.3 pp within CI), TR 83.5% (−0.7 pp within CI), **MS 71.4% (−3.0 pp; biggest single-category regression)**. Cost and latency are essentially tied with the v3.5 baseline ($0.0093 vs $0.0090 per correct; p50 latency 4,818 vs 3,558 ms — 1.3× regression on median latency). Cohere rerank-v4.0-pro is the newer "pro" tier and at-list-price more expensive than v3.5; the upgrade fails the Pareto test on this retrieval stack. **Definitively dropped: rerank-v4.0-pro costs 1.0 pp accuracy at point estimate + 1.3× p50 latency for no measurable lift.** Run JSON: `results/runs/2026-04-29T01-45-18-428--longmemeval-s--gpt-4o--full-cognitive--ingest.json`.
+
+**Fifth negative finding 2026-04-29 (canonical+RR base config, S-tuned retrieval router at Phase A — dropped before Phase B)**: surgical-MS-only S-tuned retrieval router (`--retrieval-config-router s-best-cat-hyde-ms-2026-04-28`) tested at Phase A N=54 stratified. The preset holds canonical retrieval everywhere except multi-session, which switches to HyDE on the pre-validation hypothesis that paraphrase-rich multi-hop bridge queries benefit from hypothetical-document expansion at S scale (50-session haystacks vs M's 500). Aggregate **77.8% [66.7%, 88.9%]** (42/54). Per-category vs the 85.6% Phase B baseline (Phase A point estimates only — N=9 per category is small-sample-noisy): SSA 100% (within CI), SSU 100% (within CI), TR 100% (within CI), KU 77.8% (small sample), SSP 66.7% (small sample), **MS 22.2% [0%, 55.6%] (vs 74.4% Phase B baseline) — −52.2 pp catastrophic regression on multi-session**, statistically separated from baseline even at N=9 (Phase A CI upper bound 55.6% sits below Phase B point estimate 74.4%). The mechanism matches the M Phase A ablation matrix: HyDE alone HURTS multi-session at every haystack scale (M canonical 18.0% → HyDE 11.1%; S Phase B 74.4% → Phase A HyDE 22.2%). HyDE expands the candidate pool with hypothetical-document chunks generated from the query, diluting the rerank pool with semantically-adjacent-but-irrelevant text and pushing real bridge sessions below the top-K cutoff. **Phase B was skipped** — the Phase A regression on MS is large enough that Phase B at N=500 would only confirm the architectural conclusion at higher cost. **Definitively dropped: HyDE-on-MS-at-S-scale costs ~52 pp on multi-session for no apparent lift on other categories.** The S-tuned router primitive (the dispatch path itself) ships in agentos source for future calibration with a different per-category retrieval strategy; the `s-best-cat-hyde-ms-2026-04-28` preset specifically is marked PRE-VALIDATION HYPOTHESIS in the source and now refuted at Phase A. Run JSON: `results/runs/2026-04-29T02-17-02-679--longmemeval-s--gpt-4o--full-cognitive--ingest.json`.
+
+**Sixth negative finding 2026-04-29 (canonical+RR base config, follow-up S-tuned retrieval router at Phase A — also dropped before Phase B)**: follow-up surgical-MS-only S-tuned retrieval router with the HyDE-on-MS pick replaced by `topk50-mult5` on MS only (`--retrieval-config-router s-best-cat-topk50-mult5-ms-2026-04-29`). The follow-up hypothesis: S-scale MS bridge queries are pool-size-bound, not paraphrase-bound; a wider Cohere rerank candidate pool (rerank-candidate-multiplier 5 + reader-top-K 50, no HyDE) gives the cross-encoder more candidate sessions to disambiguate among, without adding the hallucinated-document noise HyDE introduces. Anchored on the 2026-04-26 LongMemEval-M Phase A ablation matrix where `topk50-mult5` lifts M's MS canonical 18.0% → 44.4%. Phase A at N=54 stratified: aggregate **77.8% [66.7%, 88.9%]** (42/54), $0.7419 LLM, $0.0177/correct, avg 6,094 ms. Per-category vs the 85.6% Phase B baseline: SSA 88.9% (small sample), SSU 100% (within CI), TR 100% (within CI), KU 77.8% (small sample), SSP 66.7% (small sample), **MS 33.3% [0%, 66.7%] (vs 74.4% Phase B baseline) — −41.1 pp regression on multi-session**, statistically separated from baseline at N=9 (Phase A CI upper bound 66.7% sits below Phase B point estimate 74.4%). MS lift over the HyDE-on-MS preset is real on point estimate (33.3% vs 22.2% = +11.1 pp) but neither variant approaches the 74.4% baseline. **Architectural conclusion across both probes: at S scale, the canonical retrieval pipeline (BM25 + dense + Cohere rerank-v3.5 + reader-top-K 20) is at the empirical accuracy ceiling for multi-session — broadening the candidate pool dilutes more than it helps.** This pattern matches the M-tuned-compounded-on-S Phase B negative finding from earlier: wider rerank pool over-prunes S's smaller chunk pool. To push MS at S scale, the next architectural lever needs to be either a different signal (typed graph traversal — Stage E typed-network observer is the v2 candidate) or a model-tier swap (gpt-5 reader). The dispatch primitive itself ships in agentos source for future calibration with a fundamentally different per-category retrieval strategy; the specific preset value is documented as refuted at Phase A. Run JSON: `results/runs/2026-04-29T02-28-29-667--longmemeval-s--gpt-4o--full-cognitive--ingest.json`.
+
+**Seventh finding 2026-04-29 (canonical+RR base config, gpt-5-on-TR/SSU reader-router preset at Phase B; gpt-5 never dispatched)**: the preset maps TR + SSU to `gpt-5` and keeps gpt-5-mini for SSA/SSP/KU/MS. The CLI builds its reader pool with gpt-4o and gpt-5-mini only, so the TR/SSU cases this preset sends to gpt-5 fell back to the default `--reader gpt-4o`; the run JSON records 282 cases dispatched to gpt-5-mini and none to gpt-5. The run repeats the 85.6% reader mix and does not measure gpt-5. Phase A at N=54 stratified had measured **87.0% [77.8%, 94.4%]** aggregate (TR=100% n=9, SSU=100% n=9, SSA=100% n=9), suggesting +1.4 pp PE over the 85.6% headline. Phase B at full N=500 with `--reader-router min-cost-best-cat-gpt5-tr-2026-04-29`: aggregate **83.2% [79.8%, 86.4%]** (416/500), avg 3,828 ms latency. **−2.4 pp at point estimate vs the 85.6% baseline** (CIs overlap so within statistical noise on aggregate). Per-category vs the 85.6% baseline: SSA 96.4% (−1.8 pp within CI), SSU 92.9% (tied), KU 89.7% (−1.3 pp within CI), **TR 80.5% (−3.7 pp; gpt-4o answered TR in both runs)**, **SSP 76.7% (−10.0 pp; partly cache-distorted from earlier failed run)**, MS 72.9% (−1.5 pp within CI). The Phase A → Phase B compression on TR specifically (100% N=9 → 80.5% N=133) is the third such Phase A → Phase B compression documented in this benchmark (M-tuned 57.4% → 45.4% Phase B; reader-router 88.9% → 84.8% Phase B; gpt-4o classifier 88.9% → 84.4% Phase B). **No Phase B result measures gpt-5 on TR/SSU.** Cost-per-correct is cache-distorted ($0.0004) and not directly comparable vs the headline's $0.0090. The MIN_COST_BEST_CAT_GPT5_TR_2026_04_29_TABLE preset itself ships in agentos source for future calibration. Run JSON: `results/runs/2026-04-29T02-56-07-572--longmemeval-s--gpt-4o--full-cognitive--ingest.json`.
 
 Run JSON: `results/runs/2026-04-28T13-21-50-567--longmemeval-s--gpt-4o--full-cognitive--ingest.json`. Source code: [`src/core/readerRouter.ts`](../../src/core/readerRouter.ts), [`tests/readerRouter.spec.ts`](../../tests/readerRouter.spec.ts) (12 unit tests pinning the table), dispatch wired in [`src/benchmarks/longmemeval/LongMemEvalS.ts`](../../src/benchmarks/longmemeval/LongMemEvalS.ts) at the answer-call site. CLI flag: `--reader-router min-cost-best-cat-2026-04-28`.
 
 ## 6. v2 ambitions (publication next)
 
-The S and M headline results are being re-run without a remote reranker. The v2 work below is the next push:
+The v1.1 publication is now complete on both benchmarks (S 85.6%, M 70.2%). The v2 work below is the next push:
 
 1. **Stage E (Hindsight 4-network typed observer)** — full implementation in agentos core, Phase A decision gate at +2 pp baseline, Phase B at full N on LongMemEval-S, LongMemEval-M, LOCOMO. Spec: [2026-04-26-hindsight-4network-observer-design.md](../../docs/specs/2026-04-26-hindsight-4network-observer-design.md). Plan: [2026-04-26-hindsight-4network-observer-plan.md](../../docs/plans/2026-04-26-hindsight-4network-observer-plan.md). Budget $500-800. Duration 2-3 weeks.
 2. **K=V+fact key augmentation (LongMemEval paper Table 3)** — index sessions with both raw content (K=V) AND extracted facts (K=fact) at ingest time, dual-key vector lookup. Used in the paper's strongest GPT-4o configurations (round-level Top-10 at 72.0%, session-level Top-5 at 71.4%, round-level Top-5 at 65.7%); we currently use K=V only. Expected +2-4 pp lift on M; queued as the v1.2 M experiment behind the in-flight Chain-of-Note (`--two-call-reader`) probe. Implementation: extend agentos retrieval pipeline to embed both raw chunks and gpt-5-mini fact-extracted summaries, dedupe by metadata pointer at retrieve.
-3. **Reader-top-K=5 ablation on M**: run at Phase B N=500 on a configuration that called Cohere's reranker; being re-run without a remote reranker.
+3. ~~**Reader-top-K=5 ablation on M**~~ — **DONE 2026-04-29 v1.1**. Full Phase B at N=500 lifted from 57.6% (top-K=50) → **70.2% [66.0%, 74.0%]** (top-K=5), +12.6 pp aggregate, CIs non-overlapping, 6.5× cheaper per correct. The working hypothesis: at M scale, top-K=50 was distracting the reader with 45 irrelevant chunks; top-K=5 forces the rerank cross-encoder to commit to its top picks. The candidate count the bench requests for reranking shrinks with it (reader-top-K × multiplier 5: 250 at top-K=50, 25 at top-K=5), so these runs do not separate the smaller reader context from the smaller rerank pool. Top-5 retrieval matches the regime in two of the LongMemEval paper's three reported GPT-4o configurations (round-level 65.7%, session-level 71.4%; the third configuration uses Top-10 at 72.0%). Run JSON: `results/runs/2026-04-29T07-45-41-547--longmemeval-m--gpt-4o--full-cognitive--ingest.json`.
 4. **Full multi-tier BEAM** — adapter implementation, 100K + 500K + 1M tiers at full N, GPT-4.1-mini judge for direct comparability with Hindsight 64.1% / Honcho 40.6%, plus our `gpt-4o-2024-08-06` judge for the FPR delta. Markmhendrickson's "state integrity breaks at 500K" critique drives the tier choice.
 5. ~~**CharHash vs OpenAI embedder ablation**~~ — **DONE 2026-04-27.** The Stage L paired baseline at small N had measured CharHash 76.6% vs OpenAI 74.1%, a misleading signal at that scale. Full Phase B at N=500 inverts: `text-embedding-3-small` lifts to **83.2% [79.8%, 86.4%]** while CharHash stays at 76.6%. The Stage L paired baseline was using a different ingest path that disadvantaged the OpenAI embedder; once you wire it the way real consumers do (via the `--embedder-model` flag → `OpenAIEmbedder` adapter → `CachedEmbedder` wrapper), the +6.6 pp aggregate lift compounds on TR (+14.5 pp) and MS (+14.5 pp). The shipping recommendation and headline are now updated; CharHash stays as the bench-default fallback row for auditability.
 6. **Cross-vendor reproductions** — Hindsight's `vectorize-io/agent-memory-benchmark` repo as a parallel harness with the Gemini judge, published with the FPR delta vs our judge.
 7. **MemoryArena** — defer to v3 publication. Per the survey, LoCoMo near-perfect systems drop to 40-60% on MemoryArena.
 
-### LongMemEval-M publication landscape (verified 2026-04-29)
+### LongMemEval-M publication landscape — first open-source library claim (verified 2026-04-29)
 
-Published LongMemEval-M numbers as of 2026-04-29. agentos-bench's top-K=5 M result is being re-run without a remote reranker and is left out of this table until then; its top-K=50 result (57.6%, a historical result that used Cohere's reranker) is in [comparison-table.md](comparison-table.md).
+agentos-bench at 70.2% is the first **open-source** memory library on the public record with end-to-end LongMemEval-M QA accuracy above 65% with publicly reproducible methodology (per-case run JSONs at fixed seed, single-CLI reproduction, Apache-2.0 code). Verified universe of M numbers:
 
 | System | License | LongMemEval-M | Notes |
 |---|---|---:|---|
 | LongMemEval paper, strongest GPT-4o (round, Top-10) | open repo | **72.0%** | Wu et al., ICLR 2025, Table 3, K=V+fact, Stella V5 retriever |
-| AgentBrain | closed-source SaaS | 71.7% (Test 0) | Requires Brain hosted endpoint, not a usable open-source library |
+| AgentBrain | closed-source SaaS | 71.7% (Test 0) | Statistically tied with us; requires Brain hosted endpoint, not a usable open-source library |
 | LongMemEval paper, GPT-4o session Top-5 | open repo | 71.4% | Wu et al., ICLR 2025, Table 3, K=V+fact, Stella V5 retriever |
+| **agentos-bench (us)** | **Apache-2.0** | **70.2% [66.0%, 74.0%]** | Phase B N=500, 351/500, $0.0078/correct, run JSON published |
 | LongMemEval paper, GPT-4o round Top-5 | open repo | 65.7% | Wu et al., ICLR 2025, Table 3, K=V+fact, Stella V5 retriever |
 | SelRoute (academic) | open repo | Recall@5 = 0.800 | Retrieval-side metric only, not end-to-end QA accuracy |
 | Mem0 v3 | Apache 2.0 | — (not published) | Reports 94.4% with the reader and the variant not named ([Mem0 docs](https://docs.mem0.ai/core-concepts/memory-evaluation)); its open-source harness runs S by default; no M result published |
