@@ -1,0 +1,9 @@
+results/runs/*.json filter=lfs diff=lfs merge=lfs -text
+results/runs/*.csv filter=lfs diff=lfs merge=lfs -text
+
+# Crashed runs whose run files are not published: keep the pointer text as
+# plain files so a clone with Git LFS installed does not fail on them.
+results/runs/2026-04-27T02-57-10-370--beam-100k--gpt-4o--full-cognitive--ingest.json -filter -diff -merge
+results/runs/2026-04-28T23-35-11-601--longmemeval-m--gpt-4o--full-cognitive--ingest.json -filter -diff -merge
+results/runs/2026-04-29T02-41-18-648--longmemeval-s--gpt-4o--full-cognitive--ingest.json -filter -diff -merge
+results/runs/2026-04-29T02-48-19-633--longmemeval-s--gpt-4o--full-cognitive--ingest.json -filter -diff -merge
