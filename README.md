@@ -59,10 +59,11 @@ NODE_OPTIONS="--max-old-space-size=8192" pnpm bench run longmemeval-s \
   --embedder-model text-embedding-3-small \
   --reader-router min-cost-best-cat-2026-04-28 \
   --concurrency 5 \
-  --bootstrap-resamples 10000
+  --bootstrap-resamples 10000 \
+  --seed 42
 ```
 
-Expected wall-clock: ~10-15 min at concurrency 5. Expected cost: ~$3.84 in OpenAI fees, plus Cohere rerank charges, which the bench does not price.
+Expected wall-clock: ~10-15 min at concurrency 5. Expected cost: ~$3.84 in OpenAI reader and judge fees, plus OpenAI embedding charges and Cohere rerank charges, which the bench does not price.
 
 ## Vendor reproduction adapters
 
@@ -117,6 +118,9 @@ Every public entrypoint has TSDoc; type-checked via `pnpm exec tsc --noEmit -p t
 - Reproduce the LongMemEval-M 70.2% headline:
 
   ```bash
+  # Download the LongMemEval-M dataset into data/longmemeval/longmemeval_m.json
+  pnpm bench setup --benchmark longmemeval-m
+
   NODE_OPTIONS="--max-old-space-size=8192" pnpm bench run longmemeval-m \
     --reader gpt-4o \
     --memory full-cognitive --replay ingest \
@@ -127,7 +131,8 @@ Every public entrypoint has TSDoc; type-checked via `pnpm exec tsc --noEmit -p t
     --reader-router min-cost-best-cat-2026-04-28 \
     --reader-top-k 5 \
     --concurrency 5 \
-    --bootstrap-resamples 10000
+    --bootstrap-resamples 10000 \
+    --seed 42
   ```
 - Vendor reproduction (EmergenceMem Simple Fast): see [`vendors/emergence-simple-fast/README.md`](vendors/emergence-simple-fast/README.md).
 
