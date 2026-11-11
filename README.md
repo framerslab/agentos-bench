@@ -62,7 +62,7 @@ NODE_OPTIONS="--max-old-space-size=8192" pnpm bench run longmemeval-s \
   --bootstrap-resamples 10000
 ```
 
-Expected wall-clock: ~10-15 min at concurrency 5. Expected cost: ~$3.84 in OpenAI/Cohere fees.
+Expected wall-clock: ~10-15 min at concurrency 5. Expected cost: ~$3.84 in OpenAI fees, plus Cohere rerank charges, which the bench does not price.
 
 ## Vendor reproduction adapters
 
