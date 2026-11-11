@@ -84,9 +84,9 @@ Direct apples-to-apples reproductions of vendor-published methods, instrumented 
 
 ## Run files
 
-The run JSON and CSV files under `results/runs/` are stored with [Git LFS](https://git-lfs.com). A plain clone holds small pointer files; the full files download on demand.
+The run JSON and CSV files under `results/runs/` are stored with [Git LFS](https://git-lfs.com). A clone with Git LFS installed downloads every run file, about 2 GB; a clone with `GIT_LFS_SKIP_SMUDGE=1` (or without Git LFS) holds small pointer files instead.
 
-Fetch one run with Git:
+Fetch one run with Git, skipping the rest:
 
 ```bash
 git lfs install
@@ -101,9 +101,9 @@ Or download it directly, without Git:
 curl -L -O https://media.githubusercontent.com/media/framerslab/agentos-bench/master/results/runs/2026-04-28T19-06-42-271--longmemeval-s--gpt-4o--full-cognitive--ingest.json
 ```
 
-That file is the 85.6% LongMemEval-S run (`passedCases` 428 of `totalCases` 500). A plain `git clone` with Git LFS installed downloads every run file, about 2 GB.
+That file is the 85.6% LongMemEval-S run (`passedCases` 428 of `totalCases` 500).
 
-Four run files from crashed runs are not published; their pointers stay in the tree and their downloads answer 404:
+Four run files are not published, because their per-case error text holds local build paths. Their pointers stay in the tree and their downloads answer 404. Three are crashed runs (the BEAM 100K and two LongMemEval-S runs below); the fourth is the superseded LongMemEval-M top-K=50 run (57.6%, 288/500) that `results/LEADERBOARD.md` and `results/eval-matrix-v1/comparison-table.md` cite:
 
 - `2026-04-27T02-57-10-370--beam-100k--gpt-4o--full-cognitive--ingest.json`
 - `2026-04-28T23-35-11-601--longmemeval-m--gpt-4o--full-cognitive--ingest.json`
