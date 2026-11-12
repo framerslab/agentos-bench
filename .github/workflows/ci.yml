@@ -29,6 +29,34 @@ jobs:
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
+      # Only the legacy token-retention fixture is read from the LFS run archive.
+      # Hash the checked-out pointer before restoring its hydrated contents.
+      - name: Restore the LFS test fixture
+        id: lfs-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: results/runs/2026-04-23T04-14-40-609--longmemeval-s--gpt-4o--full-cognitive--ingest.json
+          key: lfs-test-fixture-${{ runner.os }}-${{ hashFiles('results/runs/2026-04-23T04-14-40-609--longmemeval-s--gpt-4o--full-cognitive--ingest.json') }}
+      - name: Fetch only the LFS test fixture
+        if: steps.lfs-cache.outputs.cache-hit != 'true'
+        run: git lfs pull --include "results/runs/2026-04-23T04-14-40-609--longmemeval-s--gpt-4o--full-cognitive--ingest.json" --exclude ""
+      - name: Verify the LFS test fixture
+        env:
+          FIXTURE: results/runs/2026-04-23T04-14-40-609--longmemeval-s--gpt-4o--full-cognitive--ingest.json
+        run: |
+          pointer=$(git show "HEAD:$FIXTURE")
+          oid=$(printf '%s\n' "$pointer" | sed -n 's/^oid sha256://p')
+          size=$(printf '%s\n' "$pointer" | sed -n 's/^size //p')
+          printf '%s  %s\n' "$oid" "$FIXTURE" | sha256sum --check
+          test "$(wc -c < "$FIXTURE")" -eq "$size"
+          echo "LFS test fixture: $size bytes"
+      # Save before the suite so an unrelated test failure does not repeat a download.
+      - name: Save the LFS test fixture
+        if: steps.lfs-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: results/runs/2026-04-23T04-14-40-609--longmemeval-s--gpt-4o--full-cognitive--ingest.json
+          key: ${{ steps.lfs-cache.outputs.cache-primary-key }}
       - uses: actions/setup-node@v5
         with:
           node-version: '22'

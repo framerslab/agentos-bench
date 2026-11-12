@@ -12,8 +12,8 @@
  *   - Throws an actionable error pointing to the upstream download URL
  *     when the tier directory is missing.
  *
- * The 100K tier dataset is committed under `data/beam/100k/` so this
- * test runs offline and CI-stable.
+ * These tests require the upstream 100K tier files under `data/beam/100k/`.
+ * That cache is ignored by Git and is not stored in this repository's LFS archive.
  *
  * @module agentos-bench/tests/Beam.dataset.spec
  */
