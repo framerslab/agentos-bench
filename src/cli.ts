@@ -1371,7 +1371,7 @@ export function buildCli(): Command {
           );
         }
         const { InMemoryVectorStore } = await import(
-          '@framers/agentos/rag/vector_stores/InMemoryVectorStore'
+          '@framers/agentos/cognition/rag'
         );
         const summaryVectorStore = new InMemoryVectorStore();
         await summaryVectorStore.initialize({
