@@ -29,6 +29,21 @@ jobs:
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
+      # Measure checksums on the runner before pinning the test cache.
+      - name: Inspect pinned BEAM files
+        env:
+          BEAM_SOURCE: https://raw.githubusercontent.com/vectorize-io/agent-memory-benchmark/28b644bd4dd653c0207c7507280439390c829155/data/beam/100k
+        run: |
+          mkdir -p "$RUNNER_TEMP/beam"
+          cd "$RUNNER_TEMP/beam"
+          for file in queries.json.gz documents.json.gz; do
+            curl --fail --location --retry 3 --output "$file" "$BEAM_SOURCE/$file"
+          done
+          test "$(wc -c < queries.json.gz)" -eq 56681
+          test "$(wc -c < documents.json.gz)" -eq 2745433
+          test "$(git hash-object queries.json.gz)" = 7683115864c02f0592f791a01a3ae22a8a353ae0
+          test "$(git hash-object documents.json.gz)" = ec209e394cc282300c46702810f9dd8793e9ae83
+          sha256sum queries.json.gz documents.json.gz
       # Only the legacy token-retention fixture is read from the LFS run archive.
       # Hash the checked-out pointer before restoring its hydrated contents.
       - name: Restore the LFS test fixture
