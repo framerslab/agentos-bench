@@ -170,6 +170,18 @@ Every public entrypoint has TSDoc; type-checked via `pnpm exec tsc --noEmit -p t
   ```
 - Vendor reproduction (EmergenceMem Simple Fast): see [`vendors/emergence-simple-fast/README.md`](vendors/emergence-simple-fast/README.md).
 
+**Development.** CI runs the type check, the suite, the build and the built CLI on every ready pull request (`.github/workflows/ci.yml`), against the published `@framers/agentos` named in `package.json`. The lockfile is resolved by the `Lockfile` workflow and committed from its artifact; `package.json` and `pnpm-lock.yaml` change together. The suite needs the BEAM 100k files `queries.json.gz` and `documents.json.gz` under `data/beam/100k/`. CI fetches them from a pinned upstream commit, verifies their sizes and SHA-256 checksums, and caches them. To get the same files locally, run the following from the repository root (the CLI's `setup` command does not yet register BEAM):
+
+```sh
+mkdir -p data/beam/100k
+beam_source=https://raw.githubusercontent.com/vectorize-io/agent-memory-benchmark/28b644bd4dd653c0207c7507280439390c829155/data/beam/100k
+for file in queries.json.gz documents.json.gz; do
+  curl --fail --location --retry 3 --output "data/beam/100k/$file" "$beam_source/$file" || exit 1
+done
+```
+
+The expected sizes are 56,681 and 2,745,433 bytes respectively; the pinned checksums are in [the CI workflow](.github/workflows/ci.yml). BEAM is [CC BY-SA 4.0](https://huggingface.co/datasets/Mohammadta/BEAM/raw/3205395e897e7318c7b094ef4e6047b9b82dbb03/README.md); the dataset files are downloaded for testing and are not redistributed by this repository.
+
 ## License
 
 Apache 2.0 — see [LICENSE](LICENSE).

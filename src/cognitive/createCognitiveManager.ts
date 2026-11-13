@@ -31,12 +31,12 @@ import {
 } from '@framers/agentos';
 import type { HexacoTraits, PADState } from '@framers/agentos';
 import type { IEmbeddingManager } from '@framers/agentos/core/embeddings/IEmbeddingManager';
-import { InMemoryVectorStore } from '@framers/agentos/rag/vector_stores/InMemoryVectorStore';
+import { InMemoryVectorStore } from '@framers/agentos/cognition/rag';
 import {
   RerankerService,
   CohereReranker,
   type CohereRerankerModel,
-} from '@framers/agentos/rag/reranking';
+} from '@framers/agentos/cognition/rag/reranking';
 import { CharHashEmbedder, CHAR_HASH_DIM } from './charHashEmbedder.js';
 import { MinimalWorkingMemoryBacking } from '../micro/support/MinimalWorkingMemoryBacking.js';
 import {

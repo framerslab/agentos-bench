@@ -9,7 +9,7 @@
  * @module agentos-bench/micro/support/MinimalWorkingMemoryBacking
  */
 
-import type { IWorkingMemory } from '@framers/agentos/cognitive_substrate/memory/IWorkingMemory';
+import type { IWorkingMemory } from '@framers/agentos/cognition/substrate/memory/IWorkingMemory';
 
 /**
  * Map-backed IWorkingMemory implementation.

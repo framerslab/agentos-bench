@@ -18,7 +18,7 @@
  * @module agentos-bench/cognitive/OpenAIEmbedder
  */
 
-import { embedText } from '@framers/agentos/api/embedText';
+import { embedText } from '@framers/agentos/api';
 import type {
   EmbeddingRequest,
   EmbeddingResponse,

@@ -1,0 +1,140 @@
+name: CI
+
+# A pull request that is ready runs the type check, the suite, the build and the built CLI.
+# A draft and a push to master run the type check alone: the pull request that merged ran the
+# suite on the same tree.
+on:
+  pull_request:
+    branches: [master]
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [master]
+  workflow_dispatch: {}
+
+# A newer push to a pull request cancels the run it replaces; every other run keys its own group.
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && github.run_attempt == '1' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' && github.run_attempt == '1' }}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && !github.event.pull_request.draft)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      # The suite needs only the 100k tier; no dataset is committed here.
+      - name: Restore BEAM 100k
+        id: beam-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data/beam/100k
+          key: beam-100k-vectorize-io-28b644bd4dd653c0207c7507280439390c829155-v1
+      - name: Fetch BEAM 100k
+        if: steps.beam-cache.outputs.cache-hit != 'true'
+        env:
+          BEAM_SOURCE: https://raw.githubusercontent.com/vectorize-io/agent-memory-benchmark/28b644bd4dd653c0207c7507280439390c829155/data/beam/100k
+        run: |
+          mkdir -p data/beam/100k
+          cd data/beam/100k
+          for file in queries.json.gz documents.json.gz; do
+            curl --fail --location --retry 3 --connect-timeout 30 --max-time 300 \
+              --output "$file" --write-out "$file: %{size_download} bytes fetched\n" "$BEAM_SOURCE/$file"
+          done
+      - name: Verify BEAM 100k
+        env:
+          CACHE_HIT: ${{ steps.beam-cache.outputs.cache-hit }}
+        run: |
+          cd data/beam/100k
+          test "$(wc -c < queries.json.gz)" -eq 56681
+          test "$(wc -c < documents.json.gz)" -eq 2745433
+          sha256sum --check <<'SHA256'
+          f58e001b3aeb0f13c894aa0ca6896a8181addbec4c140cc982cd0de9c0f0c465  queries.json.gz
+          fc0e64bac38fcde26eece776e818f70374338d4591ecc75346cb27b613d4c128  documents.json.gz
+          SHA256
+          echo "BEAM 100k: 2802114 bytes verified"
+          if [ "$CACHE_HIT" = true ]; then
+            echo "BEAM 100k cache restored; zero dataset bytes fetched"
+          fi
+      - name: Save BEAM 100k
+        if: steps.beam-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: data/beam/100k
+          key: ${{ steps.beam-cache.outputs.cache-primary-key }}
+      # Only the legacy token-retention fixture is read from the LFS run archive.
+      # Hash the checked-out pointer before restoring its hydrated contents.
+      - name: Restore the LFS test fixture
+        id: lfs-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: results/runs/2026-04-23T04-14-40-609--longmemeval-s--gpt-4o--full-cognitive--ingest.json
+          key: lfs-test-fixture-${{ runner.os }}-${{ hashFiles('results/runs/2026-04-23T04-14-40-609--longmemeval-s--gpt-4o--full-cognitive--ingest.json') }}
+      - name: Fetch only the LFS test fixture
+        if: steps.lfs-cache.outputs.cache-hit != 'true'
+        run: git lfs pull --include "results/runs/2026-04-23T04-14-40-609--longmemeval-s--gpt-4o--full-cognitive--ingest.json" --exclude ""
+      - name: Verify the LFS test fixture
+        env:
+          FIXTURE: results/runs/2026-04-23T04-14-40-609--longmemeval-s--gpt-4o--full-cognitive--ingest.json
+        run: |
+          pointer=$(git show "HEAD:$FIXTURE")
+          oid=$(printf '%s\n' "$pointer" | sed -n 's/^oid sha256://p')
+          size=$(printf '%s\n' "$pointer" | sed -n 's/^size //p')
+          printf '%s  %s\n' "$oid" "$FIXTURE" | sha256sum --check
+          test "$(wc -c < "$FIXTURE")" -eq "$size"
+          echo "LFS test fixture: $size bytes"
+      # Save before the suite so an unrelated test failure does not repeat a download.
+      - name: Save the LFS test fixture
+        if: steps.lfs-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: results/runs/2026-04-23T04-14-40-609--longmemeval-s--gpt-4o--full-cognitive--ingest.json
+          key: ${{ steps.lfs-cache.outputs.cache-primary-key }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10
+      - name: Install dependencies
+        id: install
+        run: pnpm install --frozen-lockfile
+      - name: Type check
+        run: pnpm typecheck
+      # The suite runs even when the type check is red, so one run names both kinds of failure.
+      - name: Test
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm test
+      - name: Build
+        id: build
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm build
+      - name: The built CLI lists its benchmarks
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: node dist/cli.js list
+
+  quick:
+    name: Quick checks
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.draft)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Type check
+        run: pnpm typecheck

@@ -9,11 +9,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // Mocks must be registered before the module under test is imported.
-vi.mock('@framers/agentos/api/embedText', () => ({
+vi.mock('@framers/agentos/api', () => ({
   embedText: vi.fn(),
 }));
 
-import { embedText } from '@framers/agentos/api/embedText';
+import { embedText } from '@framers/agentos/api';
 import {
   DEFAULT_OPENAI_EMBED_MODEL,
   OpenAIEmbedder,
