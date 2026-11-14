@@ -10,7 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { BenchmarkRunner } from '../src/core/BenchmarkRunner.js';
 import type { RunConfig } from '../src/core/IBenchmark.js';
-import { resetGmiDriver } from '../src/drivers/gmiDriver.js';
+import { gmiUpstreamProblem, resetGmiDriver } from '../src/drivers/gmiDriver.js';
 import { LongMemEvalJudge, LongMemEvalS, MockReader } from '../src/index.js';
 import { startOpenAiStub, type OpenAiStub } from './helpers/openaiStub.js';
 
@@ -123,4 +123,18 @@ describe('a run that names an upstream the environment does not point at', () =>
     },
     120_000,
   );
+});
+
+// The run file and the cache key record an endpoint as scheme, host, port and path. A query or fragment on the
+// variable is not part of that record, so two URLs that differ only there would share one key while the proxy sent
+// to each as written: the driver refuses either, in a dry run and in a live run.
+describe('an OPENAI_BASE_URL with a query or a fragment', () => {
+  it.each([
+    'http://127.0.0.1:4010/v1?tenant=a',
+    'http://localhost:4010/v1#a',
+    'https://api.openai.com/v1?tenant=a',
+  ])('is refused: %s', (url) => {
+    expect(gmiUpstreamProblem(url, false)).toMatch(/query or a fragment/);
+    expect(gmiUpstreamProblem(url, true)).toMatch(/OPENAI_BASE_URL/);
+  });
 });

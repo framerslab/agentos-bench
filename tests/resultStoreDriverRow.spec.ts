@@ -11,12 +11,19 @@ import { buildCli } from '../src/cli.js';
 import { ResultStore } from '../src/core/ResultStore.js';
 import type { BenchResult, RunConfig } from '../src/core/IBenchmark.js';
 import { renderLeaderboard } from '../src/reporting/MarkdownLeaderboard.js';
+import { renderSweepReport } from '../src/reporting/sweepReport.js';
 
-function buildResult(config: RunConfig, accuracy: number, startedAt: string): BenchResult {
+function buildResult(
+  config: RunConfig,
+  accuracy: number,
+  startedAt: string,
+  extra: Partial<BenchResult> = {},
+): BenchResult {
   return {
     benchmarkId: 'longmemeval-s',
     benchmarkVersion: '1.0.0',
     config,
+    cases: [],
     totalCases: 2,
     passedCases: Math.round(2 * accuracy),
     accuracy,
@@ -31,6 +38,7 @@ function buildResult(config: RunConfig, accuracy: number, startedAt: string): Be
     costPerCorrect: 0,
     startedAt,
     completedAt: startedAt,
+    ...extra,
   };
 }
 
@@ -91,6 +99,47 @@ describe('a driver run in the summary', () => {
     expect(listed).toHaveLength(2);
     expect(listed.find((line) => line.includes('100.0%'))).toMatch(/\bgmi\b/);
     expect(listed.find((line) => line.includes('50.0%'))).not.toMatch(/\bgmi\b/);
+  });
+
+  // Two runs that start in the same millisecond with the same reader and modes write two run files, and each row
+  // points at its own.
+  it('a driver run and a bench-path run that start together keep a run file each', async () => {
+    const store = new ResultStore(tmp);
+    const startedAt = '2026-11-03T10:00:00.000Z';
+    const benchFile = await store.save(buildResult(BENCH_PATH, 0.5, startedAt), 'external');
+    const driverFile = await store.save(buildResult(DRIVER, 1, startedAt), 'external');
+    expect(driverFile).not.toBe(benchFile);
+    expect(await fs.readdir(path.join(tmp, 'runs'))).toHaveLength(2);
+    const { latest } = await store.readSummary();
+    for (const entry of Object.values(latest)) {
+      const saved = JSON.parse(await fs.readFile(path.join(tmp, entry.runFile), 'utf8')) as BenchResult;
+      expect(saved.config.driver).toBe(entry.driver);
+      expect(saved.accuracy).toBe(entry.accuracy);
+    }
+  });
+
+  it('the sweep report names the driver in the champion line, the cells table and the footprint label', async () => {
+    const store = new ResultStore(tmp);
+    const footprint = {
+      meanBrainBytes: 2048,
+      p95BrainBytes: 4096,
+      meanTraceCount: 10,
+      maxPeakWorkingMemorySlots: 7,
+      totalEncodeCalls: 20,
+    };
+    await store.save(buildResult(BENCH_PATH, 0.5, '2026-11-01T10:00:00.000Z'), 'external');
+    await store.save(buildResult(DRIVER, 1, '2026-11-02T10:00:00.000Z', { memoryFootprint: footprint }), 'external');
+
+    const report = await fs.readFile(await renderSweepReport({ resultsDir: tmp }), 'utf8');
+    // The driver row is the champion here: the headline says so.
+    expect(report).toMatch(/\*\*Champion cell \(longmemeval-s\):\*\* gpt-4o \/ full-cognitive \/ observe \/ --driver gmi/);
+    const cells = report.split('## All cells')[1]!.split('\n\n## ')[0]!;
+    expect(cells).toMatch(/\| Driver \|/);
+    const rows = cells.split('\n').filter((line) => line.startsWith('| longmemeval-s'));
+    expect(rows).toHaveLength(2);
+    expect(rows.find((line) => line.includes('100.0%'))).toMatch(/\| gmi \|/);
+    expect(rows.find((line) => line.includes('50.0%'))).not.toMatch(/gmi/);
+    expect(report).toContain('Benchmark: `longmemeval-s` — gpt-4o / full-cognitive / observe / --driver gmi');
   });
 
   // Rows saved before the driver was keyed keep their keys: a bench-path row is found where it always was.
