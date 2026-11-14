@@ -6,6 +6,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { existsSync, promises as fs, readdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import { buildCli } from '../src/cli.js';
@@ -16,6 +17,9 @@ import { gmiUpstreamProblem, resetGmiDriver } from '../src/drivers/gmiDriver.js'
 import { LongMemEvalJudge, LongMemEvalS, MockReader } from '../src/index.js';
 import { startOpenAiStub, type OpenAiStub } from './helpers/openaiStub.js';
 
+/** The installed library's version: the agent answers every driver case, so the cache keys a driver run by it. */
+const AGENTOS_VERSION: string = createRequire(import.meta.url)('@framers/agentos/package.json').version;
+
 const CASES = [
   {
     question_id: 'gmi-1',
@@ -23,6 +27,7 @@ const CASES = [
     question: 'What is my coffee order?',
     answer: 'oat flat white',
     question_date: '2026-04-18',
+    answer_session_ids: ['s0'],
     haystack_sessions: [
       [
         { role: 'user', content: 'My coffee order is an oat flat white.' },
@@ -136,7 +141,7 @@ describe('run --driver gmi', () => {
       await run('--budget', '1200');
       const result = await onlyRun();
       expect(result.config.driver).toBe('gmi');
-      expect(result.config.gmiUpstreamHost).toBe('127.0.0.1');
+      expect(result.config.gmiUpstream).toBe(stub.url);
       expect(result.cases.map((c: { error?: string }) => c.error)).toEqual([undefined, undefined]);
       expect(result.cases.map((c: { actualOutput: string }) => c.actualOutput)).toEqual([
         'An oat flat white.',
@@ -156,6 +161,11 @@ describe('run --driver gmi', () => {
       for (const seen of stub.chat) expect(seen.body.tools ?? []).toEqual([]);
       for (const c of result.cases) {
         expect(c.metadata.driver).toBe('gmi');
+        expect(c.metadata.agentosVersion).toBe(AGENTOS_VERSION);
+        expect(c.metadata.upstream).toBe(stub.url);
+        // The driver records recall in `memoryRecall`, not as retrieved sessions: a case with gold sessions gets no
+        // retrieval score rather than a zero.
+        expect(c.retrievalMetrics ?? null).toBeNull();
         expect(c.metadata.ingest).toMatchObject({ extraModelRequests: 0 });
         expect(c.metadata.memoryRecall.version).toBe('memory-recall-capture/1');
         expect(c.metadata.memoryRecall.budget.requested).toBe(1200);
@@ -177,8 +187,11 @@ describe('run --driver gmi', () => {
     async () => {
       const ids = path.join(tmp, 'ids.json');
       await fs.writeFile(ids, JSON.stringify({ tuning: ['gmi-2'] }));
-      await run('--case-ids', ids);
-      expect((await onlyRun()).cases.map((c: { caseId: string }) => c.caseId)).toEqual(['gmi-2']);
+      // An `openai:`-prefixed embedder id is the same model as the bare one.
+      await run('--case-ids', ids, '--embedder-model', 'openai:text-embedding-3-small');
+      const picked = await onlyRun();
+      expect(picked.cases.map((c: { caseId: string }) => c.caseId)).toEqual(['gmi-2']);
+      expect(picked.cases.map((c: { error?: string }) => c.error)).toEqual([undefined]);
       expect(await readCaseIds(ids)).toEqual(['gmi-2']);
       await fs.writeFile(ids, JSON.stringify(['nope']));
       await expect(run('--case-ids', ids)).rejects.toThrow(/nope/);
@@ -243,13 +256,15 @@ describe('run --driver gmi', () => {
         gmiRecall: { store: 'sqlite' },
       } as RunConfig);
       expect(result.cases.map((c) => c.error)).toEqual([undefined, undefined]);
-      expect(result.cases.map((c) => c.metadata?.upstreamHost)).toEqual(['127.0.0.1', '127.0.0.1']);
+      expect(result.cases.map((c) => c.metadata?.upstream)).toEqual([stub.url, stub.url]);
       // At each case's question its own file is the only one: the case before it left none behind.
       expect(atEachQuestion).toHaveLength(2);
       expect(atEachQuestion[0]).toHaveLength(1);
-      expect(atEachQuestion[0]![0]).toMatch(/^gmi-bench-gmi-1-/);
+      // The file is named by the case's proxy key, whose random part (128 bits) no other process can guess: the key
+      // is what lets a request through the proxy to the provider under the real key.
+      expect(atEachQuestion[0]![0]).toMatch(/^gmi-bench-gmi-1-[0-9a-f]{32}\.sqlite$/);
       expect(atEachQuestion[1]).toHaveLength(1);
-      expect(atEachQuestion[1]![0]).toMatch(/^gmi-bench-gmi-2-/);
+      expect(atEachQuestion[1]![0]).toMatch(/^gmi-bench-gmi-2-[0-9a-f]{32}\.sqlite$/);
     },
     END_TO_END_TIMEOUT_MS,
   );
@@ -270,6 +285,9 @@ describe('run --driver gmi', () => {
     [['--om-reader-scaffold'], '--om-reader-scaffold'],
     [['--memory', 'none'], '--memory'],
     [['--replay', 'ingest'], '--replay'],
+    // The agent embeds through OpenAI: another provider's model would fail at the first filed turn.
+    [['--embedder-model', 'ollama:nomic-embed-text'], '--embedder-model'],
+    [['--embedder-model', 'nomic-embed-text'], '--embedder-model'],
   ])('refuses %j with the driver, naming the flag', async (extra, named) => {
     const errors = await captureErrors(() => run(...extra));
     expect(process.exitCode).toBe(2);
@@ -281,6 +299,8 @@ describe('run --driver gmi', () => {
     [['--driver', 'react'], '--driver'],
     [['--gmi-store', 'redis'], '--gmi-store'],
     [['--budget', 'many'], 'integer'],
+    // A budget of 0 tokens would send an empty memory block for every question.
+    [['--budget', '0'], 'positive integer'],
   ])('refuses the value in %j', async (extra, named) => {
     await expect(run(...extra)).rejects.toThrow(named);
     expect(stub.chat).toEqual([]);
@@ -296,6 +316,74 @@ describe('run --driver gmi', () => {
     expect(process.exitCode).toBe(2);
     expect(errors).toContain('--driver gmi');
   });
+
+  // The probe's synthesizer calls a provider by a fixed URL, and a dry run calls none. The key is unset here so that
+  // a run that is not refused fails before any request leaves the process.
+  it.each([
+    ['with the driver', ['--driver', 'gmi', '--reader', 'gpt-4o-mini']],
+    ["on the bench's own path", []],
+  ])('refuses --judge-adversarial in a dry run, %s', async (_label, extra) => {
+    delete process.env.OPENAI_API_KEY;
+    const errors = await captureErrors(() =>
+      buildCli().parseAsync([
+        'node', 'agentos-bench', 'run', 'longmemeval-s', '--data-dir', dataDir, '--results-dir', resultsDir,
+        '--dry-run', '--judge-adversarial', ...extra,
+      ]),
+    );
+    expect(process.exitCode).toBe(2);
+    expect(errors).toContain('--judge-adversarial');
+    expect(existsSync(path.join(resultsDir, 'runs'))).toBe(false);
+  });
+
+  // The preflight aborts before any request, so this live run never reaches a provider.
+  it('the cost preflight counts the cases --case-ids lists, not the whole dataset', async () => {
+    const ids = path.join(tmp, 'ids.json');
+    await fs.writeFile(ids, JSON.stringify(['gmi-2']));
+    const logs: string[] = [];
+    const original = console.log;
+    console.log = (...a: unknown[]) => {
+      logs.push(a.join(' '));
+    };
+    try {
+      await captureErrors(() =>
+        buildCli().parseAsync([
+          'node', 'agentos-bench', 'run', 'longmemeval-s', '--reader', 'gpt-4o', '--data-dir', dataDir,
+          '--results-dir', resultsDir, '--case-ids', ids, '--max-usd', '0.000001',
+        ]),
+      );
+    } finally {
+      console.log = original;
+    }
+    expect(process.exitCode).toBe(1);
+    expect(logs.join('\n')).toMatch(/Preflight cost estimate: ~\$[0-9.]+ for 1 cases/);
+    expect(stub.chat).toEqual([]);
+  });
+
+  it(
+    "a second run in the process reaches its own upstream, not the first run's",
+    async () => {
+      const ids = path.join(tmp, 'ids.json');
+      await fs.writeFile(ids, JSON.stringify(['gmi-2']));
+      await run('--case-ids', ids);
+      const second = await startOpenAiStub(() => 'The 7:15 ferry.');
+      try {
+        process.env.OPENAI_BASE_URL = second.url;
+        await run('--case-ids', ids);
+        // Each question went to the stub its run names: the replay proxy of the first run was not reused for it,
+        // and the first run's cached answer did not stand in for the second's.
+        expect(stub.chat).toHaveLength(1);
+        expect(second.chat).toHaveLength(1);
+        const files = await fs.readdir(path.join(resultsDir, 'runs'));
+        const upstreams = await Promise.all(
+          files.map(async (f) => JSON.parse(await fs.readFile(path.join(resultsDir, 'runs', f), 'utf8')).config.gmiUpstream),
+        );
+        expect(upstreams.sort()).toEqual([stub.url, second.url].sort());
+      } finally {
+        await second.close();
+      }
+    },
+    END_TO_END_TIMEOUT_MS,
+  );
 
   it('refuses --case-ids on a benchmark other than LongMemEval', async () => {
     const errors = await captureErrors(() =>
@@ -383,28 +471,50 @@ describe('the driver in the case-run cache key', () => {
     expect(a.resultKeyParts).not.toEqual(b.resultKeyParts);
   });
 
+  // The agent answers every driver case, so an answer cached under one release of the library never serves another.
+  it('carries the installed agentos version, in both keys', () => {
+    const a = parts({ ...base, driver: 'gmi' } as RunConfig);
+    for (const p of [a.runKeyParts, a.resultKeyParts]) {
+      expect(p.some((x) => String(x).startsWith('driver:gmi:') && String(x).includes(`:agentos@${AGENTOS_VERSION}:`))).toBe(true);
+    }
+  });
+
   // A dry run answers from a stub on this machine; its cached answers must never stand in for a live run's.
-  it('partitions by the upstream host, so a stub run never answers for a live one', () => {
-    const stubRun = parts({ ...base, driver: 'gmi', gmiUpstreamHost: '127.0.0.1' } as RunConfig);
-    const liveRun = parts({ ...base, driver: 'gmi', gmiUpstreamHost: 'api.openai.com' } as RunConfig);
+  it('partitions by the upstream, so a stub run never answers for a live one', () => {
+    const stubRun = parts({ ...base, driver: 'gmi', gmiUpstream: 'http://127.0.0.1:4010/v1' } as RunConfig);
+    const liveRun = parts({ ...base, driver: 'gmi', gmiUpstream: 'https://api.openai.com/v1' } as RunConfig);
     expect(stubRun.runKeyParts).not.toEqual(liveRun.runKeyParts);
     expect(stubRun.resultKeyParts).not.toEqual(liveRun.resultKeyParts);
   });
 
-  // A run built without the CLI sets no host: the key reads it where the driver will, from the environment.
-  it('reads the upstream host from the environment when the run names none', () => {
+  // Two stubs on one machine are told apart by their ports: one stub's answers never serve a run against the other.
+  it('partitions two stubs on one host by port', () => {
+    const first = parts({ ...base, driver: 'gmi', gmiUpstream: 'http://127.0.0.1:4010/v1' } as RunConfig);
+    const second = parts({ ...base, driver: 'gmi', gmiUpstream: 'http://127.0.0.1:4020/v1' } as RunConfig);
+    expect(first.runKeyParts).not.toEqual(second.runKeyParts);
+    expect(first.resultKeyParts).not.toEqual(second.resultKeyParts);
+  });
+
+  // A run built without the CLI names no upstream: the key reads it where the driver will, from the environment.
+  it('reads the upstream from the environment when the run names none', () => {
     const saved = process.env.OPENAI_BASE_URL;
     try {
-      process.env.OPENAI_BASE_URL = 'http://127.0.0.1:4010/v1';
+      process.env.OPENAI_BASE_URL = 'http://127.0.0.1:4010/v1/';
       const stubRun = resolveRunConfig({ ...base, driver: 'gmi' } as RunConfig);
+      process.env.OPENAI_BASE_URL = 'http://127.0.0.1:4020/v1';
+      const otherStubRun = resolveRunConfig({ ...base, driver: 'gmi' } as RunConfig);
       delete process.env.OPENAI_BASE_URL;
       const liveRun = resolveRunConfig({ ...base, driver: 'gmi' } as RunConfig);
-      expect(stubRun.gmiUpstreamHost).toBe('127.0.0.1');
-      expect(liveRun.gmiUpstreamHost).toBe('api.openai.com');
+      expect(stubRun.gmiUpstream).toBe('http://127.0.0.1:4010/v1');
+      expect(otherStubRun.gmiUpstream).toBe('http://127.0.0.1:4020/v1');
+      expect(liveRun.gmiUpstream).toBe('https://api.openai.com/v1');
       expect(computeCaseRunKeyParts(stubRun, key).runKeyParts).not.toEqual(computeCaseRunKeyParts(liveRun, key).runKeyParts);
-      // A host the run names stands, and a run on the bench's own path gets none.
-      expect(resolveRunConfig({ ...base, driver: 'gmi', gmiUpstreamHost: 'localhost' } as RunConfig).gmiUpstreamHost).toBe('localhost');
-      expect(resolveRunConfig(base).gmiUpstreamHost).toBeUndefined();
+      expect(computeCaseRunKeyParts(stubRun, key).runKeyParts).not.toEqual(computeCaseRunKeyParts(otherStubRun, key).runKeyParts);
+      // An upstream the run names stands, and a run on the bench's own path gets none.
+      expect(resolveRunConfig({ ...base, driver: 'gmi', gmiUpstream: 'http://localhost:4010/v1' } as RunConfig).gmiUpstream).toBe(
+        'http://localhost:4010/v1',
+      );
+      expect(resolveRunConfig(base).gmiUpstream).toBeUndefined();
     } finally {
       if (saved === undefined) delete process.env.OPENAI_BASE_URL;
       else process.env.OPENAI_BASE_URL = saved;

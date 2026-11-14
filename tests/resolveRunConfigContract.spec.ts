@@ -101,7 +101,7 @@ const SAMPLES: Record<(typeof OPTIONAL_RUN_CONFIG_KEYS)[number], unknown> = {
   driver: 'gmi',
   gmiRecall: { budgetTokens: 600, store: 'sqlite' },
   caseIdsFile: '/tmp/ids.json',
-  gmiUpstreamHost: '127.0.0.1',
+  gmiUpstream: 'http://127.0.0.1:4010/v1',
 };
 
 describe('resolveRunConfig contract: every OPTIONAL_RUN_CONFIG_KEY round-trips', () => {
