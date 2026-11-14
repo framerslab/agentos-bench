@@ -202,6 +202,7 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     // case-id list. Pinned by tests/resolveRunConfigContract.spec.ts.
     driver: cfg.driver,
     gmiRecall: cfg.gmiRecall,
+    gmiUpstreamHost: cfg.gmiUpstreamHost,
     caseIdsFile: cfg.caseIdsFile,
     // Per-category reader-tier router preset. Loadbearing for cache
     // fingerprint partitioning - different reader presets dispatch
@@ -377,11 +378,12 @@ export function computeCaseRunKeyParts(
   }
 
   // GMI driver fingerprint: the driver answers through an agent, so its
-  // answers never share a bucket with the bench's own path, and its recall
-  // settings partition it further. Conditional append: runs on the bench's
-  // own path keep their cache hashes.
+  // answers never share a bucket with the bench's own path. The upstream
+  // host keeps a dry run's stub answers out of a live run's bucket, and the
+  // recall settings partition it further. Conditional append: runs on the
+  // bench's own path keep their cache hashes.
   if (config.driver) {
-    const driverTag = `driver:${config.driver}:${GMI_DRIVER_VERSION}:${JSON.stringify(config.gmiRecall ?? {})}`;
+    const driverTag = `driver:${config.driver}:${GMI_DRIVER_VERSION}:${config.gmiUpstreamHost ?? ''}:${JSON.stringify(config.gmiRecall ?? {})}`;
     runKeyParts.push(driverTag);
     resultKeyParts.push(driverTag);
   }

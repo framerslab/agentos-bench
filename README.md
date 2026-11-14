@@ -196,7 +196,7 @@ What a case's `metadata` holds:
 - `ingest`: haystack sessions, user turns filed, assistant turns replayed, turns skipped, model requests beyond one per filed turn (`extraModelRequests`), and the filing time.
 - `upstreamHost`, `forwardedRequests`, `modelListReads` and the run's `gmiRecall` settings.
 
-The reader's cost is priced from the provider's usage. The embedding cost is an estimate from the filed text, recorded under the tag `<case id>:gmi-embedding-estimate`.
+The run file's `config` records `gmiUpstreamHost`, and the case-run cache keys a driver run by it, so answers a stub gave never serve a run against the provider. The reader's cost is priced from the provider's usage. The embedding cost is an estimate from the filed text, recorded under the tag `<case id>:gmi-embedding-estimate`.
 
 | Flag | Effect |
 |---|---|

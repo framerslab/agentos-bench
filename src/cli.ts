@@ -1287,6 +1287,7 @@ export function buildCli(): Command {
                 ...(opts.gmiStore ? { store: opts.gmiStore as 'memory' | 'sqlite' } : {}),
               }
             : undefined,
+        gmiUpstreamHost: opts.driver === 'gmi' ? new URL(gmiUpstreamBaseUrl()).hostname : undefined,
         caseIdsFile: opts.caseIds as string | undefined,
       };
 
