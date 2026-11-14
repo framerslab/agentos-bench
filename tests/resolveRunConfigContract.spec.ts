@@ -98,6 +98,10 @@ const SAMPLES: Record<(typeof OPTIONAL_RUN_CONFIG_KEYS)[number], unknown> = {
   noAbstention: true,
   entityLinking: 0.5,
   typedNetwork: 'minimal',
+  driver: 'gmi',
+  gmiRecall: { budgetTokens: 600, store: 'sqlite' },
+  caseIdsFile: '/tmp/ids.json',
+  gmiUpstream: 'http://127.0.0.1:4010/v1',
 };
 
 describe('resolveRunConfig contract: every OPTIONAL_RUN_CONFIG_KEY round-trips', () => {

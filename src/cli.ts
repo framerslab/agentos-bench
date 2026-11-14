@@ -51,6 +51,36 @@ import {
 import type { IEmbeddingManager } from '@framers/agentos/core/embeddings/IEmbeddingManager';
 import type { MemoryRetrievalProfile } from '@framers/agentos';
 import { SessionSummarizer } from '@framers/agentos/memory';
+import { gmiEmbedderProblem, gmiUpstreamBaseUrl, gmiUpstreamEndpoint, gmiUpstreamProblem } from './drivers/upstream.js';
+import { readCaseIds } from './core/caseIds.js';
+
+/**
+ * The `run` options that act under `--driver gmi`, by commander attribute name: the driver's own, the models, the
+ * case selection, where a run reads and writes, and the judge's and the statistics' settings. Every other option
+ * of `run` configures the bench's own retrieve-then-read path, which the driver does not use.
+ */
+const GMI_DRIVER_OPTIONS: ReadonlySet<string> = new Set([
+  'driver',
+  'budget',
+  'gmiStore',
+  'caseIds',
+  'reader',
+  'embedderModel',
+  'judgeModel',
+  'sample',
+  'samplePerType',
+  'stratified',
+  'concurrency',
+  'dataDir',
+  'resultsDir',
+  'dryRun',
+  'maxUsd',
+  'seed',
+  'bootstrapResamples',
+  'judgeAdversarial',
+  'judgeAdversarialMaxProbes',
+  'judgeAdversarialSynthModel',
+]);
 
 interface BenchEntry {
   id: string;
@@ -775,6 +805,33 @@ export function buildCli(): Command {
       parseInteger
     )
     .option(
+      '--driver <name>',
+      "Answer through an AgentOS agent instead of the bench's own reader path. 'gmi': agent({ runtime: 'gmi' }) with cognitive memory; each haystack is filed through the agent's session and the case keeps the turn's recall record. LongMemEval only; OpenAI readers only; the options of the bench's own retrieval and reading are refused. Reads OPENAI_API_KEY, and OPENAI_BASE_URL may name only https://api.openai.com or a stub on this machine.",
+      (value: string) => {
+        if (value !== 'gmi') throw new Error(`--driver must be 'gmi', got '${value}'`);
+        return value;
+      }
+    )
+    .option(
+      '--budget <tokens>',
+      'With --driver gmi: memory.recall.budget.totalTokens, the whole memory block a turn sends (>= 1). Unset: the library default.',
+      parsePositiveInteger
+    )
+    .option(
+      '--gmi-store <kind>',
+      "With --driver gmi: 'memory' (in process, the default) or 'sqlite' (one file per case under the run's scratch directory, removed when the case ends).",
+      (value: string) => {
+        if (value !== 'memory' && value !== 'sqlite') {
+          throw new Error(`--gmi-store must be 'memory' | 'sqlite', got '${value}'`);
+        }
+        return value;
+      }
+    )
+    .option(
+      '--case-ids <file>',
+      'Run only the cases this JSON file lists: an array of ids, or an object with a "tuning" array. An id the dataset lacks fails the run.'
+    )
+    .option(
       '--reader-top-k <n>',
       'How many retrieved chunks the reader sees after rerank and score-floor filtering (must be >= 1; adapter default is 10). Candidate pool for rerank scales as K × rerank.candidateMultiplier, so K=15 at the default 3× multiplier re-ranks a 45-chunk pool. Use to investigate multi-session coverage trade-offs.',
       parsePositiveInteger
@@ -785,7 +842,7 @@ export function buildCli(): Command {
     )
     .option(
       '--judge-adversarial',
-      'Enable judge-adversarial probe: synthesize topically-adjacent wrong answers, score with the same judge, report judge false-positive rate (noise floor). Adds one cheap synth call + one judge call per probed case. Cost bounded by --judge-adversarial-max-probes.'
+      'Enable judge-adversarial probe: synthesize topically-adjacent wrong answers, score with the same judge, report judge false-positive rate (noise floor). Adds one cheap synth call + one judge call per probed case. Cost bounded by --judge-adversarial-max-probes. Refused in a dry run: the synthesizer calls a provider.'
     )
     .option(
       '--judge-adversarial-max-probes <n>',
@@ -1025,7 +1082,7 @@ export function buildCli(): Command {
       parseInteger
     )
     .option('--dry-run', 'Use MockReader / mock judge (no API calls)')
-    .action(async (benchmarkId: string, opts) => {
+    .action(async (benchmarkId: string, opts, command: Command) => {
       const entry = BENCHMARKS.find((b) => b.id === benchmarkId);
       if (!entry) {
          
@@ -1045,6 +1102,68 @@ export function buildCli(): Command {
         console.warn(
           '[cli] both --sample and --sample-per-type supplied; --sample-per-type takes effect for stratified adapters.'
         );
+      }
+
+      // The adversarial probe's synthesizer is a real reader that posts to
+      // its provider by a fixed URL, and a dry run makes no API calls.
+      if (opts.dryRun && opts.judgeAdversarial) {
+        console.error(
+          "[cli] --judge-adversarial cannot run in a dry run: the probe's synthesizer calls a provider, and a dry run calls none."
+        );
+        process.exitCode = 2;
+        return;
+      }
+
+      // --driver gmi answers through an AgentOS agent: the options that
+      // configure the bench's own retrieve-then-read path have nothing to
+      // act on, so one given on the command line is refused by name rather
+      // than ignored. The rule is a list of what the driver takes, not of
+      // what it refuses: an option added to `run` later is refused under
+      // the driver until it is listed in GMI_DRIVER_OPTIONS.
+      // Checked before the rerank block, so `--rerank cohere` is refused
+      // before a key is read.
+      if (opts.driver === 'gmi') {
+        const refuse = (message: string): void => {
+          console.error(`[cli] --driver gmi: ${message}`);
+          process.exitCode = 2;
+        };
+        const clash = command.options
+          .filter(
+            (option) =>
+              command.getOptionValueSource(option.attributeName()) === 'cli' &&
+              !GMI_DRIVER_OPTIONS.has(option.attributeName())
+          )
+          .map((option) => option.long ?? option.flags);
+        if (!entry.id.startsWith('longmemeval-')) return refuse(`runs LongMemEval only, got '${entry.id}'`);
+        if (!String(opts.reader).startsWith('gpt-')) {
+          return refuse(`the reader must be an OpenAI model (gpt-*), got '${opts.reader}'`);
+        }
+        if (clash.length > 0) {
+          return refuse(
+            `${clash.join(', ')} cannot be combined with the driver: the agent does its own recall and reading, so an option of the bench's own path has nothing to act on`
+          );
+        }
+        const embedderProblem = gmiEmbedderProblem(opts.embedderModel as string | undefined);
+        if (embedderProblem) return refuse(embedderProblem);
+        if (typeof opts.maxUsd === 'number') {
+          return refuse('--max-usd: the driver has no cost projection yet; bound a run with --case-ids');
+        }
+        if (!process.env.OPENAI_API_KEY?.trim()) {
+          return refuse('OPENAI_API_KEY is not set: the agent, its embedder and the replay proxy read it');
+        }
+        const upstreamProblem = gmiUpstreamProblem(gmiUpstreamBaseUrl(), Boolean(opts.dryRun));
+        if (upstreamProblem) return refuse(upstreamProblem);
+        opts.memory = 'full-cognitive';
+        opts.replay = 'observe';
+      } else if (opts.budget !== undefined || opts.gmiStore !== undefined) {
+        console.error('[cli] --budget and --gmi-store take effect only with --driver gmi.');
+        process.exitCode = 2;
+        return;
+      }
+      if (opts.caseIds !== undefined && !entry.id.startsWith('longmemeval-')) {
+        console.error(`[cli] --case-ids applies to LongMemEval only, got '${entry.id}'.`);
+        process.exitCode = 2;
+        return;
       }
 
       // Resolve rerank config from CLI flags. Only "cohere" is wired
@@ -1189,6 +1308,17 @@ export function buildCli(): Command {
         // parser above; undefined when flag is absent so cache fingerprint
         // stays off and existing cached results are reusable.
         typedNetwork: opts.typedNetwork as 'minimal' | 'full' | 'production' | undefined,
+        // --driver gmi and its recall settings; --case-ids for any run.
+        driver: opts.driver as 'gmi' | undefined,
+        gmiRecall:
+          opts.driver === 'gmi'
+            ? {
+                ...(typeof opts.budget === 'number' ? { budgetTokens: opts.budget } : {}),
+                ...(opts.gmiStore ? { store: opts.gmiStore as 'memory' | 'sqlite' } : {}),
+              }
+            : undefined,
+        gmiUpstream: opts.driver === 'gmi' ? gmiUpstreamEndpoint() : undefined,
+        caseIdsFile: opts.caseIds as string | undefined,
       };
 
       // Tier 3 policy router validation: mutually exclusive with the v10
@@ -1221,12 +1351,18 @@ export function buildCli(): Command {
       // fired 500 × Opus 4.7 cases by mistake" before any LLM call
       // goes out. Runs before createReader / judge construction so
       // aborting is cheap even when API keys are missing.
-      if (entry.family === 'external' && !opts.dryRun) {
+      // The driver is skipped: this table prices a reader that reads the
+      // whole haystack, which the driver never sends.
+      if (entry.family === 'external' && !opts.dryRun && opts.driver !== 'gmi') {
         // Rough haystack-size estimate needs a case count. We skip the
         // real dataset load to stay fast — the estimator's per-benchmark
         // haystack table gives a usable number with caseCount=sampleN
         // or a generous default.
-        const caseCount = opts.sample ?? defaultCaseCountForBenchmark(entry.id);
+        // A --case-ids list bounds the run to its own length (and --sample
+        // below that), so the projection prices the cases that will run.
+        const listedCases =
+          typeof opts.caseIds === 'string' ? (await readCaseIds(opts.caseIds)).length : undefined;
+        const caseCount = listedCases ?? opts.sample ?? defaultCaseCountForBenchmark(entry.id);
         const estimate = estimateRunCost({
           benchmarkId: entry.id,
           family: 'external',

@@ -244,6 +244,44 @@ export interface RunConfig {
   };
 
   /**
+   * Answer each case through an AgentOS agent on the GMI runtime
+   * (`agent({ runtime: 'gmi' })` with cognitive memory) instead of the
+   * bench's own retrieve-then-read path. The haystack is filed through the
+   * agent's session and the case keeps the turn's recall record. LongMemEval
+   * only. Set by `--driver gmi`; see the README, "The GMI driver".
+   *
+   * Cache fingerprint: `driver:<driver>:<driver version>:agentos@<installed version>:<gmiUpstream>:<gmiRecall>`.
+   */
+  driver?: 'gmi';
+
+  /**
+   * `driver: 'gmi'` only: the agent's recall settings. A field left unset
+   * takes the library's default. `budgetTokens` is
+   * `memory.recall.budget.totalTokens`; `store` keeps memory in the process
+   * (`memory`, the default) or in one SQLite file per case under the run's
+   * scratch directory, removed when the case ends (`sqlite`).
+   */
+  gmiRecall?: { budgetTokens?: number; store?: 'memory' | 'sqlite' };
+
+  /**
+   * `driver: 'gmi'` only: the endpoint the driver's model and embedding
+   * requests go to, as scheme, host, port and base path
+   * (`https://api.openai.com/v1`, or a stub on this machine such as
+   * `http://127.0.0.1:4010/v1`). Set by the CLI from `OPENAI_BASE_URL`; a run
+   * that leaves it unset takes it from the same variable when it starts. Part
+   * of the driver's cache fingerprint, so answers a stub gave never serve a
+   * run against the provider or against another stub.
+   */
+  gmiUpstream?: string;
+
+  /**
+   * Run only the cases this JSON file lists: an array of ids, or an object
+   * with a `tuning` array. An id the dataset lacks fails the run. Set by
+   * `--case-ids <file>`.
+   */
+  caseIdsFile?: string;
+
+  /**
    * Model id used to generate session-level contextual-retrieval
    * summaries (Anthropic Sep 2024 variant). The CLI constructs a
    * {@link SessionSummarizer} around this model and passes it to
@@ -916,6 +954,10 @@ export const OPTIONAL_RUN_CONFIG_KEYS = [
   'noAbstention',
   'entityLinking',
   'typedNetwork',
+  'driver',
+  'gmiRecall',
+  'gmiUpstream',
+  'caseIdsFile',
 ] as const;
 /**
  * Compile-time guard: ensure every entry in {@link OPTIONAL_RUN_CONFIG_KEYS}
