@@ -194,6 +194,34 @@ describe('run --driver gmi', () => {
   );
 
   it(
+    "a recalled reply reaches the provider in the agent's own words, and the case keeps the answering call's record with its delivery",
+    async () => {
+      await run('--budget', '1200');
+      const result = await onlyRun();
+      expect(result.cases.map((c: { error?: string }) => c.error)).toEqual([undefined, undefined]);
+      // The ferry case's 7:15 comes only from the dataset's assistant turn, which the proxy replayed as the agent's
+      // reply. Since @framers/agentos 0.18.0 (framerslab/agentos#830) the memory block shows such a reply as the agent's
+      // own words, `You said: ...`, never as a fact; 0.17.x showed it as a fact, with no prefix.
+      const ferry = stub.chat.find((seen) => JSON.stringify(seen.body.messages).includes('ferry'))!;
+      const sent = ferry.body.messages
+        .map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content)))
+        .join('\n');
+      const replyLines = sent.split('\n').filter((line) => line.includes('7:15'));
+      expect(replyLines.length).toBeGreaterThan(0);
+      for (const line of replyLines) expect(line).toMatch(/You said: .*7:15/);
+      for (const c of result.cases) {
+        // The record a session's turn returns is the one of the model call that answered the question (hop 0: the
+        // question offers no tool), with what reached the model: the memory block's tokens as the prompt engine counted
+        // them.
+        expect(c.metadata.memoryRecall.budget).toMatchObject({ requested: 1200, hop: 0 });
+        expect(c.metadata.memoryRecall.delivery).toMatchObject({ memoryBlockTokens: expect.any(Number) });
+        expect(c.metadata.memoryRecall.delivery.memoryBlockTokens).toBeGreaterThan(0);
+      }
+    },
+    END_TO_END_TIMEOUT_MS,
+  );
+
+  it(
     '--case-ids runs only the listed cases and refuses an id the dataset lacks',
     async () => {
       const ids = path.join(tmp, 'ids.json');
