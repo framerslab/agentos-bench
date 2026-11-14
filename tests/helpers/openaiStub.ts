@@ -11,7 +11,7 @@ import type { AddressInfo } from 'node:net';
 
 export interface StubChat {
   authorization: string;
-  body: { model: string; stream?: boolean; messages: Array<{ role: string; content: unknown }> };
+  body: { model: string; stream?: boolean; messages: Array<{ role: string; content: unknown }>; tools?: unknown[] };
 }
 
 export interface OpenAiStub {

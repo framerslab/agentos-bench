@@ -5,14 +5,15 @@
  * the turn's recall record.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { promises as fs } from 'node:fs';
+import { existsSync, promises as fs, readdirSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { buildCli } from '../src/cli.js';
-import { computeCaseRunKeyParts } from '../src/core/BenchmarkRunner.js';
+import { BenchmarkRunner, computeCaseRunKeyParts, resolveRunConfig } from '../src/core/BenchmarkRunner.js';
 import { readCaseIds } from '../src/core/caseIds.js';
 import type { RunConfig } from '../src/core/IBenchmark.js';
 import { gmiUpstreamProblem, resetGmiDriver } from '../src/drivers/gmiDriver.js';
+import { LongMemEvalJudge, LongMemEvalS, MockReader } from '../src/index.js';
 import { startOpenAiStub, type OpenAiStub } from './helpers/openaiStub.js';
 
 const CASES = [
@@ -55,11 +56,26 @@ const CASES = [
 /** Generous: each case builds an agent, probes its embedder and files its haystack turn by turn. */
 const END_TO_END_TIMEOUT_MS = 120_000;
 
+/** The driver's SQLite files under `root`, by name. */
+function storeFiles(root: string): string[] {
+  const out: string[] = [];
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isDirectory()) walk(path.join(dir, entry.name));
+      else if (/^gmi-.*\.sqlite$/.test(entry.name)) out.push(entry.name);
+    }
+  };
+  if (existsSync(root)) walk(root);
+  return out.sort();
+}
+
 describe('run --driver gmi', () => {
   let tmp: string;
   let dataDir: string;
   let resultsDir: string;
   let stub: OpenAiStub;
+  /** Runs as a question reaches the provider: the one request of a case the replay proxy forwards. */
+  let atQuestion: (() => void) | undefined;
   const saved: Record<string, string | undefined> = {};
   const run = (...extra: string[]) =>
     buildCli().parseAsync([
@@ -92,9 +108,11 @@ describe('run --driver gmi', () => {
     resultsDir = path.join(tmp, 'results');
     await fs.mkdir(path.join(dataDir, 'longmemeval'), { recursive: true });
     await fs.writeFile(path.join(dataDir, 'longmemeval', 'longmemeval_s.json'), JSON.stringify(CASES));
-    stub = await startOpenAiStub((chat) =>
-      JSON.stringify(chat.body.messages).includes('ferry') ? 'The 7:15 ferry.' : 'An oat flat white.',
-    );
+    atQuestion = undefined;
+    stub = await startOpenAiStub((chat) => {
+      atQuestion?.();
+      return JSON.stringify(chat.body.messages).includes('ferry') ? 'The 7:15 ferry.' : 'An oat flat white.';
+    });
     for (const name of ['OPENAI_API_KEY', 'OPENAI_BASE_URL', 'COHERE_API_KEY']) saved[name] = process.env[name];
     process.env.OPENAI_API_KEY = 'stub-upstream-key';
     process.env.OPENAI_BASE_URL = stub.url;
@@ -134,6 +152,8 @@ describe('run --driver gmi', () => {
       expect(ferry).toContain('7:15'); // recalled from the dataset's assistant turn, which the proxy replayed
       // The history was cleared after each haystack session: memory is the only source.
       expect(stub.chat[0]!.body.messages.filter((m) => m.role === 'assistant')).toEqual([]);
+      // The question offers the model no tool: the date in its text is the only clock it has.
+      for (const seen of stub.chat) expect(seen.body.tools ?? []).toEqual([]);
       for (const c of result.cases) {
         expect(c.metadata.driver).toBe('gmi');
         expect(c.metadata.ingest).toMatchObject({ extraModelRequests: 0 });
@@ -166,17 +186,123 @@ describe('run --driver gmi', () => {
     END_TO_END_TIMEOUT_MS,
   );
 
+  it("--case-ids picks the cases of a run on the bench's own path too, in the list's order", async () => {
+    const ids = path.join(tmp, 'ids.json');
+    await fs.writeFile(ids, JSON.stringify(['gmi-2', 'gmi-1']));
+    await buildCli().parseAsync([
+      'node', 'agentos-bench', 'run', 'longmemeval-s', '--data-dir', dataDir, '--results-dir', resultsDir,
+      '--dry-run', '--case-ids', ids,
+    ]);
+    const result = await onlyRun();
+    expect(result.config.driver).toBeUndefined();
+    expect(result.cases.map((c: { caseId: string }) => c.caseId)).toEqual(['gmi-2', 'gmi-1']);
+    expect(stub.chat).toEqual([]);
+  });
+
+  it(
+    '--gmi-store sqlite reaches the agent: the question is answered from what the store recalls',
+    async () => {
+      await run('--gmi-store', 'sqlite');
+      const result = await onlyRun();
+      expect(result.config.gmiRecall).toEqual({ store: 'sqlite' });
+      expect(result.cases.map((c: { error?: string }) => c.error)).toEqual([undefined, undefined]);
+      const [coffee, ferry] = stub.chat.map((seen) => JSON.stringify(seen.body.messages));
+      expect(coffee).toContain('oat flat white');
+      expect(ferry).toContain('7:15');
+      for (const c of result.cases) {
+        expect(c.metadata.gmiRecall).toEqual({ store: 'sqlite' });
+        expect(c.metadata.ingest).toMatchObject({ extraModelRequests: 0 });
+        expect(c.metadata.memoryRecall.version).toBe('memory-recall-capture/1');
+      }
+    },
+    END_TO_END_TIMEOUT_MS,
+  );
+
+  // Below the CLI the runner takes a scratch root, so the store's files can be read while a case runs.
+  it(
+    'a sqlite store is one file per case under the scratch directory, removed when the case ends',
+    async () => {
+      const scratchRoot = path.join(tmp, 'scratch');
+      const atEachQuestion: string[][] = [];
+      atQuestion = () => {
+        atEachQuestion.push(storeFiles(scratchRoot));
+      };
+      const judge = new LongMemEvalJudge({
+        reader: new MockReader('gpt-4o').on(
+          () => true,
+          () => ({ text: 'yes', tokensIn: 0, tokensOut: 1, model: 'gpt-4o', latencyMs: 0 }),
+        ),
+      });
+      const runner = new BenchmarkRunner({ dataDir, resultsDir, judge, scratchRoot });
+      const result = await runner.run(new LongMemEvalS({ reader: new MockReader('gpt-4o-mini'), variant: 's' }), {
+        reader: 'gpt-4o-mini',
+        memoryMode: 'full-cognitive',
+        replayMode: 'observe',
+        concurrency: 1,
+        driver: 'gmi',
+        gmiRecall: { store: 'sqlite' },
+      } as RunConfig);
+      expect(result.cases.map((c) => c.error)).toEqual([undefined, undefined]);
+      expect(result.cases.map((c) => c.metadata?.upstreamHost)).toEqual(['127.0.0.1', '127.0.0.1']);
+      // At each case's question its own file is the only one: the case before it left none behind.
+      expect(atEachQuestion).toHaveLength(2);
+      expect(atEachQuestion[0]).toHaveLength(1);
+      expect(atEachQuestion[0]![0]).toMatch(/^gmi-bench-gmi-1-/);
+      expect(atEachQuestion[1]).toHaveLength(1);
+      expect(atEachQuestion[1]![0]).toMatch(/^gmi-bench-gmi-2-/);
+    },
+    END_TO_END_TIMEOUT_MS,
+  );
+
   it.each([
     [['--reader', 'claude-sonnet-4-6'], 'gpt-'],
     [['--reader-router', 'min-cost-best-cat-2026-04-28'], '--reader-router'],
     [['--rerank', 'cohere'], '--rerank'],
     [['--hybrid-retrieval'], '--hybrid-retrieval'],
     [['--max-usd', '5'], '--case-ids'],
+    // Every option of the bench's own retrieval and reading is refused, not only the ones a list remembered.
+    [['--ablate-mechanism', 'reconsolidation'], '--ablate-mechanism'],
+    [['--ablate-signal', 'recency'], '--ablate-signal'],
+    [['--retrieval-k', '50'], '--retrieval-k'],
+    [['--profile', 'max-recall'], '--profile'],
+    [['--adaptive', 'off'], '--adaptive'],
+    [['--no-abstention'], '--no-abstention'],
+    [['--om-reader-scaffold'], '--om-reader-scaffold'],
+    [['--memory', 'none'], '--memory'],
+    [['--replay', 'ingest'], '--replay'],
   ])('refuses %j with the driver, naming the flag', async (extra, named) => {
     const errors = await captureErrors(() => run(...extra));
     expect(process.exitCode).toBe(2);
     expect(errors).toContain(named);
     expect(stub.chat).toEqual([]);
+  });
+
+  it.each([
+    [['--driver', 'react'], '--driver'],
+    [['--gmi-store', 'redis'], '--gmi-store'],
+    [['--budget', 'many'], 'integer'],
+  ])('refuses the value in %j', async (extra, named) => {
+    await expect(run(...extra)).rejects.toThrow(named);
+    expect(stub.chat).toEqual([]);
+  });
+
+  it.each([[['--budget', '800']], [['--gmi-store', 'sqlite']]])('refuses %j without the driver', async (extra) => {
+    const errors = await captureErrors(() =>
+      buildCli().parseAsync([
+        'node', 'agentos-bench', 'run', 'longmemeval-s', '--data-dir', dataDir, '--results-dir', resultsDir,
+        '--dry-run', ...extra,
+      ]),
+    );
+    expect(process.exitCode).toBe(2);
+    expect(errors).toContain('--driver gmi');
+  });
+
+  it('refuses --case-ids on a benchmark other than LongMemEval', async () => {
+    const errors = await captureErrors(() =>
+      buildCli().parseAsync(['node', 'agentos-bench', 'run', 'locomo', '--dry-run', '--case-ids', path.join(tmp, 'ids.json')]),
+    );
+    expect(process.exitCode).toBe(2);
+    expect(errors).toContain('--case-ids');
   });
 
   it('refuses a benchmark other than LongMemEval', async () => {
@@ -226,6 +352,16 @@ describe('run --driver gmi', () => {
     expect(gmiUpstreamProblem('http://localhost:4010/v1', false)).toBeNull();
     expect(gmiUpstreamProblem('not a url', false)).toMatch(/OPENAI_BASE_URL/);
   });
+
+  // The key and every filed line travel to the provider: never in the clear.
+  it('refuses the provider over plain http', async () => {
+    expect(gmiUpstreamProblem('http://api.openai.com/v1', false)).toMatch(/https/);
+    process.env.OPENAI_BASE_URL = 'http://api.openai.com/v1';
+    const errors = await captureErrors(() => run());
+    expect(process.exitCode).toBe(2);
+    expect(errors).toContain('OPENAI_BASE_URL');
+    expect(stub.chat).toEqual([]);
+  });
 });
 
 describe('the driver in the case-run cache key', () => {
@@ -253,5 +389,25 @@ describe('the driver in the case-run cache key', () => {
     const liveRun = parts({ ...base, driver: 'gmi', gmiUpstreamHost: 'api.openai.com' } as RunConfig);
     expect(stubRun.runKeyParts).not.toEqual(liveRun.runKeyParts);
     expect(stubRun.resultKeyParts).not.toEqual(liveRun.resultKeyParts);
+  });
+
+  // A run built without the CLI sets no host: the key reads it where the driver will, from the environment.
+  it('reads the upstream host from the environment when the run names none', () => {
+    const saved = process.env.OPENAI_BASE_URL;
+    try {
+      process.env.OPENAI_BASE_URL = 'http://127.0.0.1:4010/v1';
+      const stubRun = resolveRunConfig({ ...base, driver: 'gmi' } as RunConfig);
+      delete process.env.OPENAI_BASE_URL;
+      const liveRun = resolveRunConfig({ ...base, driver: 'gmi' } as RunConfig);
+      expect(stubRun.gmiUpstreamHost).toBe('127.0.0.1');
+      expect(liveRun.gmiUpstreamHost).toBe('api.openai.com');
+      expect(computeCaseRunKeyParts(stubRun, key).runKeyParts).not.toEqual(computeCaseRunKeyParts(liveRun, key).runKeyParts);
+      // A host the run names stands, and a run on the bench's own path gets none.
+      expect(resolveRunConfig({ ...base, driver: 'gmi', gmiUpstreamHost: 'localhost' } as RunConfig).gmiUpstreamHost).toBe('localhost');
+      expect(resolveRunConfig(base).gmiUpstreamHost).toBeUndefined();
+    } finally {
+      if (saved === undefined) delete process.env.OPENAI_BASE_URL;
+      else process.env.OPENAI_BASE_URL = saved;
+    }
   });
 });
