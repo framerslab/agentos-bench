@@ -348,7 +348,7 @@ describe('run --driver gmi', () => {
   );
 
   it(
-    '--rerank local:<model>@<revision> reaches the agent: the run records it, the model loads at the pinned commit, and each turn says why its order stands',
+    '--rerank local:<model>@<revision> reaches the agent: the run records it, the loader asks for the model at the pinned commit, and each turn says why its order stands',
     async () => {
       // No weights are fetched: every request to a host off this machine is answered 404 here, so the model's load
       // fails at its first file and nothing leaves the process. The URLs the loader asked for show the pin arrived.
