@@ -27,10 +27,10 @@ import type {
 import { REFLECTOR_PROMPT_HASH } from '@framers/agentos';
 import { EXTRACT_PROMPT_HASH } from '../readers/twoCallReader.js';
 import { OM_PROMPT_HASH } from '../observational-memory/prompts.js';
-import { Cache, hashKey } from './Cache.js';
+import { Cache } from './Cache.js';
 import { CostTracker } from './CostTracker.js';
 import { AGENTOS_VERSION, GMI_DRIVER_VERSION } from '../drivers/constants.js';
-import { gmiRunRefusal, gmiUpstreamEndpoint } from '../drivers/upstream.js';
+import { gmiNamedUpstreamProblem, gmiRunRefusal, gmiUpstreamEndpoint } from '../drivers/upstream.js';
 import { PRESET_TABLES } from './policyRouter.js';
 import { ResultStore } from './ResultStore.js';
 import type { IJudge } from '../judges/IJudge.js';
@@ -203,10 +203,17 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     // case-id list. Pinned by tests/resolveRunConfigContract.spec.ts.
     // A driver run that names no upstream (one built without the CLI) takes
     // it from the environment, where the driver itself reads it, so its
-    // cache key still tells a stub's answers from the provider's.
+    // cache key still tells a stub's answers from the provider's. A named
+    // one is kept in the form the CLI writes (scheme, host, port and base
+    // path), so the run file and the cache key carry that form alone.
     driver: cfg.driver,
     gmiRecall: cfg.gmiRecall,
-    gmiUpstream: cfg.gmiUpstream ?? (cfg.driver === 'gmi' ? gmiUpstreamEndpoint() : undefined),
+    gmiUpstream:
+      cfg.gmiUpstream !== undefined
+        ? gmiUpstreamEndpoint({ OPENAI_BASE_URL: cfg.gmiUpstream })
+        : cfg.driver === 'gmi'
+          ? gmiUpstreamEndpoint()
+          : undefined,
     caseIdsFile: cfg.caseIdsFile,
     // Per-category reader-tier router preset. Loadbearing for cache
     // fingerprint partitioning - different reader presets dispatch
@@ -992,9 +999,15 @@ export class BenchmarkRunner {
 
   /** Run the benchmark end-to-end and persist the result. */
   async run(benchmark: IBenchmark, config: RunConfig): Promise<BenchResult> {
+    // A named endpoint with credentials, a query or a fragment is refused
+    // before anything is created: the run would record and key it in a form
+    // that drops them.
+    const namedProblem = gmiNamedUpstreamProblem(config.gmiUpstream);
+    if (namedProblem) throw new Error(`--driver gmi: ${namedProblem}`);
+
     const startedAt = new Date().toISOString();
 
-    const scratchDir = await this.makeScratchDir(benchmark.id, startedAt);
+    const scratchDir = await this.makeScratchDir(benchmark.id);
     const cache = new Cache(path.join(this.opts.dataDir, 'cache'));
     const costTracker = new CostTracker();
 
@@ -1247,10 +1260,15 @@ export class BenchmarkRunner {
     return result;
   }
 
-  private async makeScratchDir(benchId: string, stamp: string): Promise<string> {
-    const base = this.opts.scratchRoot ?? os.tmpdir();
-    const dir = path.join(base, 'agentos-bench', `${benchId}-${hashKey(stamp).slice(0, 8)}`);
-    await fs.mkdir(dir, { recursive: true });
-    return dir;
+  /**
+   * A new directory of this run's own under `<scratchRoot>/agentos-bench`.
+   * `mkdtemp` picks a name no other run holds, so two runs of one benchmark
+   * that start in the same millisecond, in one process or two, never share
+   * it: each removes its own when it ends.
+   */
+  private async makeScratchDir(benchId: string): Promise<string> {
+    const parent = path.join(this.opts.scratchRoot ?? os.tmpdir(), 'agentos-bench');
+    await fs.mkdir(parent, { recursive: true });
+    return fs.mkdtemp(path.join(parent, `${benchId}-`));
   }
 }

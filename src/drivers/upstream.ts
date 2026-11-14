@@ -41,6 +41,26 @@ export function gmiUpstreamMismatch(named: string | undefined, env: NodeJS.Proce
 }
 
 /**
+ * Why a run may not name `named` as its `gmiUpstream`, or null. The run file records the endpoint a run names and the
+ * case-run cache keys the run's answers by it, in the form {@link gmiUpstreamEndpoint} gives: credentials would be
+ * written to disk, and a query or a fragment names an endpoint that form cannot show. Unset is no problem: the runner
+ * fills it from the environment. The message never repeats the credentials.
+ */
+export function gmiNamedUpstreamProblem(named: string | undefined): string | null {
+  if (named === undefined) return null;
+  let url: URL;
+  try {
+    url = new URL(named.trim());
+  } catch {
+    return 'gmiUpstream is not a URL';
+  }
+  if (url.username || url.password || /[?#]/.test(named)) {
+    return `gmiUpstream must not carry credentials, a query or a fragment; name it as '${gmiUpstreamEndpoint({ OPENAI_BASE_URL: named })}'`;
+  }
+  return null;
+}
+
+/**
  * Why the driver will not send to `baseUrl`, or null. A case's question, with its memory block, and every filed
  * line's embedding request go to this address: it is the provider the driver names (api.openai.com, over https) or
  * a stub on this machine, and a dry run takes the stub alone. Any other host is refused, whatever protocol it speaks.
@@ -53,8 +73,9 @@ export function gmiUpstreamProblem(baseUrl: string, dryRun: boolean): string | n
     return `OPENAI_BASE_URL '${baseUrl}' is not a URL`;
   }
   // The run file and the cache key record scheme, host, port and path: two variables that differ only in a query or a
-  // fragment would share one key while the proxy sent to each as written.
-  if (url.search || url.hash) return `OPENAI_BASE_URL must not carry a query or a fragment, got '${baseUrl}'`;
+  // fragment would share one key while the proxy sent to each as written. The raw string is tested, since a bare
+  // trailing `?` or `#` leaves URL.search and URL.hash empty while the proxy appends each route after it.
+  if (/[?#]/.test(baseUrl)) return `OPENAI_BASE_URL must not carry a query or a fragment, got '${baseUrl}'`;
   const host = url.hostname.toLowerCase();
   if (LOOPBACK.has(host)) return null;
   if (dryRun) return 'a dry run needs OPENAI_BASE_URL set to a stub on this machine; it never calls a provider';
