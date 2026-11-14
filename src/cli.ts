@@ -1605,10 +1605,12 @@ export function buildCli(): Command {
         bench: Math.max(...entries.map((e) => e.benchmarkId.length)),
         reader: Math.max(...entries.map((e) => e.reader.length)),
         memory: Math.max(...entries.map((e) => e.memoryMode.length)),
+        // A driver run records the same modes as a bench-path run: this column tells them apart.
+        driver: Math.max('driver'.length, ...entries.map((e) => (e.driver ?? '—').length)),
       };
        
       console.log(
-        `${'benchmark'.padEnd(pad.bench)}  ${'reader'.padEnd(pad.reader)}  ${'memory'.padEnd(pad.memory)}  replay   acc    $/correct  runFile`
+        `${'benchmark'.padEnd(pad.bench)}  ${'reader'.padEnd(pad.reader)}  ${'memory'.padEnd(pad.memory)}  replay   ${'driver'.padEnd(pad.driver)}  acc    $/correct  runFile`
       );
       for (const e of entries) {
         const acc = `${(e.accuracy * 100).toFixed(1).padStart(5)}%`;
@@ -1617,7 +1619,7 @@ export function buildCli(): Command {
           : '       $∞';
          
         console.log(
-          `${e.benchmarkId.padEnd(pad.bench)}  ${e.reader.padEnd(pad.reader)}  ${e.memoryMode.padEnd(pad.memory)}  ${e.replayMode.padEnd(7)}  ${acc}  ${cpc.padStart(10)}  ${e.runFile}`
+          `${e.benchmarkId.padEnd(pad.bench)}  ${e.reader.padEnd(pad.reader)}  ${e.memoryMode.padEnd(pad.memory)}  ${e.replayMode.padEnd(7)}  ${(e.driver ?? '—').padEnd(pad.driver)}  ${acc}  ${cpc.padStart(10)}  ${e.runFile}`
         );
       }
     });

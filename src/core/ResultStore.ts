@@ -9,7 +9,8 @@
  *     2026-04-18T12-00-00-longmemeval-s-claude-sonnet-4-6-observe-full.json
  *
  * Also maintains a rolling `results/summary.json` with the latest result
- * per (benchmark, reader, memoryMode, replayMode) tuple, used by the
+ * per (benchmark, reader, memoryMode, replayMode) tuple, and per driver
+ * for a run that answers through one (`--driver gmi`), used by the
  * leaderboard generator.
  *
  * @module agentos-bench/core/ResultStore
@@ -20,7 +21,9 @@ import path from 'node:path';
 import type { BenchResult, BenchmarkFamily, RunConfig } from './IBenchmark.js';
 
 /**
- * Rolling summary snapshot. Keyed by `${benchmarkId}|${reader}|${memoryMode}|${replayMode}`.
+ * Rolling summary snapshot. Keyed by {@link summaryKey}:
+ * `${benchmarkId}|${reader}|${memoryMode}|${replayMode}`, with `|${driver}`
+ * appended for a run that answers through a driver.
  */
 export interface ResultsSummary {
   /** ISO timestamp of the last update. */
@@ -39,6 +42,12 @@ export interface SummaryEntry {
   reader: string;
   memoryMode: string;
   replayMode: string;
+  /**
+   * The driver that answered the run (`gmi` for `--driver gmi`), absent for
+   * the bench's own path. A driver run records the same memory and replay
+   * modes as a bench-path run, so this is what tells the two rows apart.
+   */
+  driver?: string;
   totalCases: number;
   accuracy: number;
   avgScore: number;
@@ -75,6 +84,32 @@ export interface SummaryEntry {
     maxPeakWorkingMemorySlots: number;
     totalEncodeCalls: number;
   };
+}
+
+/**
+ * The summary row a run updates. A run on the bench's own path keeps the
+ * key rows have always had; a driver run's key ends in its driver, so it
+ * never replaces a bench-path row with the same modes, nor the other way.
+ */
+export function summaryKey(e: {
+  benchmarkId: string;
+  reader: string;
+  memoryMode: string;
+  replayMode: string;
+  driver?: string;
+}): string {
+  const base = `${e.benchmarkId}|${e.reader}|${e.memoryMode}|${e.replayMode}`;
+  return e.driver ? `${base}|${e.driver}` : base;
+}
+
+/**
+ * The label a listing shows for a summary row: reader, memory mode and
+ * replay mode, and `--driver <name>` for a driver run.
+ */
+export function summaryLabel(e: Pick<SummaryEntry, 'reader' | 'memoryMode' | 'replayMode' | 'driver'>, sep = ' / '): string {
+  const parts = [e.reader, e.memoryMode, e.replayMode];
+  if (e.driver) parts.push(`--driver ${e.driver}`);
+  return parts.join(sep);
 }
 
 /**
@@ -141,13 +176,22 @@ export class ResultStore {
       r.config.reader,
       r.config.memoryMode,
       r.config.replayMode,
+      // A driver run records the same modes as a bench-path run: its file
+      // name ends in the driver, so the two never share a file.
+      ...(r.config.driver ? [r.config.driver] : []),
     ];
     return `${parts.join('--')}.json`;
   }
 
   private async updateSummary(r: BenchResult, runFile: string): Promise<void> {
     const summary = await this.readSummary();
-    const key = `${r.benchmarkId}|${r.config.reader}|${r.config.memoryMode}|${r.config.replayMode}`;
+    const key = summaryKey({
+      benchmarkId: r.benchmarkId,
+      reader: r.config.reader,
+      memoryMode: r.config.memoryMode,
+      replayMode: r.config.replayMode,
+      driver: r.config.driver,
+    });
 
     // N-regression guard: never clobber a larger-N canonical entry with
     // a smaller-N smoke. The summary key intentionally collapses across
@@ -173,6 +217,7 @@ export class ResultStore {
       reader: r.config.reader,
       memoryMode: r.config.memoryMode,
       replayMode: r.config.replayMode,
+      ...(r.config.driver ? { driver: r.config.driver } : {}),
       totalCases: r.totalCases,
       accuracy: r.accuracy,
       avgScore: r.avgScore,
