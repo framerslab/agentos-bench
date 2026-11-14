@@ -2,7 +2,7 @@
  * @file gmiDriverNamedUpstream.spec.ts
  * @description A run built on `BenchmarkRunner` that names a `gmiUpstream` the environment does not point at. The
  * driver sends where `OPENAI_BASE_URL` points, while the run file and the case-run cache name the run's endpoint, so
- * each case is refused before it sends anything, and nothing is cached under the endpoint the run names.
+ * the run is refused before any case sends anything, and nothing is cached or saved under the endpoint the run names.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { existsSync, promises as fs, readdirSync } from 'node:fs';
@@ -87,7 +87,7 @@ describe('a run that names an upstream the environment does not point at', () =>
   });
 
   it(
-    'refuses every case before it sends anything, and caches nothing under the named endpoint',
+    'refuses the run before any case sends anything, and caches nothing under the named endpoint',
     async () => {
       const judge = new LongMemEvalJudge({
         reader: new MockReader('gpt-4o').on(
@@ -96,7 +96,7 @@ describe('a run that names an upstream the environment does not point at', () =>
         ),
       });
       const runner = new BenchmarkRunner({ dataDir, resultsDir, judge, scratchRoot: path.join(tmp, 'scratch') });
-      const result = await runner.run(new LongMemEvalS({ reader: new MockReader('gpt-4o-mini'), variant: 's' }), {
+      const run = runner.run(new LongMemEvalS({ reader: new MockReader('gpt-4o-mini'), variant: 's' }), {
         reader: 'gpt-4o-mini',
         memoryMode: 'full-cognitive',
         replayMode: 'observe',
@@ -105,17 +105,12 @@ describe('a run that names an upstream the environment does not point at', () =>
         gmiUpstream: 'https://api.openai.com/v1',
       } as RunConfig);
 
-      expect(result.config.gmiUpstream).toBe('https://api.openai.com/v1');
-      expect(result.cases).toHaveLength(2);
-      for (const c of result.cases) {
-        expect(c.error).toMatch(/gmiUpstream/);
-        expect(c.error).toContain('https://api.openai.com/v1');
-        expect(c.error).toContain(stub.url);
-        expect(c.passed).toBe(false);
-      }
-      // Nothing reached the stub the environment names.
+      await expect(run).rejects.toThrow(/gmiUpstream 'https:\/\/api\.openai\.com\/v1'/);
+      await expect(run).rejects.toThrow(stub.url);
+      // Nothing reached the stub the environment names, and no run file or summary row was written.
       expect(stub.chat).toEqual([]);
       expect(stub.embeddingCalls).toBe(0);
+      expect(existsSync(resultsDir)).toBe(false);
       // A later run against the named endpoint with the same settings finds nothing to be served.
       const cacheDir = path.join(dataDir, 'cache');
       expect(cacheFiles(cacheDir, 'case-run')).toEqual([]);
