@@ -15,6 +15,7 @@ import { startReplayProxy, type ReplayProxy } from './replayProxy.js';
 import { gmiEmbedderProblem, gmiUpstreamBaseUrl, gmiUpstreamEndpoint, gmiUpstreamProblem } from './upstream.js';
 
 export { gmiEmbedderProblem, gmiUpstreamBaseUrl, gmiUpstreamEndpoint, gmiUpstreamProblem };
+export { parseGmiRecallMode, parseGmiRerank, type GmiRecallMode, type GmiRerank } from './recall.js';
 
 type AgentOptions = Parameters<typeof agent>[0];
 type MemoryOption = Exclude<NonNullable<AgentOptions['memory']>, boolean>;
@@ -56,7 +57,11 @@ export async function resetGmiDriver(): Promise<void> {
   await Promise.all(open.map(async (proxy) => (await proxy.catch(() => undefined))?.close()));
 }
 
-/** The agent's `memory` option for a run's settings. A field the run leaves unset is not passed, so the library's default applies. */
+/**
+ * The agent's `memory` option for a run's settings: the budget, the recall mode (`retrieval`) and the reranker
+ * (`rerank`) as `memory.recall` takes them. A field the run leaves unset is not passed, so the library's default
+ * applies.
+ */
 export function gmiMemoryOption(config: Pick<RunConfig, 'gmiRecall' | 'embedderModel'>, storePath?: string): MemoryOption {
   const recall = config.gmiRecall ?? {};
   return {
@@ -64,6 +69,8 @@ export function gmiMemoryOption(config: Pick<RunConfig, 'gmiRecall' | 'embedderM
     recall: {
       capture: 'metadata',
       ...(recall.budgetTokens !== undefined ? { budget: { totalTokens: recall.budgetTokens } } : {}),
+      ...(recall.retrieval !== undefined ? { retrieval: recall.retrieval } : {}),
+      ...(recall.rerank !== undefined ? { rerank: recall.rerank } : {}),
     },
     ...(storePath ? { store: { path: storePath } } : {}),
   };

@@ -179,6 +179,11 @@ Every public entrypoint has TSDoc; type-checked via `pnpm exec tsc --noEmit -p t
 pnpm build
 pnpm bench run longmemeval-s --driver gmi --reader gpt-4o-mini \
   --embedder-model text-embedding-3-small --judge-model gpt-4o --budget 1600 --case-ids ids.json
+
+# Hybrid recall, reranked by a cross-encoder in this process at a pinned commit of its repository
+pnpm bench run longmemeval-s --driver gmi --reader gpt-4o-mini \
+  --embedder-model text-embedding-3-small --judge-model gpt-4o --budget 1600 --case-ids ids.json \
+  --recall hybrid --rerank local:cross-encoder/ms-marco-MiniLM-L6-v2@233902d25c440f23af6f7d6e94d2946bac0bee0a
 ```
 
 How a case runs:
@@ -189,6 +194,14 @@ How a case runs:
 - The question is the one request the proxy forwards to the provider, and only under the case's own key, which carries 128 random bits.
 
 What reaches the provider: an embedding request for every filed line and every turn's query, plus one test embedding as each agent starts; the model list, which the OpenAI provider reads as it starts (the proxy forwards that read); one reader request per case, which offers the model no tool; the judge's request, through the bench's own client as on every run. The agent and its embedder read `OPENAI_API_KEY`. `OPENAI_BASE_URL` may name `https://api.openai.com` or a stub on this machine (`127.0.0.1`, `localhost`, `::1`), and a dry run takes the stub alone: the key, the question and its memory block go to that host, so any other host, and the provider over plain `http`, is refused.
+
+A local reranker (`--rerank local:<model>@<revision>`) downloads its weights from Hugging Face on first use and runs in this process; nothing about a memory leaves it. It runs on Transformers.js (`@huggingface/transformers`), which `@framers/agentos` installs as an optional dependency: an install without optional dependencies has no local reranker. A turn's rerank that has not run says why in `memoryRecall.reranker` (`loading` while the model loads, `unavailable`, `timeout`, `error`, `backoff`), and the turn keeps recall's order, so read that field before taking a run as reranked. The models AgentOS lists, with the licence each repository states as [AgentOS's reranking docs](https://github.com/framerslab/agentos/blob/f4b8e7853bedb0879845ca6a24bb26d5f4227260/docs/text/RERANKING.md) give it:
+
+| Model | Licence |
+|---|---|
+| [`cross-encoder/ms-marco-MiniLM-L6-v2`](https://huggingface.co/cross-encoder/ms-marco-MiniLM-L6-v2) (AgentOS's default; its docs pin commit `233902d25c440f23af6f7d6e94d2946bac0bee0a`) | apache-2.0 |
+| [`cross-encoder/ms-marco-MiniLM-L12-v2`](https://huggingface.co/cross-encoder/ms-marco-MiniLM-L12-v2) | apache-2.0 |
+| [`BAAI/bge-reranker-base`](https://huggingface.co/BAAI/bge-reranker-base) | mit |
 
 What a case's `metadata` holds:
 
@@ -205,18 +218,21 @@ The run file's `config` records `gmiUpstream`: scheme, host, port and base path,
 | `--driver gmi` | Answer through the agent. The run file records `memoryMode: full-cognitive` and `replayMode: observe`. |
 | `--budget <tokens>` | `memory.recall.budget.totalTokens`, the whole memory block a turn sends; 1 or more. Unset: the library default. |
 | `--gmi-store memory\|sqlite` | Keep memory in the process (the default) or in one SQLite file per case under the run's scratch directory, removed when the case ends. |
+| `--recall dense\|hybrid` | `memory.recall.retrieval`: `dense` finds a turn's memories by meaning; `hybrid` by meaning, by the turn's exact words and by recency, fused into one deduplicated pool. Unset: the library default. The capture records which ran (`memoryRecall.retrieval`) and each leg (`memoryRecall.legs`). |
+| `--rerank none\|local:<model>@<revision>` | `memory.recall.rerank`: no reranker, or a cross-encoder in this process, named by its Hugging Face model id and pinned to a whole commit id of its repository in lower case (40 or 64 hexadecimal characters; a branch, a tag or a shortened id can name other weights later). Unset: the library default. |
 | `--case-ids <file>` | Run only the listed cases, in the list's order: a JSON array of `question_id` values, or an object with a `tuning` array. An id the dataset lacks fails the run. Works on any LongMemEval run; on the bench's own path the cost preflight counts the listed cases. |
 
-Beside those four, a driver run takes the options that do not belong to the bench's own retrieval and reading: `--reader`, `--embedder-model`, `--judge-model`, `--sample`, `--sample-per-type`, `--stratified`, `--concurrency`, `--seed`, `--bootstrap-resamples`, `--judge-adversarial` and its two settings (not in a dry run, on any path: the probe's synthesizer calls a provider), `--data-dir`, `--results-dir` and `--dry-run`. `--embedder-model` names an OpenAI embedding model (`text-embedding-*`, bare or `openai:`-prefixed); unset, the driver embeds with `text-embedding-3-small`.
+Beside those six, a driver run takes the options that do not belong to the bench's own retrieval and reading: `--reader`, `--embedder-model`, `--judge-model`, `--sample`, `--sample-per-type`, `--stratified`, `--concurrency`, `--seed`, `--bootstrap-resamples`, `--judge-adversarial` and its two settings (not in a dry run, on any path: the probe's synthesizer calls a provider), `--data-dir`, `--results-dir` and `--dry-run`. `--embedder-model` names an OpenAI embedding model (`text-embedding-*`, bare or `openai:`-prefixed); unset, the driver embeds with `text-embedding-3-small`.
 
 The driver refuses, by name:
 
-- every other option of `run` given on the command line (`--hybrid-retrieval`, `--hyde`, `--rerank`, `--reader-top-k`, `--retrieval-k`, `--profile`, `--ablate-mechanism`, `--observational-memory`, `--memory`, `--replay` and the rest), since the agent does its own recall and reading and such an option would have nothing to act on. `--rerank cohere` is among them: a driver run sends memory text to no second vendor;
+- every other option of `run` given on the command line (`--hybrid-retrieval`, `--hyde`, `--rerank-model`, `--rerank-candidate-multiplier`, `--reader-top-k`, `--retrieval-k`, `--profile`, `--ablate-mechanism`, `--observational-memory`, `--memory`, `--replay` and the rest), since the agent does its own recall and reading and such an option would have nothing to act on;
+- a `--rerank` other than `none` or `local:<model>@<revision>` at a whole commit id: `cohere` and any other remote provider, and an LLM judge, since a driver run sends memory text to no second vendor and measures what can become the library's default;
 - a reader router or a reader other than an OpenAI `gpt-*` model, since a run measures one named model;
 - an embedder other than an OpenAI `text-embedding-*` model, since the agent embeds through OpenAI's API at the same endpoint;
 - `--max-usd`, since the driver has no cost projection yet: bound a run with `--case-ids`;
 - a benchmark other than LongMemEval;
-- `--budget` and `--gmi-store` without `--driver gmi`.
+- `--budget`, `--gmi-store` and `--recall` without `--driver gmi` (without the driver, `--rerank` is the bench's own Cohere reranker).
 
 ## Development
 
