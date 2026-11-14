@@ -206,7 +206,7 @@ A local reranker (`--rerank local:<model>@<revision>`) downloads its weights fro
 
 What a case's `metadata` holds:
 
-- `memoryRecall`: the turn's recall capture (`memory-recall-capture/1`), with ids, ranks, scores, outcomes, tokens and timings, never a memory's text or the query's.
+- `memoryRecall`: the turn's recall capture (`memory-recall-capture/1`), with ids, ranks, scores, outcomes, tokens and timings, never a memory's text or the query's. It is the record of the model call that answered the question: its `budget` names that call (`hop`), and its `delivery` gives what reached the model (`memoryBlockTokens`, the memory block as the prompt engine counted it).
 - `ingest`: haystack sessions, user turns filed, assistant turns replayed, turns skipped, model requests beyond one per filed turn (`extraModelRequests`), and the filing time.
 - `upstream` (the endpoint the case's requests went to), `agentosVersion` (the installed `@framers/agentos`), `forwardedRequests`, `modelListReads` and the run's `gmiRecall` settings.
 
