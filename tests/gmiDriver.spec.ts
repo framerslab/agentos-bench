@@ -23,6 +23,13 @@ const AGENTOS_VERSION: string = createRequire(import.meta.url)('@framers/agentos
 /** AgentOS's default local reranker and the commit its docs pin it at. No test here loads its weights. */
 const LOCAL_MODEL = 'cross-encoder/ms-marco-MiniLM-L6-v2';
 const LOCAL_REVISION = '233902d25c440f23af6f7d6e94d2946bac0bee0a';
+/**
+ * A whole commit id no repository has, for the test that lets the local reranker try to load. Transformers.js reads its
+ * own cache (a folder inside its package in node_modules) before it sends any request, keyed by model, revision and
+ * file, so after one reranked run at LOCAL_REVISION a checkout would load the model from disk and ask nothing of the
+ * network. No cache holds this commit, so the loader always asks, and the test sees where.
+ */
+const UNCACHED_REVISION = '0'.repeat(40);
 
 const CASES = [
   {
@@ -353,7 +360,7 @@ describe('run --driver gmi', () => {
         offHost.push(url.href);
         return new Response('not found', { status: 404 });
       }) as typeof fetch;
-      const rerank = { kind: 'local', model: LOCAL_MODEL, revision: LOCAL_REVISION };
+      const rerank = { kind: 'local', model: LOCAL_MODEL, revision: UNCACHED_REVISION };
       try {
         await run('--recall', 'hybrid', '--rerank', `local:${LOCAL_MODEL}@${LOCAL_REVISION}`);
       } finally {
@@ -386,7 +393,7 @@ describe('run --driver gmi', () => {
       // Transformers.js asked Hugging Face for the named model at the pinned commit, and for nothing else.
       expect(offHost.length).toBeGreaterThan(0);
       for (const href of offHost) {
-        expect(href.startsWith(`https://huggingface.co/${LOCAL_MODEL}/resolve/${LOCAL_REVISION}/`)).toBe(true);
+        expect(href.startsWith(`https://huggingface.co/${LOCAL_MODEL}/resolve/${UNCACHED_REVISION}/`)).toBe(true);
       }
     },
     END_TO_END_TIMEOUT_MS,
