@@ -651,6 +651,31 @@ describe('run --driver gmi', () => {
     expect(errors).toContain('OPENAI_BASE_URL');
     expect(stub.chat).toEqual([]);
   });
+
+  // A bare `?` or `#` leaves URL.search and URL.hash empty, so a check on those fields lets it through, and the proxy
+  // would send each route after it. The CLI refuses it before the run starts, in a dry run and in a live run.
+  it.each([
+    ['?', 'a dry run', ['--dry-run']],
+    ['#', 'a dry run', ['--dry-run']],
+    ['?', 'a live run', []],
+    ['#', 'a live run', []],
+  ])('refuses OPENAI_BASE_URL ending in a bare %s, in %s, before any request', async (suffix, _label, mode) => {
+    process.env.OPENAI_BASE_URL = `${stub.url}${suffix}`;
+    const errors = await captureErrors(() =>
+      buildCli().parseAsync([
+        'node', 'agentos-bench', 'run', 'longmemeval-s', '--driver', 'gmi', '--reader', 'gpt-4o-mini',
+        '--embedder-model', 'text-embedding-3-small', '--concurrency', '1', '--data-dir', dataDir,
+        '--results-dir', resultsDir, ...mode,
+      ]),
+    );
+    expect(process.exitCode).toBe(2);
+    expect(errors).toContain('OPENAI_BASE_URL must not carry a query or a fragment');
+    expect(stub.chat).toEqual([]);
+    expect(stub.embeddingCalls).toBe(0);
+    expect(stub.modelListCalls).toBe(0);
+    expect(existsSync(path.join(resultsDir, 'runs'))).toBe(false);
+    expect(existsSync(path.join(resultsDir, 'summary.json'))).toBe(false);
+  });
 });
 
 describe('the driver in the case-run cache key', () => {

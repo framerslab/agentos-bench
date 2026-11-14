@@ -27,10 +27,10 @@ import type {
 import { REFLECTOR_PROMPT_HASH } from '@framers/agentos';
 import { EXTRACT_PROMPT_HASH } from '../readers/twoCallReader.js';
 import { OM_PROMPT_HASH } from '../observational-memory/prompts.js';
-import { Cache, hashKey } from './Cache.js';
+import { Cache } from './Cache.js';
 import { CostTracker } from './CostTracker.js';
 import { AGENTOS_VERSION, GMI_DRIVER_VERSION } from '../drivers/constants.js';
-import { gmiUpstreamEndpoint } from '../drivers/upstream.js';
+import { gmiNamedUpstreamProblem, gmiRunRefusal, gmiUpstreamEndpoint } from '../drivers/upstream.js';
 import { PRESET_TABLES } from './policyRouter.js';
 import { ResultStore } from './ResultStore.js';
 import type { IJudge } from '../judges/IJudge.js';
@@ -203,10 +203,17 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     // case-id list. Pinned by tests/resolveRunConfigContract.spec.ts.
     // A driver run that names no upstream (one built without the CLI) takes
     // it from the environment, where the driver itself reads it, so its
-    // cache key still tells a stub's answers from the provider's.
+    // cache key still tells a stub's answers from the provider's. A named
+    // one is kept in the form the CLI writes (scheme, host, port and base
+    // path), so the run file and the cache key carry that form alone.
     driver: cfg.driver,
     gmiRecall: cfg.gmiRecall,
-    gmiUpstream: cfg.gmiUpstream ?? (cfg.driver === 'gmi' ? gmiUpstreamEndpoint() : undefined),
+    gmiUpstream:
+      cfg.gmiUpstream !== undefined
+        ? gmiUpstreamEndpoint({ OPENAI_BASE_URL: cfg.gmiUpstream })
+        : cfg.driver === 'gmi'
+          ? gmiUpstreamEndpoint()
+          : undefined,
     caseIdsFile: cfg.caseIdsFile,
     // Per-category reader-tier router preset. Loadbearing for cache
     // fingerprint partitioning - different reader presets dispatch
@@ -992,9 +999,15 @@ export class BenchmarkRunner {
 
   /** Run the benchmark end-to-end and persist the result. */
   async run(benchmark: IBenchmark, config: RunConfig): Promise<BenchResult> {
+    // A named endpoint with credentials, a query or a fragment is refused
+    // before anything is created: the run would record and key it in a form
+    // that drops them.
+    const namedProblem = gmiNamedUpstreamProblem(config.gmiUpstream);
+    if (namedProblem) throw new Error(`--driver gmi: ${namedProblem}`);
+
     const startedAt = new Date().toISOString();
 
-    const scratchDir = await this.makeScratchDir(benchmark.id, startedAt);
+    const scratchDir = await this.makeScratchDir(benchmark.id);
     const cache = new Cache(path.join(this.opts.dataDir, 'cache'));
     const costTracker = new CostTracker();
 
@@ -1013,6 +1026,7 @@ export class BenchmarkRunner {
       const allCases = await benchmark.loadTestCases(ctx);
       const cases = typeof config.sampleN === 'number' ? allCases.slice(0, config.sampleN) : allCases;
 
+      await this.refuseGmiRun(benchmark, cases, ctx);
       const results = await this.runCases(benchmark, cases, ctx);
 
       const aggregate = benchmark.aggregate(results, ctx);
@@ -1022,7 +1036,11 @@ export class BenchmarkRunner {
         ...aggregate,
         benchmarkId: benchmark.id,
         benchmarkVersion: benchmark.version,
-        config: redactSecretsFromConfig(config),
+        // A driver run records its endpoint as the cache keyed it, in the form the CLI writes: the one it
+        // names, or else the one OPENAI_BASE_URL gave when it started.
+        config: redactSecretsFromConfig(
+          ctx.config.driver === 'gmi' ? { ...config, gmiUpstream: ctx.config.gmiUpstream } : config,
+        ),
         startedAt,
         completedAt: new Date().toISOString(),
         totalCases: results.length,
@@ -1126,25 +1144,49 @@ export class BenchmarkRunner {
     return results;
   }
 
+  /**
+   * Throws when the GMI driver would refuse a case of this run that the
+   * case-run cache does not answer. Such a case is refused before it
+   * sends anything and scored zero, and a run of them would still be
+   * saved: its summary row would replace a real driver row with the same
+   * number of cases. A run the cache answers in full sends nothing and
+   * goes ahead, as each of its cases would.
+   */
+  private async refuseGmiRun(benchmark: IBenchmark, cases: BenchCase[], ctx: BenchContext): Promise<void> {
+    if (ctx.config.driver !== 'gmi') return;
+    const refusal = gmiRunRefusal(ctx.config);
+    if (!refusal) return;
+    for (const c of cases) {
+      const { runKeyParts } = this.caseKeyParts(benchmark, c, ctx);
+      const run = await ctx.cache.get<CaseRun>('case-run', ...runKeyParts);
+      if (!run || run.error) throw new Error(refusal);
+    }
+  }
+
+  private caseKeyParts(
+    benchmark: IBenchmark,
+    c: BenchCase,
+    ctx: BenchContext,
+  ): { runKeyParts: unknown[]; resultKeyParts: unknown[] } {
+    // Delegate cache-key construction to the shared helper so test
+    // coverage (tests/readerTopK.spec.ts) can exercise the key-build
+    // path directly, and so conditional-append for readerTopK stays
+    // in one place rather than duplicated here and in tests.
+    return computeCaseRunKeyParts(ctx.config, {
+      benchmarkId: benchmark.id,
+      benchmarkVersion: benchmark.version,
+      caseId: c.id,
+      judgeModel: ctx.judge.model,
+      judgeRubricVersion: ctx.judge.rubricVersion,
+    });
+  }
+
   private async runOneCase(
     benchmark: IBenchmark,
     c: BenchCase,
     ctx: BenchContext,
   ): Promise<CaseResult> {
-    // Delegate cache-key construction to the shared helper so test
-    // coverage (tests/readerTopK.spec.ts) can exercise the key-build
-    // path directly, and so conditional-append for readerTopK stays
-    // in one place rather than duplicated here and in tests.
-    const { runKeyParts, resultKeyParts } = computeCaseRunKeyParts(
-      ctx.config,
-      {
-        benchmarkId: benchmark.id,
-        benchmarkVersion: benchmark.version,
-        caseId: c.id,
-        judgeModel: ctx.judge.model,
-        judgeRubricVersion: ctx.judge.rubricVersion,
-      },
-    );
+    const { runKeyParts, resultKeyParts } = this.caseKeyParts(benchmark, c, ctx);
 
     // Step 1 — produce or recall the answer.
     let run = await ctx.cache.get<CaseRun>('case-run', ...runKeyParts);
@@ -1222,10 +1264,15 @@ export class BenchmarkRunner {
     return result;
   }
 
-  private async makeScratchDir(benchId: string, stamp: string): Promise<string> {
-    const base = this.opts.scratchRoot ?? os.tmpdir();
-    const dir = path.join(base, 'agentos-bench', `${benchId}-${hashKey(stamp).slice(0, 8)}`);
-    await fs.mkdir(dir, { recursive: true });
-    return dir;
+  /**
+   * A new directory of this run's own under `<scratchRoot>/agentos-bench`.
+   * `mkdtemp` picks a name no other run holds, so two runs of one benchmark
+   * that start in the same millisecond, in one process or two, never share
+   * it: each removes its own when it ends.
+   */
+  private async makeScratchDir(benchId: string): Promise<string> {
+    const parent = path.join(this.opts.scratchRoot ?? os.tmpdir(), 'agentos-bench');
+    await fs.mkdir(parent, { recursive: true });
+    return fs.mkdtemp(path.join(parent, `${benchId}-`));
   }
 }

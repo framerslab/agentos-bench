@@ -41,6 +41,26 @@ export function gmiUpstreamMismatch(named: string | undefined, env: NodeJS.Proce
 }
 
 /**
+ * Why a run may not name `named` as its `gmiUpstream`, or null. The run file records the endpoint a run names and the
+ * case-run cache keys the run's answers by it, in the form {@link gmiUpstreamEndpoint} gives: credentials would be
+ * written to disk, and a query or a fragment names an endpoint that form cannot show. Unset is no problem: the runner
+ * fills it from the environment. The message never repeats the credentials.
+ */
+export function gmiNamedUpstreamProblem(named: string | undefined): string | null {
+  if (named === undefined) return null;
+  let url: URL;
+  try {
+    url = new URL(named.trim());
+  } catch {
+    return 'gmiUpstream is not a URL';
+  }
+  if (url.username || url.password || /[?#]/.test(named)) {
+    return `gmiUpstream must not carry credentials, a query or a fragment; name it as '${gmiUpstreamEndpoint({ OPENAI_BASE_URL: named })}'`;
+  }
+  return null;
+}
+
+/**
  * Why the driver will not send to `baseUrl`, or null. A case's question, with its memory block, and every filed
  * line's embedding request go to this address: it is the provider the driver names (api.openai.com, over https) or
  * a stub on this machine, and a dry run takes the stub alone. Any other host is refused, whatever protocol it speaks.
@@ -53,8 +73,9 @@ export function gmiUpstreamProblem(baseUrl: string, dryRun: boolean): string | n
     return `OPENAI_BASE_URL '${baseUrl}' is not a URL`;
   }
   // The run file and the cache key record scheme, host, port and path: two variables that differ only in a query or a
-  // fragment would share one key while the proxy sent to each as written.
-  if (url.search || url.hash) return `OPENAI_BASE_URL must not carry a query or a fragment, got '${baseUrl}'`;
+  // fragment would share one key while the proxy sent to each as written. The raw string is tested, since a bare
+  // trailing `?` or `#` leaves URL.search and URL.hash empty while the proxy appends each route after it.
+  if (/[?#]/.test(baseUrl)) return `OPENAI_BASE_URL must not carry a query or a fragment, got '${baseUrl}'`;
   const host = url.hostname.toLowerCase();
   if (LOOPBACK.has(host)) return null;
   if (dryRun) return 'a dry run needs OPENAI_BASE_URL set to a stub on this machine; it never calls a provider';
@@ -63,6 +84,24 @@ export function gmiUpstreamProblem(baseUrl: string, dryRun: boolean): string | n
   }
   // The key, the question and every filed line travel to the provider: never in the clear.
   return url.protocol === 'https:' ? null : `OPENAI_BASE_URL must reach api.openai.com over https, got '${baseUrl}'`;
+}
+
+/**
+ * Why the driver would refuse every case of a run that needs a request, or null: the checks `runGmiCase` makes before
+ * it sends, which hold for the whole run (the embedder, a named upstream the environment does not give, the key, the
+ * upstream), in that order and with the same messages. The runner checks it once before any case runs, so a run of
+ * refused cases is not saved as a run of zeros.
+ */
+export function gmiRunRefusal(
+  config: { gmiUpstream?: string; embedderModel?: string },
+  env: NodeJS.ProcessEnv = process.env,
+): string | null {
+  const problem =
+    gmiEmbedderProblem(config.embedderModel) ??
+    gmiUpstreamMismatch(config.gmiUpstream, env) ??
+    (env.OPENAI_API_KEY?.trim() ? null : 'OPENAI_API_KEY is not set') ??
+    gmiUpstreamProblem(gmiUpstreamBaseUrl(env), false);
+  return problem ? `--driver gmi: ${problem}` : null;
 }
 
 /**
