@@ -259,9 +259,18 @@ export interface RunConfig {
    * takes the library's default. `budgetTokens` is
    * `memory.recall.budget.totalTokens`; `store` keeps memory in the process
    * (`memory`, the default) or in one SQLite file per case under the run's
-   * scratch directory, removed when the case ends (`sqlite`).
+   * scratch directory, removed when the case ends (`sqlite`); `retrieval` is
+   * `memory.recall.retrieval` (`dense` by meaning alone, `hybrid` by meaning,
+   * exact words and recency); `rerank` is `memory.recall.rerank`, `none` or a
+   * cross-encoder in this process at a pinned commit of its Hugging Face
+   * repository. Set by `--budget`, `--gmi-store`, `--recall` and `--rerank`.
    */
-  gmiRecall?: { budgetTokens?: number; store?: 'memory' | 'sqlite' };
+  gmiRecall?: {
+    budgetTokens?: number;
+    store?: 'memory' | 'sqlite';
+    retrieval?: 'dense' | 'hybrid';
+    rerank?: 'none' | { kind: 'local'; model: string; revision: string };
+  };
 
   /**
    * `driver: 'gmi'` only: the endpoint the driver's model and embedding
