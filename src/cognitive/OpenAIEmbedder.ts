@@ -162,7 +162,7 @@ export function createOpenAIEmbedderFromEnv(
 ): OpenAIEmbedder {
   if (providerIdFor(modelId) === 'openai' && !process.env.OPENAI_API_KEY) {
     throw new Error(
-      `createOpenAIEmbedderFromEnv: OPENAI_API_KEY is not set. Source your wilds-ai/.env.local or export it manually.`,
+      `createOpenAIEmbedderFromEnv: OPENAI_API_KEY is not set.`,
     );
   }
   return new OpenAIEmbedder({ modelId });

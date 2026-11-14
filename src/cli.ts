@@ -51,6 +51,7 @@ import {
 import type { IEmbeddingManager } from '@framers/agentos/core/embeddings/IEmbeddingManager';
 import type { MemoryRetrievalProfile } from '@framers/agentos';
 import { SessionSummarizer } from '@framers/agentos/memory';
+import { gmiUpstreamBaseUrl, gmiUpstreamProblem } from './drivers/upstream.js';
 
 interface BenchEntry {
   id: string;
@@ -775,6 +776,33 @@ export function buildCli(): Command {
       parseInteger
     )
     .option(
+      '--driver <name>',
+      "Answer through an AgentOS agent instead of the bench's own reader path. 'gmi': agent({ runtime: 'gmi' }) with cognitive memory; each haystack is filed through the agent's session and the case keeps the turn's recall record. LongMemEval only; OpenAI readers only; reads OPENAI_API_KEY, and OPENAI_BASE_URL may name only api.openai.com or a stub on this machine.",
+      (value: string) => {
+        if (value !== 'gmi') throw new Error(`--driver must be 'gmi', got '${value}'`);
+        return value;
+      }
+    )
+    .option(
+      '--budget <tokens>',
+      'With --driver gmi: memory.recall.budget.totalTokens, the whole memory block a turn sends. Unset: the library default.',
+      parseInteger
+    )
+    .option(
+      '--gmi-store <kind>',
+      "With --driver gmi: 'memory' (in process, the default) or 'sqlite' (one file per case under the run's scratch directory).",
+      (value: string) => {
+        if (value !== 'memory' && value !== 'sqlite') {
+          throw new Error(`--gmi-store must be 'memory' | 'sqlite', got '${value}'`);
+        }
+        return value;
+      }
+    )
+    .option(
+      '--case-ids <file>',
+      'Run only the cases this JSON file lists: an array of ids, or an object with a "tuning" array. An id the dataset lacks fails the run.'
+    )
+    .option(
       '--reader-top-k <n>',
       'How many retrieved chunks the reader sees after rerank and score-floor filtering (must be >= 1; adapter default is 10). Candidate pool for rerank scales as K × rerank.candidateMultiplier, so K=15 at the default 3× multiplier re-ranks a 45-chunk pool. Use to investigate multi-session coverage trade-offs.',
       parsePositiveInteger
@@ -1047,6 +1075,67 @@ export function buildCli(): Command {
         );
       }
 
+      // --driver gmi answers through an AgentOS agent: the flags that
+      // configure the bench's own retrieve-then-read path have nothing to
+      // act on, so the run refuses them by name rather than ignore them.
+      // Checked before the rerank block, so `--rerank cohere` is refused
+      // before a key is read.
+      if (opts.driver === 'gmi') {
+        const refuse = (message: string): void => {
+          console.error(`[cli] --driver gmi: ${message}`);
+          process.exitCode = 2;
+        };
+        const benchPathFlags: Array<[flag: string, value: unknown]> = [
+          ['--reader-router', opts.readerRouter],
+          ['--policy-router', opts.policyRouter],
+          ['--retrieval-config-router', opts.retrievalConfigRouter],
+          ['--om-dynamic-router', opts.omDynamicRouter],
+          ['--hybrid-retrieval', opts.hybridRetrieval],
+          ['--hyde', opts.hyde],
+          ['--session-retrieval', opts.sessionRetrieval],
+          ['--fact-supersession', opts.factSupersession],
+          ['--split-ambiguous', opts.splitAmbiguous],
+          ['--observer-reflector', opts.observerReflector],
+          ['--observer-reflector-replace', opts.observerReflectorReplace],
+          ['--fact-graph-ingest', opts.factGraphIngest],
+          ['--graph-activation', opts.graphActivation],
+          ['--entity-linking', opts.entityLinking],
+          ['--typed-network', opts.typedNetwork],
+          ['--reader-top-k', opts.readerTopK],
+          ['--observational-memory', opts.observationalMemory],
+          ['--context-summary', opts.contextSummary],
+          ['--two-call-reader', opts.twoCallReader],
+          ['--rerank', opts.rerank],
+        ];
+        const clash = benchPathFlags.filter(([, value]) => value !== undefined && value !== false).map(([flag]) => flag);
+        if (!entry.id.startsWith('longmemeval-')) return refuse(`runs LongMemEval only, got '${entry.id}'`);
+        if (!String(opts.reader).startsWith('gpt-')) {
+          return refuse(`the reader must be an OpenAI model (gpt-*), got '${opts.reader}'`);
+        }
+        if (clash.length > 0) {
+          return refuse(`${clash.join(', ')} configure(s) the bench's own retrieval path and cannot be combined with the driver`);
+        }
+        if (typeof opts.maxUsd === 'number') {
+          return refuse('--max-usd: the driver has no cost projection yet; bound a run with --case-ids');
+        }
+        if (!process.env.OPENAI_API_KEY?.trim()) {
+          return refuse('OPENAI_API_KEY is not set: the agent, its embedder and the replay proxy read it');
+        }
+        const upstreamProblem = gmiUpstreamProblem(gmiUpstreamBaseUrl(), Boolean(opts.dryRun));
+        if (upstreamProblem) return refuse(upstreamProblem);
+        opts.memory = 'full-cognitive';
+        opts.replay = 'observe';
+      } else if (opts.budget !== undefined || opts.gmiStore !== undefined) {
+        console.error('[cli] --budget and --gmi-store take effect only with --driver gmi.');
+        process.exitCode = 2;
+        return;
+      }
+      if (opts.caseIds !== undefined && !entry.id.startsWith('longmemeval-')) {
+        console.error(`[cli] --case-ids applies to LongMemEval only, got '${entry.id}'.`);
+        process.exitCode = 2;
+        return;
+      }
+
       // Resolve rerank config from CLI flags. Only "cohere" is wired
       // today; any other provider string aborts the run with a clear
       // error so typos don't silently disable reranking.
@@ -1189,6 +1278,16 @@ export function buildCli(): Command {
         // parser above; undefined when flag is absent so cache fingerprint
         // stays off and existing cached results are reusable.
         typedNetwork: opts.typedNetwork as 'minimal' | 'full' | 'production' | undefined,
+        // --driver gmi and its recall settings; --case-ids for any run.
+        driver: opts.driver as 'gmi' | undefined,
+        gmiRecall:
+          opts.driver === 'gmi'
+            ? {
+                ...(typeof opts.budget === 'number' ? { budgetTokens: opts.budget } : {}),
+                ...(opts.gmiStore ? { store: opts.gmiStore as 'memory' | 'sqlite' } : {}),
+              }
+            : undefined,
+        caseIdsFile: opts.caseIds as string | undefined,
       };
 
       // Tier 3 policy router validation: mutually exclusive with the v10
@@ -1221,7 +1320,9 @@ export function buildCli(): Command {
       // fired 500 × Opus 4.7 cases by mistake" before any LLM call
       // goes out. Runs before createReader / judge construction so
       // aborting is cheap even when API keys are missing.
-      if (entry.family === 'external' && !opts.dryRun) {
+      // The driver is skipped: this table prices a reader that reads the
+      // whole haystack, which the driver never sends.
+      if (entry.family === 'external' && !opts.dryRun && opts.driver !== 'gmi') {
         // Rough haystack-size estimate needs a case count. We skip the
         // real dataset load to stay fast — the estimator's per-benchmark
         // haystack table gives a usable number with caseCount=sampleN

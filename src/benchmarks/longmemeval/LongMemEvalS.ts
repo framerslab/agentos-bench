@@ -101,6 +101,7 @@ import {
   type RetrievalConfigId,
 } from '@framers/agentos/memory-router';
 import { loadLongMemEvalDataset, type LongMemEvalVariant } from './dataset.js';
+import { pickCases, readCaseIds } from '../../core/caseIds.js';
 import {
   BENCH_SESSION_TAG_PREFIX,
   extractBenchSessionTag,
@@ -261,7 +262,10 @@ export class LongMemEvalS implements IBenchmark {
   }
 
   async loadTestCases(ctx: BenchContext): Promise<BenchCase[]> {
-    const allCases = await loadLongMemEvalDataset(ctx.dataDir, this.opts.variant);
+    const loaded = await loadLongMemEvalDataset(ctx.dataDir, this.opts.variant);
+    const allCases = ctx.config.caseIdsFile
+      ? pickCases(loaded, await readCaseIds(ctx.config.caseIdsFile))
+      : loaded;
     const perType = ctx.config.samplePerType;
     // Stratified sampling: take up to `samplePerType` cases from each
     // case type, preserving dataset order within a type. Caps at the
@@ -282,6 +286,12 @@ export class LongMemEvalS implements IBenchmark {
   }
 
   async runCase(c: BenchCase, ctx: BenchContext): Promise<CaseRun> {
+    // `--driver gmi` answers through an AgentOS agent; the agent runtime
+    // loads only for a run that asks for it.
+    if (ctx.config.driver === 'gmi') {
+      const { runGmiCase } = await import('../../drivers/gmiDriver.js');
+      return runGmiCase(c, ctx);
+    }
     const start = Date.now();
     const mode = ctx.config.memoryMode;
 

@@ -29,6 +29,7 @@ import { EXTRACT_PROMPT_HASH } from '../readers/twoCallReader.js';
 import { OM_PROMPT_HASH } from '../observational-memory/prompts.js';
 import { Cache, hashKey } from './Cache.js';
 import { CostTracker } from './CostTracker.js';
+import { GMI_DRIVER_VERSION } from '../drivers/constants.js';
 import { PRESET_TABLES } from './policyRouter.js';
 import { ResultStore } from './ResultStore.js';
 import type { IJudge } from '../judges/IJudge.js';
@@ -197,6 +198,11 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     // fingerprint partitioning - different embedders produce different
     // retrieval orderings, so cached case-runs MUST partition by it.
     embedderModel: cfg.embedderModel,
+    // The GMI driver and its recall settings (fingerprinted below), and the
+    // case-id list. Pinned by tests/resolveRunConfigContract.spec.ts.
+    driver: cfg.driver,
+    gmiRecall: cfg.gmiRecall,
+    caseIdsFile: cfg.caseIdsFile,
     // Per-category reader-tier router preset. Loadbearing for cache
     // fingerprint partitioning - different reader presets dispatch
     // different reader models per case, so cached case-runs MUST
@@ -368,6 +374,16 @@ export function computeCaseRunKeyParts(
     const embedderTag = `embedder:${config.embedderModel}`;
     runKeyParts.push(embedderTag);
     resultKeyParts.push(embedderTag);
+  }
+
+  // GMI driver fingerprint: the driver answers through an agent, so its
+  // answers never share a bucket with the bench's own path, and its recall
+  // settings partition it further. Conditional append: runs on the bench's
+  // own path keep their cache hashes.
+  if (config.driver) {
+    const driverTag = `driver:${config.driver}:${GMI_DRIVER_VERSION}:${JSON.stringify(config.gmiRecall ?? {})}`;
+    runKeyParts.push(driverTag);
+    resultKeyParts.push(driverTag);
   }
 
   // Reader-router fingerprint (2026-04-28) — load-bearing because the
