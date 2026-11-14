@@ -153,6 +153,9 @@ describe('a driver run the driver would refuse', () => {
     expect(filesUnder(path.join(dataDir, 'cache', 'case-result'))).toEqual([]);
     expect(stub.chat).toEqual([]);
     expect(stub.embeddingCalls).toBe(0);
+    // A run refused after its scratch directory was made removes it.
+    const scratch = path.join(tmp, 'scratch', 'agentos-bench');
+    expect(existsSync(scratch) ? readdirSync(scratch) : []).toEqual([]);
   };
 
   it(
@@ -197,11 +200,20 @@ describe('a driver run the driver would refuse', () => {
     120_000,
   );
 
-  it(
-    'with a bare trailing ? on OPENAI_BASE_URL: refused, no run file, the driver row kept',
-    async () => {
-      process.env.OPENAI_BASE_URL = `${stub.url}?`;
+  it.each(['?', '#'])(
+    'with a bare trailing %s on OPENAI_BASE_URL: refused, no run file, the driver row kept',
+    async (suffix) => {
+      process.env.OPENAI_BASE_URL = `${stub.url}${suffix}`;
       await expect(driverRun({})).rejects.toThrow(/--driver gmi: OPENAI_BASE_URL must not carry a query or a fragment/);
+      await expectNothingRecorded();
+    },
+    120_000,
+  );
+
+  it(
+    'naming a gmiUpstream that is not a URL: refused, no run file, the driver row kept',
+    async () => {
+      await expect(driverRun({ gmiUpstream: 'not a url' })).rejects.toThrow(/--driver gmi: gmiUpstream is not a URL/);
       await expectNothingRecorded();
     },
     120_000,

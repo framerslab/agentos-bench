@@ -161,6 +161,27 @@ describe('a run that names an upstream the environment does not point at', () =>
     120_000,
   );
 
+  // A named endpoint is recorded and keyed in one form however it is written: the run file holds that form, and a
+  // later run naming the endpoint as the CLI writes it is served from the cache the first run filled.
+  it(
+    'records a named endpoint in upper-case scheme with repeated trailing slashes as the CLI writes it, and keys it so',
+    async () => {
+      const first = await driverRun(`${stub.url.replace('http://', 'HTTP://')}//`, path.join(tmp, 'results-first'));
+      expect(first.cases.map((c) => c.error)).toEqual([undefined, undefined]);
+      expect(first.config.gmiUpstream).toBe(stub.url);
+      const runFiles = readdirSync(path.join(tmp, 'results-first', 'runs'));
+      expect(runFiles).toHaveLength(1);
+      const runFile = JSON.parse(await fs.readFile(path.join(tmp, 'results-first', 'runs', runFiles[0]!), 'utf8'));
+      expect(runFile.config.gmiUpstream).toBe(stub.url);
+      expect(stub.chat).toHaveLength(2);
+
+      const second = await driverRun(stub.url, path.join(tmp, 'results-second'));
+      expect(second.cases.map((c) => c.actualOutput)).toEqual(first.cases.map((c) => c.actualOutput));
+      expect(stub.chat).toHaveLength(2);
+    },
+    120_000,
+  );
+
   // The named endpoint gave those answers: a later run naming it is served from the cache, wherever
   // OPENAI_BASE_URL points by then, and sends nothing.
   it(
