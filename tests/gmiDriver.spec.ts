@@ -341,6 +341,58 @@ describe('run --driver gmi', () => {
   );
 
   it(
+    '--rerank local:<model>@<revision> reaches the agent: the run records it, the model loads at the pinned commit, and each turn says why its order stands',
+    async () => {
+      // No weights are fetched: every request to a host off this machine is answered 404 here, so the model's load
+      // fails at its first file and nothing leaves the process. The URLs the loader asked for show the pin arrived.
+      const offHost: string[] = [];
+      const realFetch = globalThis.fetch;
+      globalThis.fetch = (async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        if (['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)) return realFetch(input, init);
+        offHost.push(url.href);
+        return new Response('not found', { status: 404 });
+      }) as typeof fetch;
+      const rerank = { kind: 'local', model: LOCAL_MODEL, revision: LOCAL_REVISION };
+      try {
+        await run('--recall', 'hybrid', '--rerank', `local:${LOCAL_MODEL}@${LOCAL_REVISION}`);
+      } finally {
+        // A closed agent stops its reranker without waiting for the load, so the 404s stay until the loader has asked
+        // and gone quiet: a load still running once the fetch is restored would reach the real host.
+        const deadline = Date.now() + 30_000;
+        let seen = -1;
+        while (Date.now() < deadline && (offHost.length === 0 || offHost.length !== seen)) {
+          seen = offHost.length;
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+        globalThis.fetch = realFetch;
+      }
+      const result = await onlyRun();
+      expect(result.config.gmiRecall).toEqual({ retrieval: 'hybrid', rerank });
+      expect(result.cases.map((c: { error?: string }) => c.error)).toEqual([undefined, undefined]);
+      expect(result.cases.map((c: { actualOutput: string }) => c.actualOutput)).toEqual([
+        'An oat flat white.',
+        'The 7:15 ferry.',
+      ]);
+      expect(stub.chat).toHaveLength(2);
+      for (const c of result.cases) {
+        expect(c.metadata.gmiRecall).toEqual({ retrieval: 'hybrid', rerank });
+        expect(c.metadata.memoryRecall.retrieval).toBe('hybrid');
+        // The reranker the flag named was built: the turn kept recall's order because its model was loading or could
+        // not load, never because no reranker was set.
+        expect(c.metadata.memoryRecall.reranker.provider).toBe('none');
+        expect(['loading', 'unavailable']).toContain(c.metadata.memoryRecall.reranker.reason);
+      }
+      // Transformers.js asked Hugging Face for the named model at the pinned commit, and for nothing else.
+      expect(offHost.length).toBeGreaterThan(0);
+      for (const href of offHost) {
+        expect(href.startsWith(`https://huggingface.co/${LOCAL_MODEL}/resolve/${LOCAL_REVISION}/`)).toBe(true);
+      }
+    },
+    END_TO_END_TIMEOUT_MS,
+  );
+
+  it(
     'without --recall and --rerank the record is the library default: dense, no reranker',
     async () => {
       await run();
