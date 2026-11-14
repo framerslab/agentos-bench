@@ -3,7 +3,8 @@
  * @description A local stand-in for OpenAI's API, for tests that drive real
  * clients without a network: `/embeddings` answers a word-hash vector and
  * `/chat/completions` answers through `onChat`, as JSON or as a server-sent
- * event stream, whichever the request asks for.
+ * event stream, whichever the request asks for, and `GET /models` lists a
+ * few models, as the OpenAI provider reads it when it starts.
  */
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -19,8 +20,13 @@ export interface OpenAiStub {
   /** Every chat request the stub received, in order. */
   chat: StubChat[];
   embeddingCalls: number;
+  /** `GET /models` and `GET /models/<id>` requests. */
+  modelListCalls: number;
   close(): Promise<void>;
 }
+
+/** The models `GET /models` lists. */
+const MODELS = ['gpt-4o-mini', 'gpt-4o', 'text-embedding-3-small'];
 
 /** text-embedding-3-small's vector size. */
 const DIMENSION = 1536;
@@ -39,7 +45,7 @@ function embed(text: string): number[] {
 
 export async function startOpenAiStub(onChat: (chat: StubChat) => string): Promise<OpenAiStub> {
   const chat: StubChat[] = [];
-  const stub = { chat, embeddingCalls: 0 } as unknown as OpenAiStub;
+  const stub = { chat, embeddingCalls: 0, modelListCalls: 0 } as unknown as OpenAiStub;
   const server = http.createServer((req, res) => {
     let raw = '';
     req.on('data', (d) => {
@@ -48,6 +54,15 @@ export async function startOpenAiStub(onChat: (chat: StubChat) => string): Promi
     req.on('end', () => {
       const body = raw ? JSON.parse(raw) : {};
       const route = (req.url ?? '').split('?')[0]!;
+      // The OpenAI provider lists the models when it starts.
+      const model = /\/models(?:\/([^/]+))?$/.exec(route);
+      if (req.method === 'GET' && model) {
+        stub.modelListCalls += 1;
+        const entry = (id: string) => ({ id, object: 'model', created: 0, owned_by: 'stub' });
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify(model[1] ? entry(model[1]) : { object: 'list', data: MODELS.map(entry) }));
+        return;
+      }
       if (route.endsWith('/embeddings')) {
         stub.embeddingCalls += 1;
         const inputs: string[] = Array.isArray(body.input) ? body.input : [body.input];

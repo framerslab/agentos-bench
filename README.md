@@ -188,13 +188,13 @@ How a case runs:
 - The first user turn of a haystack session is prefixed `(Conversation of <date>)` and the question `(Today is <question date>.)`. An agent files what it hears when it hears it, so the dates travel in the text.
 - The question is the one request the proxy forwards to the provider.
 
-What reaches the provider: an embedding request for every filed line and every turn's query, plus one test embedding as each agent starts; one reader request per case; the judge's request, through the bench's own client as on every run. The agent and its embedder read `OPENAI_API_KEY`. `OPENAI_BASE_URL` may name `api.openai.com` or a stub on this machine (`127.0.0.1`, `localhost`, `::1`), and a dry run takes the stub alone: the question and its memory block go to that host, so any other is refused.
+What reaches the provider: an embedding request for every filed line and every turn's query, plus one test embedding as each agent starts; the model list, which the OpenAI provider reads as it starts (the proxy forwards that read); one reader request per case; the judge's request, through the bench's own client as on every run. The agent and its embedder read `OPENAI_API_KEY`. `OPENAI_BASE_URL` may name `api.openai.com` or a stub on this machine (`127.0.0.1`, `localhost`, `::1`), and a dry run takes the stub alone: the question and its memory block go to that host, so any other is refused.
 
 What a case's `metadata` holds:
 
 - `memoryRecall`: the turn's recall capture (`memory-recall-capture/1`), with ids, ranks, scores, outcomes, tokens and timings, never a memory's text or the query's.
 - `ingest`: haystack sessions, user turns filed, assistant turns replayed, turns skipped, model requests beyond one per filed turn (`extraModelRequests`), and the filing time.
-- `upstreamHost`, `forwardedRequests` and the run's `gmiRecall` settings.
+- `upstreamHost`, `forwardedRequests`, `modelListReads` and the run's `gmiRecall` settings.
 
 The reader's cost is priced from the provider's usage. The embedding cost is an estimate from the filed text, recorded under the tag `<case id>:gmi-embedding-estimate`.
 

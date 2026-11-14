@@ -15,9 +15,10 @@ export interface ReplayScript {
   forward(): void;
   /**
    * `replayed`: requests answered with a scripted text, one per `reply()`; `extra`: further requests made before the
-   * next `reply()` (a component of the turn that calls the model again); `forwarded`: requests sent upstream.
+   * next `reply()` (a component of the turn that calls the model again); `forwarded`: chat requests sent upstream;
+   * `modelReads`: `GET /models` reads, which go upstream in either mode and carry nothing of a case.
    */
-  counts(): { replayed: number; extra: number; forwarded: number };
+  counts(): { replayed: number; extra: number; forwarded: number; modelReads: number };
   /** Releases the key. */
   done(): void;
 }
@@ -36,6 +37,7 @@ interface State {
   replayed: number;
   extra: number;
   forwarded: number;
+  modelReads: number;
 }
 
 export async function startReplayProxy(o: { upstreamBaseUrl: string; upstreamApiKey: string }): Promise<ReplayProxy> {
@@ -56,6 +58,20 @@ export async function startReplayProxy(o: { upstreamBaseUrl: string; upstreamApi
         const state = scripts.get(key);
         const route = (req.url ?? '').split('?')[0]!;
         if (!state) return json(res, 401, { error: { message: 'replay proxy: unknown key' } });
+        // The provider lists the models when it starts (and may read one model's entry): those reads carry nothing of
+        // a case and go upstream in either mode, so the agent sees the provider's own list.
+        const models = /\/models(?:\/[^/]+)?$/.exec(route);
+        if (req.method === 'GET' && models) {
+          state.modelReads += 1;
+          const upstream = await fetch(`${o.upstreamBaseUrl}${models[0]}`, {
+            method: 'GET',
+            redirect: 'error',
+            headers: { authorization: `Bearer ${o.upstreamApiKey}` },
+          });
+          res.writeHead(upstream.status, { 'content-type': upstream.headers.get('content-type') ?? 'application/json' });
+          res.end(Buffer.from(await upstream.arrayBuffer()));
+          return;
+        }
         if (req.method !== 'POST' || !route.endsWith('/chat/completions')) {
           return json(res, 404, { error: { message: `replay proxy: no route ${req.method} ${route}` } });
         }
@@ -108,7 +124,7 @@ export async function startReplayProxy(o: { upstreamBaseUrl: string; upstreamApi
     url: `http://127.0.0.1:${(server.address() as AddressInfo).port}/v1`,
     script(key) {
       if (scripts.has(key)) throw new Error(`replay proxy: key ${key} is already scripted`);
-      const state: State = { mode: 'replay', text: 'Noted.', sinceReply: 0, replayed: 0, extra: 0, forwarded: 0 };
+      const state: State = { mode: 'replay', text: 'Noted.', sinceReply: 0, replayed: 0, extra: 0, forwarded: 0, modelReads: 0 };
       scripts.set(key, state);
       return {
         reply: (text) => {
@@ -118,7 +134,7 @@ export async function startReplayProxy(o: { upstreamBaseUrl: string; upstreamApi
         forward: () => {
           state.mode = 'forward';
         },
-        counts: () => ({ replayed: state.replayed, extra: state.extra, forwarded: state.forwarded }),
+        counts: () => ({ replayed: state.replayed, extra: state.extra, forwarded: state.forwarded, modelReads: state.modelReads }),
         done: () => {
           scripts.delete(key);
         },

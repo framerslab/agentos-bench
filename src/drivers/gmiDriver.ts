@@ -147,6 +147,7 @@ export async function runGmiCase(c: BenchCase, ctx: BenchContext): Promise<CaseR
         ingest,
         questionMs: Date.now() - asked,
         forwardedRequests: script.counts().forwarded,
+        modelListReads: script.counts().modelReads,
         upstreamHost: new URL(gmiUpstreamBaseUrl()).hostname,
       },
     };
