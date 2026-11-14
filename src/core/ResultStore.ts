@@ -176,6 +176,9 @@ export class ResultStore {
       r.config.reader,
       r.config.memoryMode,
       r.config.replayMode,
+      // A driver run records the same modes as a bench-path run: its file
+      // name ends in the driver, so the two never share a file.
+      ...(r.config.driver ? [r.config.driver] : []),
     ];
     return `${parts.join('--')}.json`;
   }

@@ -52,6 +52,9 @@ export function gmiUpstreamProblem(baseUrl: string, dryRun: boolean): string | n
   } catch {
     return `OPENAI_BASE_URL '${baseUrl}' is not a URL`;
   }
+  // The run file and the cache key record scheme, host, port and path: two variables that differ only in a query or a
+  // fragment would share one key while the proxy sent to each as written.
+  if (url.search || url.hash) return `OPENAI_BASE_URL must not carry a query or a fragment, got '${baseUrl}'`;
   const host = url.hostname.toLowerCase();
   if (LOOPBACK.has(host)) return null;
   if (dryRun) return 'a dry run needs OPENAI_BASE_URL set to a stub on this machine; it never calls a provider';
