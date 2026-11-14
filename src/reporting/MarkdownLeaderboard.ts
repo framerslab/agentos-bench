@@ -21,7 +21,7 @@
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { ResultStore, type ResultsSummary, type SummaryEntry } from '../core/ResultStore.js';
+import { ResultStore, summaryKey, summaryLabel, type ResultsSummary, type SummaryEntry } from '../core/ResultStore.js';
 import { bestPublished, COMPETITOR_NUMBERS, type CompetitorScore } from './competitor-numbers.js';
 
 /**
@@ -120,7 +120,9 @@ function buildExternalSection(benchId: string, summary: ResultsSummary): string 
   const rows: RenderedRow[] = [];
   for (const o of ours.sort((a, b) => b.accuracy - a.accuracy)) {
     rows.push({
-      system: 'AgentOS (`@framers/agentos`)',
+      // A driver run records the same memory and replay modes as a run on the
+      // bench's own path: the system column names the driver that answered it.
+      system: o.driver ? `AgentOS (\`@framers/agentos\`), \`--driver ${o.driver}\`` : 'AgentOS (`@framers/agentos`)',
       reader: o.reader,
       memoryMode: o.memoryMode,
       replayMode: o.replayMode,
@@ -191,7 +193,7 @@ function buildRetrievalSection(benchId: string, summary: ResultsSummary): string
     .sort((a, b) => (b.retrievalMetrics!.meanNdcgAtK) - (a.retrievalMetrics!.meanNdcgAtK))
     .map((r) => {
       const m = r.retrievalMetrics!;
-      return `| ${r.reader}/${r.memoryMode}/${r.replayMode} | ${r.memoryMode} | ${r.replayMode} | ${m.meanRecallAtK.toFixed(3)} | ${m.meanPrecisionAtK.toFixed(3)} | ${m.meanNdcgAtK.toFixed(3)} | ${m.meanMrr.toFixed(3)} | ${m.sampleSize} |`;
+      return `| ${summaryLabel(r, '/')} | ${r.memoryMode} | ${r.replayMode} | ${m.meanRecallAtK.toFixed(3)} | ${m.meanPrecisionAtK.toFixed(3)} | ${m.meanNdcgAtK.toFixed(3)} | ${m.meanMrr.toFixed(3)} | ${m.sampleSize} |`;
     });
   return [...header, ...body].join('\n');
 }
@@ -206,7 +208,7 @@ function buildLatencyAppendix(summary: ResultsSummary): string | null {
   const lines: string[] = [
     '## Latency & Footprint (latest AgentOS run)',
     '',
-    `Benchmark: \`${latest.benchmarkId}\` — ${latest.reader} / ${latest.memoryMode} / ${latest.replayMode}`,
+    `Benchmark: \`${latest.benchmarkId}\` — ${summaryLabel(latest)}`,
     '',
     `- Encode   p50/p95/p99: ${lb.encode.p50.toFixed(1)}/${lb.encode.p95.toFixed(1)}/${lb.encode.p99.toFixed(1)} ms (n=${lb.encode.n})`,
     `- Retrieve p50/p95/p99: ${lb.retrieve.p50.toFixed(1)}/${lb.retrieve.p95.toFixed(1)}/${lb.retrieve.p99.toFixed(1)} ms (n=${lb.retrieve.n})`,
@@ -305,10 +307,7 @@ export function renderExternalSectionForTest(
   const summary: ResultsSummary = {
     updatedAt: new Date().toISOString(),
     latest: Object.fromEntries(
-      ours.map((o) => [
-        `${o.benchmarkId}|${o.reader}|${o.memoryMode}|${o.replayMode}`,
-        o,
-      ]),
+      ours.map((o) => [summaryKey(o), o]),
     ),
   };
   const registryBackup = COMPETITOR_NUMBERS[benchId];

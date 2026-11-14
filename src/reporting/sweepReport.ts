@@ -16,7 +16,7 @@
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { ResultStore, type ResultsSummary, type SummaryEntry } from '../core/ResultStore.js';
+import { ResultStore, summaryLabel, type ResultsSummary, type SummaryEntry } from '../core/ResultStore.js';
 import { attachBootstrapCIs } from '../core/BenchmarkRunner.js';
 import type { BenchResult } from '../core/IBenchmark.js';
 
@@ -96,7 +96,7 @@ export function renderHeadline(summary: ResultsSummary): string {
   return [
     '## Headline',
     '',
-    `**Champion cell (${champion.benchmarkId}):** ${champion.reader} / ${champion.memoryMode} / ${champion.replayMode}`,
+    `**Champion cell (${champion.benchmarkId}):** ${summaryLabel(champion)}`,
     '',
     `- Accuracy: **${unweighted}** unweighted, **${weighted}** stratified-weighted (N=${champion.totalCases})`,
     `- Cost per correct: **${cpc}** | avg latency: ${latency}`,
@@ -112,8 +112,8 @@ function renderAllCells(summary: ResultsSummary): string {
   const header = [
     '## All cells',
     '',
-    '| Benchmark | Reader | Memory | Replay | Accuracy | Weighted | $/Correct | Avg Latency | N |',
-    '|---|---|---|---|---:|---:|---:|---:|---:|',
+    '| Benchmark | Reader | Memory | Replay | Driver | Accuracy | Weighted | $/Correct | Avg Latency | N |',
+    '|---|---|---|---|---|---:|---:|---:|---:|---:|',
   ];
   const rows = externalCells
     .sort((a, b) =>
@@ -127,7 +127,7 @@ function renderAllCells(summary: ResultsSummary): string {
       const cpc = Number.isFinite(c.costPerCorrect)
         ? `$${c.costPerCorrect.toFixed(4)}`
         : '—';
-      return `| ${c.benchmarkId} | ${c.reader} | ${c.memoryMode} | ${c.replayMode} | ${(c.accuracy * 100).toFixed(1)}% | ${weighted} | ${cpc} | ${c.avgLatencyMs.toFixed(0)} ms | ${c.totalCases} |`;
+      return `| ${c.benchmarkId} | ${c.reader} | ${c.memoryMode} | ${c.replayMode} | ${c.driver ?? '—'} | ${(c.accuracy * 100).toFixed(1)}% | ${weighted} | ${cpc} | ${c.avgLatencyMs.toFixed(0)} ms | ${c.totalCases} |`;
     });
   return [...header, ...rows].join('\n');
 }
@@ -169,7 +169,7 @@ function renderFootprintSummary(summary: ResultsSummary): string {
   return [
     '## Footprint (latest run)',
     '',
-    `Benchmark: \`${latest.benchmarkId}\` — ${latest.reader} / ${latest.memoryMode} / ${latest.replayMode}`,
+    `Benchmark: \`${latest.benchmarkId}\` — ${summaryLabel(latest)}`,
     '',
     `- Brain mean/p95: ${kb(fp.meanBrainBytes)} / ${kb(fp.p95BrainBytes)}`,
     `- Mean trace count: ${fp.meanTraceCount.toFixed(0)}`,
