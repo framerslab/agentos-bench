@@ -51,7 +51,8 @@ import {
 import type { IEmbeddingManager } from '@framers/agentos/core/embeddings/IEmbeddingManager';
 import type { MemoryRetrievalProfile } from '@framers/agentos';
 import { SessionSummarizer } from '@framers/agentos/memory';
-import { gmiUpstreamBaseUrl, gmiUpstreamHostname, gmiUpstreamProblem } from './drivers/upstream.js';
+import { gmiEmbedderProblem, gmiUpstreamBaseUrl, gmiUpstreamEndpoint, gmiUpstreamProblem } from './drivers/upstream.js';
+import { readCaseIds } from './core/caseIds.js';
 
 /**
  * The `run` options that act under `--driver gmi`, by commander attribute name: the driver's own, the models, the
@@ -813,8 +814,8 @@ export function buildCli(): Command {
     )
     .option(
       '--budget <tokens>',
-      'With --driver gmi: memory.recall.budget.totalTokens, the whole memory block a turn sends. Unset: the library default.',
-      parseInteger
+      'With --driver gmi: memory.recall.budget.totalTokens, the whole memory block a turn sends (>= 1). Unset: the library default.',
+      parsePositiveInteger
     )
     .option(
       '--gmi-store <kind>',
@@ -841,7 +842,7 @@ export function buildCli(): Command {
     )
     .option(
       '--judge-adversarial',
-      'Enable judge-adversarial probe: synthesize topically-adjacent wrong answers, score with the same judge, report judge false-positive rate (noise floor). Adds one cheap synth call + one judge call per probed case. Cost bounded by --judge-adversarial-max-probes.'
+      'Enable judge-adversarial probe: synthesize topically-adjacent wrong answers, score with the same judge, report judge false-positive rate (noise floor). Adds one cheap synth call + one judge call per probed case. Cost bounded by --judge-adversarial-max-probes. Refused in a dry run: the synthesizer calls a provider.'
     )
     .option(
       '--judge-adversarial-max-probes <n>',
@@ -1103,6 +1104,16 @@ export function buildCli(): Command {
         );
       }
 
+      // The adversarial probe's synthesizer is a real reader that posts to
+      // its provider by a fixed URL, and a dry run makes no API calls.
+      if (opts.dryRun && opts.judgeAdversarial) {
+        console.error(
+          "[cli] --judge-adversarial cannot run in a dry run: the probe's synthesizer calls a provider, and a dry run calls none."
+        );
+        process.exitCode = 2;
+        return;
+      }
+
       // --driver gmi answers through an AgentOS agent: the options that
       // configure the bench's own retrieve-then-read path have nothing to
       // act on, so one given on the command line is refused by name rather
@@ -1132,6 +1143,8 @@ export function buildCli(): Command {
             `${clash.join(', ')} cannot be combined with the driver: the agent does its own recall and reading, so an option of the bench's own path has nothing to act on`
           );
         }
+        const embedderProblem = gmiEmbedderProblem(opts.embedderModel as string | undefined);
+        if (embedderProblem) return refuse(embedderProblem);
         if (typeof opts.maxUsd === 'number') {
           return refuse('--max-usd: the driver has no cost projection yet; bound a run with --case-ids');
         }
@@ -1304,7 +1317,7 @@ export function buildCli(): Command {
                 ...(opts.gmiStore ? { store: opts.gmiStore as 'memory' | 'sqlite' } : {}),
               }
             : undefined,
-        gmiUpstreamHost: opts.driver === 'gmi' ? gmiUpstreamHostname() : undefined,
+        gmiUpstream: opts.driver === 'gmi' ? gmiUpstreamEndpoint() : undefined,
         caseIdsFile: opts.caseIds as string | undefined,
       };
 
@@ -1345,7 +1358,11 @@ export function buildCli(): Command {
         // real dataset load to stay fast — the estimator's per-benchmark
         // haystack table gives a usable number with caseCount=sampleN
         // or a generous default.
-        const caseCount = opts.sample ?? defaultCaseCountForBenchmark(entry.id);
+        // A --case-ids list bounds the run to its own length (and --sample
+        // below that), so the projection prices the cases that will run.
+        const listedCases =
+          typeof opts.caseIds === 'string' ? (await readCaseIds(opts.caseIds)).length : undefined;
+        const caseCount = listedCases ?? opts.sample ?? defaultCaseCountForBenchmark(entry.id);
         const estimate = estimateRunCost({
           benchmarkId: entry.id,
           family: 'external',

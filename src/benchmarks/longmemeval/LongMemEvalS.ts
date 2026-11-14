@@ -1191,11 +1191,17 @@ export class LongMemEvalS implements IBenchmark {
       (c.metadata?.answerSessionIds as string[] | undefined) ?? [];
     const k = retrievedEvidence.length > 0 ? retrievedEvidence.length : 10;
 
-    const retrievalMetrics = computeRetrievalMetrics({
-      goldSessionIds,
-      retrievedSessionIds: retrievedEvidence.map((e) => e.sessionId),
-      k,
-    });
+    // The GMI driver records recall in `memoryRecall` by memory id, not as
+    // retrieved sessions: an empty evidence list there would score as a
+    // retrieval miss, so a driver case gets no retrieval score at all.
+    const retrievalMetrics =
+      md.driver === 'gmi'
+        ? null
+        : computeRetrievalMetrics({
+            goldSessionIds,
+            retrievedSessionIds: retrievedEvidence.map((e) => e.sessionId),
+            k,
+          });
 
     const encodeMsSamples = (md.encodeMsSamples as number[] | undefined) ?? [];
     const diagnostics = md.retrieveDiagnostics as

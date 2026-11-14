@@ -250,7 +250,7 @@ export interface RunConfig {
    * agent's session and the case keeps the turn's recall record. LongMemEval
    * only. Set by `--driver gmi`; see the README, "The GMI driver".
    *
-   * Cache fingerprint: `driver:<driver>:<driver version>:<gmiUpstreamHost>:<gmiRecall>`.
+   * Cache fingerprint: `driver:<driver>:<driver version>:agentos@<installed version>:<gmiUpstream>:<gmiRecall>`.
    */
   driver?: 'gmi';
 
@@ -264,13 +264,15 @@ export interface RunConfig {
   gmiRecall?: { budgetTokens?: number; store?: 'memory' | 'sqlite' };
 
   /**
-   * `driver: 'gmi'` only: the host the driver's model and embedding
-   * requests go to (`api.openai.com`, or a stub on this machine). Set by the
-   * CLI from `OPENAI_BASE_URL`; a run that leaves it unset takes it from the
-   * same variable when it starts. Part of the driver's cache fingerprint, so
-   * answers a stub gave never serve a run against the provider.
+   * `driver: 'gmi'` only: the endpoint the driver's model and embedding
+   * requests go to, as scheme, host, port and base path
+   * (`https://api.openai.com/v1`, or a stub on this machine such as
+   * `http://127.0.0.1:4010/v1`). Set by the CLI from `OPENAI_BASE_URL`; a run
+   * that leaves it unset takes it from the same variable when it starts. Part
+   * of the driver's cache fingerprint, so answers a stub gave never serve a
+   * run against the provider or against another stub.
    */
-  gmiUpstreamHost?: string;
+  gmiUpstream?: string;
 
   /**
    * Run only the cases this JSON file lists: an array of ids, or an object
@@ -954,7 +956,7 @@ export const OPTIONAL_RUN_CONFIG_KEYS = [
   'typedNetwork',
   'driver',
   'gmiRecall',
-  'gmiUpstreamHost',
+  'gmiUpstream',
   'caseIdsFile',
 ] as const;
 /**

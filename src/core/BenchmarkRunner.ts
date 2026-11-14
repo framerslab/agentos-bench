@@ -29,8 +29,8 @@ import { EXTRACT_PROMPT_HASH } from '../readers/twoCallReader.js';
 import { OM_PROMPT_HASH } from '../observational-memory/prompts.js';
 import { Cache, hashKey } from './Cache.js';
 import { CostTracker } from './CostTracker.js';
-import { GMI_DRIVER_VERSION } from '../drivers/constants.js';
-import { gmiUpstreamHostname } from '../drivers/upstream.js';
+import { AGENTOS_VERSION, GMI_DRIVER_VERSION } from '../drivers/constants.js';
+import { gmiUpstreamEndpoint } from '../drivers/upstream.js';
 import { PRESET_TABLES } from './policyRouter.js';
 import { ResultStore } from './ResultStore.js';
 import type { IJudge } from '../judges/IJudge.js';
@@ -201,12 +201,12 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     embedderModel: cfg.embedderModel,
     // The GMI driver and its recall settings (fingerprinted below), and the
     // case-id list. Pinned by tests/resolveRunConfigContract.spec.ts.
-    // A driver run that names no upstream host (one built without the CLI)
-    // takes it from the environment, where the driver itself reads it, so
-    // its cache key still tells a stub's answers from the provider's.
+    // A driver run that names no upstream (one built without the CLI) takes
+    // it from the environment, where the driver itself reads it, so its
+    // cache key still tells a stub's answers from the provider's.
     driver: cfg.driver,
     gmiRecall: cfg.gmiRecall,
-    gmiUpstreamHost: cfg.gmiUpstreamHost ?? (cfg.driver === 'gmi' ? gmiUpstreamHostname() : undefined),
+    gmiUpstream: cfg.gmiUpstream ?? (cfg.driver === 'gmi' ? gmiUpstreamEndpoint() : undefined),
     caseIdsFile: cfg.caseIdsFile,
     // Per-category reader-tier router preset. Loadbearing for cache
     // fingerprint partitioning - different reader presets dispatch
@@ -382,12 +382,14 @@ export function computeCaseRunKeyParts(
   }
 
   // GMI driver fingerprint: the driver answers through an agent, so its
-  // answers never share a bucket with the bench's own path. The upstream
-  // host keeps a dry run's stub answers out of a live run's bucket, and the
-  // recall settings partition it further. Conditional append: runs on the
-  // bench's own path keep their cache hashes.
+  // answers never share a bucket with the bench's own path. The installed
+  // agentos release keeps one release's answers out of another's (the
+  // library's defaults move between releases); the upstream (scheme, host,
+  // port, path) keeps a stub's answers out of a live run's bucket and out of
+  // another stub's; the recall settings partition it further. Conditional
+  // append: runs on the bench's own path keep their cache hashes.
   if (config.driver) {
-    const driverTag = `driver:${config.driver}:${GMI_DRIVER_VERSION}:${config.gmiUpstreamHost ?? ''}:${JSON.stringify(config.gmiRecall ?? {})}`;
+    const driverTag = `driver:${config.driver}:${GMI_DRIVER_VERSION}:agentos@${AGENTOS_VERSION}:${config.gmiUpstream ?? ''}:${JSON.stringify(config.gmiRecall ?? {})}`;
     runKeyParts.push(driverTag);
     resultKeyParts.push(driverTag);
   }
