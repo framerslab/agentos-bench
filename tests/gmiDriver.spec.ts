@@ -118,6 +118,7 @@ describe('run --driver gmi', () => {
       await run('--budget', '1200');
       const result = await onlyRun();
       expect(result.config.driver).toBe('gmi');
+      expect(result.config.gmiUpstreamHost).toBe('127.0.0.1');
       expect(result.cases.map((c: { error?: string }) => c.error)).toEqual([undefined, undefined]);
       expect(result.cases.map((c: { actualOutput: string }) => c.actualOutput)).toEqual([
         'An oat flat white.',
@@ -244,5 +245,13 @@ describe('the driver in the case-run cache key', () => {
     }
     expect(a.runKeyParts).not.toEqual(b.runKeyParts);
     expect(a.resultKeyParts).not.toEqual(b.resultKeyParts);
+  });
+
+  // A dry run answers from a stub on this machine; its cached answers must never stand in for a live run's.
+  it('partitions by the upstream host, so a stub run never answers for a live one', () => {
+    const stubRun = parts({ ...base, driver: 'gmi', gmiUpstreamHost: '127.0.0.1' } as RunConfig);
+    const liveRun = parts({ ...base, driver: 'gmi', gmiUpstreamHost: 'api.openai.com' } as RunConfig);
+    expect(stubRun.runKeyParts).not.toEqual(liveRun.runKeyParts);
+    expect(stubRun.resultKeyParts).not.toEqual(liveRun.resultKeyParts);
   });
 });
