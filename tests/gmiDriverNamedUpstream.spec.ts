@@ -161,6 +161,28 @@ describe('a run that names an upstream the environment does not point at', () =>
     120_000,
   );
 
+  // A run that names no endpoint is keyed by the one OPENAI_BASE_URL gives: its run file records that endpoint, as a
+  // run from the CLI does, so the record says which upstream gave the answers.
+  it(
+    'records the endpoint OPENAI_BASE_URL gives in the run file of a run that names none',
+    async () => {
+      const result = await runnerFor().run(new LongMemEvalS({ reader: new MockReader('gpt-4o-mini'), variant: 's' }), {
+        reader: 'gpt-4o-mini',
+        memoryMode: 'full-cognitive',
+        replayMode: 'observe',
+        concurrency: 1,
+        driver: 'gmi',
+      } as RunConfig);
+      expect(result.cases.map((c) => c.error)).toEqual([undefined, undefined]);
+      expect(result.config.gmiUpstream).toBe(stub.url);
+      const runFiles = readdirSync(path.join(resultsDir, 'runs'));
+      expect(runFiles).toHaveLength(1);
+      const runFile = JSON.parse(await fs.readFile(path.join(resultsDir, 'runs', runFiles[0]!), 'utf8'));
+      expect(runFile.config.gmiUpstream).toBe(stub.url);
+    },
+    120_000,
+  );
+
   // A named endpoint is recorded and keyed in one form however it is written: the run file holds that form, and a
   // later run naming the endpoint as the CLI writes it is served from the cache the first run filled.
   it(
