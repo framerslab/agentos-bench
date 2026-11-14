@@ -362,7 +362,7 @@ describe('run --driver gmi', () => {
       }) as typeof fetch;
       const rerank = { kind: 'local', model: LOCAL_MODEL, revision: UNCACHED_REVISION };
       try {
-        await run('--recall', 'hybrid', '--rerank', `local:${LOCAL_MODEL}@${LOCAL_REVISION}`);
+        await run('--recall', 'hybrid', '--rerank', `local:${LOCAL_MODEL}@${UNCACHED_REVISION}`);
       } finally {
         // A closed agent stops its reranker without waiting for the load, so the 404s stay until the loader has asked
         // and gone quiet: a load still running once the fetch is restored would reach the real host.
