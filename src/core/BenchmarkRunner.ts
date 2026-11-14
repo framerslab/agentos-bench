@@ -1194,6 +1194,11 @@ export class BenchmarkRunner {
 
     // Step 2 — score it.
     let result = await ctx.cache.get<CaseResult>('case-result', ...resultKeyParts);
+    // An errored run is scored zero and not cached, like the run itself: a
+    // cached zero would stand in for the case's next run once it succeeds
+    // (and a refused case, such as a driver run whose named upstream the
+    // environment does not give, would leave one under a key it never ran).
+    if (result?.error) result = undefined;
     if (!result) {
       if (run.error) {
         result = { ...run, score: 0, passed: false };
@@ -1211,7 +1216,7 @@ export class BenchmarkRunner {
           };
         }
       }
-      await ctx.cache.set('case-result', result, ...resultKeyParts);
+      if (!run.error) await ctx.cache.set('case-result', result, ...resultKeyParts);
     }
 
     return result;

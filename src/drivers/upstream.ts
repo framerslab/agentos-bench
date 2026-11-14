@@ -28,6 +28,19 @@ export function gmiUpstreamEndpoint(env: NodeJS.ProcessEnv = process.env): strin
 }
 
 /**
+ * Why the driver will not answer a run that names `named` as its upstream, or null. The run file records that
+ * endpoint and the case-run cache keys the run's answers by it, while the driver sends where `OPENAI_BASE_URL` points:
+ * a run built on `BenchmarkRunner` that names one endpoint while the environment gives another would cache one
+ * endpoint's answers under the other's. Unset (`undefined`) is no conflict: the runner fills it from the environment.
+ */
+export function gmiUpstreamMismatch(named: string | undefined, env: NodeJS.ProcessEnv = process.env): string | null {
+  if (named === undefined) return null;
+  const given = gmiUpstreamEndpoint(env);
+  if (gmiUpstreamEndpoint({ OPENAI_BASE_URL: named }) === given) return null;
+  return `the run names gmiUpstream '${named}', but OPENAI_BASE_URL gives '${given}': the driver sends where OPENAI_BASE_URL points, so set the two to the same endpoint`;
+}
+
+/**
  * Why the driver will not send to `baseUrl`, or null. A case's question, with its memory block, and every filed
  * line's embedding request go to this address: it is the provider the driver names (api.openai.com, over https) or
  * a stub on this machine, and a dry run takes the stub alone. Any other host is refused, whatever protocol it speaks.

@@ -12,7 +12,7 @@ import { agent } from '@framers/agentos/api/agent';
 import type { BenchCase, BenchContext, CaseRun, RunConfig } from '../core/IBenchmark.js';
 import { AGENTOS_VERSION, GMI_DRIVER_INSTRUCTIONS, GMI_DRIVER_VERSION } from './constants.js';
 import { startReplayProxy, type ReplayProxy } from './replayProxy.js';
-import { gmiEmbedderProblem, gmiUpstreamBaseUrl, gmiUpstreamEndpoint, gmiUpstreamProblem } from './upstream.js';
+import { gmiEmbedderProblem, gmiUpstreamBaseUrl, gmiUpstreamEndpoint, gmiUpstreamMismatch, gmiUpstreamProblem } from './upstream.js';
 
 export { gmiEmbedderProblem, gmiUpstreamBaseUrl, gmiUpstreamEndpoint, gmiUpstreamProblem };
 
@@ -101,6 +101,10 @@ export async function runGmiCase(c: BenchCase, ctx: BenchContext): Promise<CaseR
   const start = Date.now();
   // Before the case takes a key, so a refused embedder leaves nothing scripted behind.
   const embedderModel = embedderModelOf(ctx.config);
+  // The run file and the cache key name the run's upstream: a case that would send elsewhere is refused before it
+  // starts a proxy or sends anything.
+  const mismatch = gmiUpstreamMismatch(ctx.config.gmiUpstream);
+  if (mismatch) throw new Error(`--driver gmi: ${mismatch}`);
   const { proxy: proxyStarting, upstream } = replayProxy();
   const proxy = await proxyStarting;
   const key = caseKey(c.id);
