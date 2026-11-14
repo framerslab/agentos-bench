@@ -274,6 +274,11 @@ describe('run --driver gmi', () => {
     [['--reader-router', 'min-cost-best-cat-2026-04-28'], '--reader-router'],
     [['--rerank', 'cohere'], '--rerank'],
     [['--hybrid-retrieval'], '--hybrid-retrieval'],
+    [['--policy-router'], '--policy-router'],
+    [['--hyde'], '--hyde'],
+    [['--observational-memory'], '--observational-memory'],
+    [['--context-summary', 'gpt-5-mini'], '--context-summary'],
+    [['--two-call-reader'], '--two-call-reader'],
     [['--max-usd', '5'], '--case-ids'],
     // Every option of the bench's own retrieval and reading is refused, not only the ones a list remembered.
     [['--ablate-mechanism', 'reconsolidation'], '--ablate-mechanism'],
