@@ -148,6 +148,12 @@ describe('a run that names an upstream the environment does not point at', () =>
     async () => {
       const result = await driverRun(`${stub.url}/`);
       expect(result.cases.map((c) => c.error)).toEqual([undefined, undefined]);
+      // The run records the endpoint as the CLI writes it, in the result and in its run file.
+      expect(result.config.gmiUpstream).toBe(stub.url);
+      const runFiles = readdirSync(path.join(resultsDir, 'runs'));
+      expect(runFiles).toHaveLength(1);
+      const runFile = JSON.parse(await fs.readFile(path.join(resultsDir, 'runs', runFiles[0]!), 'utf8'));
+      expect(runFile.config.gmiUpstream).toBe(stub.url);
       expect(result.cases.map((c) => c.actualOutput)).toEqual(['An oat flat white.', 'The 7:15 ferry.']);
       expect(stub.chat).toHaveLength(2);
       expect(cacheFiles(path.join(dataDir, 'cache'), 'case-run')).toHaveLength(2);
@@ -190,6 +196,10 @@ describe('an OPENAI_BASE_URL with a query or a fragment', () => {
     'http://127.0.0.1:4010/v1?tenant=a',
     'http://localhost:4010/v1#a',
     'https://api.openai.com/v1?tenant=a',
+    // A bare `?` or `#` leaves URL.search and URL.hash empty, yet the proxy appends the route after it.
+    'http://127.0.0.1:4010/v1?',
+    'http://127.0.0.1:4010/v1#',
+    'https://api.openai.com/v1?',
   ])('is refused: %s', (url) => {
     expect(gmiUpstreamProblem(url, false)).toMatch(/query or a fragment/);
     expect(gmiUpstreamProblem(url, true)).toMatch(/OPENAI_BASE_URL/);

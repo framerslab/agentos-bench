@@ -197,6 +197,35 @@ describe('a driver run the driver would refuse', () => {
     120_000,
   );
 
+  it(
+    'with a bare trailing ? on OPENAI_BASE_URL: refused, no run file, the driver row kept',
+    async () => {
+      process.env.OPENAI_BASE_URL = `${stub.url}?`;
+      await expect(driverRun({})).rejects.toThrow(/--driver gmi: OPENAI_BASE_URL must not carry a query or a fragment/);
+      await expectNothingRecorded();
+    },
+    120_000,
+  );
+
+  // The run file records the endpoint a run names, and the case-run cache keys the run's answers by it: a name with
+  // credentials would write them to disk, and one with a query or a fragment names an endpoint the record cannot show.
+  // Each is refused whole, even where it names the endpoint OPENAI_BASE_URL gives.
+  it.each([
+    ['credentials', (url: string) => url.replace('://', '://user:pw@')],
+    ['a query', (url: string) => `${url}?tenant=a`],
+    ['a fragment', (url: string) => `${url}#a`],
+    ['a bare trailing ?', (url: string) => `${url}?`],
+  ])(
+    'naming a gmiUpstream with %s: refused, no run file, the driver row kept',
+    async (_label, named) => {
+      const run = driverRun({ gmiUpstream: named(stub.url) });
+      await expect(run).rejects.toThrow(/--driver gmi: gmiUpstream must not carry credentials, a query or a fragment/);
+      await expect(run).rejects.not.toThrow(/pw/);
+      await expectNothingRecorded();
+    },
+    120_000,
+  );
+
   // The cache answers a case under the endpoint the run names without sending (gmiDriverNamedUpstream.spec.ts): a run
   // the cache answers in part is still refused whole, since the rest would be refused cases scored zero.
   it(
