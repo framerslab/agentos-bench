@@ -13,12 +13,23 @@ import { buildCli } from '../src/cli.js';
 import { BenchmarkRunner, computeCaseRunKeyParts, resolveRunConfig } from '../src/core/BenchmarkRunner.js';
 import { readCaseIds } from '../src/core/caseIds.js';
 import type { RunConfig } from '../src/core/IBenchmark.js';
-import { gmiUpstreamProblem, resetGmiDriver } from '../src/drivers/gmiDriver.js';
+import { gmiMemoryOption, gmiUpstreamProblem, parseGmiRerank, resetGmiDriver } from '../src/drivers/gmiDriver.js';
 import { LongMemEvalJudge, LongMemEvalS, MockReader } from '../src/index.js';
 import { startOpenAiStub, type OpenAiStub } from './helpers/openaiStub.js';
 
 /** The installed library's version: the agent answers every driver case, so the cache keys a driver run by it. */
 const AGENTOS_VERSION: string = createRequire(import.meta.url)('@framers/agentos/package.json').version;
+
+/** AgentOS's default local reranker and the commit its docs pin it at. No test here loads its weights. */
+const LOCAL_MODEL = 'cross-encoder/ms-marco-MiniLM-L6-v2';
+const LOCAL_REVISION = '233902d25c440f23af6f7d6e94d2946bac0bee0a';
+/**
+ * A whole commit id no repository has, for the test that lets the local reranker try to load. Transformers.js reads its
+ * own cache (a folder inside its package in node_modules) before it sends any request, keyed by model, revision and
+ * file, so after one reranked run at LOCAL_REVISION a checkout would load the model from disk and ask nothing of the
+ * network. No cache holds this commit, so the loader always asks, and the test sees where.
+ */
+const UNCACHED_REVISION = '0'.repeat(40);
 
 const CASES = [
   {
@@ -269,10 +280,194 @@ describe('run --driver gmi', () => {
     END_TO_END_TIMEOUT_MS,
   );
 
+  it(
+    '--recall hybrid reaches the agent: the record says hybrid, the exact-words leg ran, and the question still recalls',
+    async () => {
+      await run('--recall', 'hybrid');
+      const result = await onlyRun();
+      expect(result.config.gmiRecall).toEqual({ retrieval: 'hybrid' });
+      expect(result.cases.map((c: { error?: string }) => c.error)).toEqual([undefined, undefined]);
+      expect(result.cases.map((c: { actualOutput: string }) => c.actualOutput)).toEqual([
+        'An oat flat white.',
+        'The 7:15 ferry.',
+      ]);
+      expect(stub.chat).toHaveLength(2);
+      const [coffee, ferry] = stub.chat.map((seen) => JSON.stringify(seen.body.messages));
+      expect(coffee).toContain('oat flat white');
+      expect(ferry).toContain('7:15');
+      for (const c of result.cases) {
+        expect(c.metadata.gmiRecall).toEqual({ retrieval: 'hybrid' });
+        expect(c.metadata.ingest).toMatchObject({ extraModelRequests: 0 });
+        expect(c.metadata.memoryRecall.retrieval).toBe('hybrid');
+        expect(c.metadata.memoryRecall.legs.find((l: { leg: string }) => l.leg === 'exact_words')).toMatchObject({
+          ran: true,
+        });
+        expect(c.metadata.memoryRecall.lexicalBackend).not.toBe('none');
+        // No --rerank: no reranker scored the candidates, and the record says why.
+        expect(c.metadata.memoryRecall.reranker).toMatchObject({ provider: 'none', reason: 'none_configured' });
+      }
+    },
+    END_TO_END_TIMEOUT_MS,
+  );
+
+  it(
+    '--recall hybrid with --gmi-store sqlite reads the exact words through the store\'s full-text index',
+    async () => {
+      await run('--recall', 'hybrid', '--gmi-store', 'sqlite');
+      const result = await onlyRun();
+      expect(result.config.gmiRecall).toEqual({ store: 'sqlite', retrieval: 'hybrid' });
+      expect(result.cases.map((c: { error?: string }) => c.error)).toEqual([undefined, undefined]);
+      const [coffee, ferry] = stub.chat.map((seen) => JSON.stringify(seen.body.messages));
+      expect(coffee).toContain('oat flat white');
+      expect(ferry).toContain('7:15');
+      for (const c of result.cases) {
+        expect(c.metadata.memoryRecall.retrieval).toBe('hybrid');
+        expect(c.metadata.memoryRecall.legs.find((l: { leg: string }) => l.leg === 'exact_words')).toMatchObject({
+          ran: true,
+        });
+        expect(['fts5', 'fts4']).toContain(c.metadata.memoryRecall.lexicalBackend);
+      }
+    },
+    END_TO_END_TIMEOUT_MS,
+  );
+
+  it(
+    '--recall dense and --rerank none reach the agent as set',
+    async () => {
+      await run('--recall', 'dense', '--rerank', 'none');
+      const result = await onlyRun();
+      expect(result.config.gmiRecall).toEqual({ retrieval: 'dense', rerank: 'none' });
+      expect(result.cases.map((c: { error?: string }) => c.error)).toEqual([undefined, undefined]);
+      for (const c of result.cases) {
+        expect(c.metadata.gmiRecall).toEqual({ retrieval: 'dense', rerank: 'none' });
+        expect(c.metadata.memoryRecall.retrieval).toBe('dense');
+        expect(c.metadata.memoryRecall.reranker.provider).toBe('none');
+      }
+    },
+    END_TO_END_TIMEOUT_MS,
+  );
+
+  it(
+    '--rerank local:<model>@<revision> reaches the agent: the run records it, the loader asks for the model at the pinned commit, and each turn says why its order stands',
+    async () => {
+      // No weights are fetched: every request to a host off this machine is answered 404 here, so the model's load
+      // fails at its first file and nothing leaves the process. The URLs the loader asked for show the pin arrived.
+      const offHost: string[] = [];
+      const realFetch = globalThis.fetch;
+      globalThis.fetch = (async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        if (['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)) return realFetch(input, init);
+        offHost.push(url.href);
+        return new Response('not found', { status: 404 });
+      }) as typeof fetch;
+      const rerank = { kind: 'local', model: LOCAL_MODEL, revision: UNCACHED_REVISION };
+      try {
+        await run('--recall', 'hybrid', '--rerank', `local:${LOCAL_MODEL}@${UNCACHED_REVISION}`);
+      } finally {
+        // A closed agent stops its reranker without waiting for the load, so the 404s stay until the loader has asked
+        // and gone quiet: a load still running once the fetch is restored would reach the real host.
+        const deadline = Date.now() + 30_000;
+        let seen = -1;
+        while (Date.now() < deadline && (offHost.length === 0 || offHost.length !== seen)) {
+          seen = offHost.length;
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+        globalThis.fetch = realFetch;
+      }
+      const result = await onlyRun();
+      expect(result.config.gmiRecall).toEqual({ retrieval: 'hybrid', rerank });
+      expect(result.cases.map((c: { error?: string }) => c.error)).toEqual([undefined, undefined]);
+      expect(result.cases.map((c: { actualOutput: string }) => c.actualOutput)).toEqual([
+        'An oat flat white.',
+        'The 7:15 ferry.',
+      ]);
+      expect(stub.chat).toHaveLength(2);
+      for (const c of result.cases) {
+        expect(c.metadata.gmiRecall).toEqual({ retrieval: 'hybrid', rerank });
+        expect(c.metadata.memoryRecall.retrieval).toBe('hybrid');
+        // The reranker the flag named was built: the turn kept recall's order because its model was loading or could
+        // not load, never because no reranker was set.
+        expect(c.metadata.memoryRecall.reranker.provider).toBe('none');
+        expect(['loading', 'unavailable']).toContain(c.metadata.memoryRecall.reranker.reason);
+      }
+      // Transformers.js asked Hugging Face for the named model at the pinned commit, and for nothing else.
+      expect(offHost.length).toBeGreaterThan(0);
+      for (const href of offHost) {
+        expect(href.startsWith(`https://huggingface.co/${LOCAL_MODEL}/resolve/${UNCACHED_REVISION}/`)).toBe(true);
+      }
+    },
+    END_TO_END_TIMEOUT_MS,
+  );
+
+  it(
+    'without --recall and --rerank the record is the library default: dense, no reranker',
+    async () => {
+      await run();
+      const result = await onlyRun();
+      expect(result.config.gmiRecall).toEqual({});
+      for (const c of result.cases) {
+        expect(c.metadata.memoryRecall.retrieval).toBe('dense');
+        expect(c.metadata.memoryRecall.reranker).toMatchObject({ provider: 'none', reason: 'none_configured' });
+      }
+    },
+    END_TO_END_TIMEOUT_MS,
+  );
+
+  it.each([
+    ['none', 'none'],
+    [`local:${LOCAL_MODEL}@${LOCAL_REVISION}`, { kind: 'local', model: LOCAL_MODEL, revision: LOCAL_REVISION }],
+    // A model without a namespace, and a SHA-256 commit id.
+    [`local:bert-reranker@${'a'.repeat(64)}`, { kind: 'local', model: 'bert-reranker', revision: 'a'.repeat(64) }],
+  ])('parses --rerank %s for the driver', (value, parsed) => {
+    expect(parseGmiRerank(value)).toEqual(parsed);
+  });
+
+  it.each([
+    'cohere',
+    'llm:gpt-4o',
+    'local:model',
+    'local:@rev',
+    `local:${LOCAL_MODEL}`,
+    `local:${LOCAL_MODEL}@`,
+    // AgentOS loads a local model only at a whole commit id in lower case: a branch, a tag or a shortened id can name
+    // other weights later, and an upper-case id misses the cached files.
+    `local:${LOCAL_MODEL}@main`,
+    `local:${LOCAL_MODEL}@233902d`,
+    `local:${LOCAL_MODEL}@${LOCAL_REVISION.toUpperCase()}`,
+    `local:${LOCAL_MODEL}@${LOCAL_REVISION}0`,
+    `local:../${LOCAL_MODEL}@${LOCAL_REVISION}`,
+    `local:${LOCAL_MODEL} @${LOCAL_REVISION}`,
+    ` none`,
+  ])('refuses --rerank %j for the driver', (value) => {
+    expect(() => parseGmiRerank(value)).toThrow('--rerank');
+  });
+
+  it('the recall mode and the reranker reach the memory option', () => {
+    const rerank = { kind: 'local' as const, model: LOCAL_MODEL, revision: LOCAL_REVISION };
+    expect(gmiMemoryOption({ gmiRecall: { retrieval: 'hybrid', rerank }, embedderModel: undefined }).recall).toEqual({
+      capture: 'metadata',
+      retrieval: 'hybrid',
+      rerank,
+    });
+    expect(gmiMemoryOption({ gmiRecall: { retrieval: 'dense', rerank: 'none' }, embedderModel: undefined }).recall).toEqual({
+      capture: 'metadata',
+      retrieval: 'dense',
+      rerank: 'none',
+    });
+    // Unset, neither is passed: the library's default applies.
+    expect(gmiMemoryOption({ gmiRecall: {}, embedderModel: undefined }).recall).toEqual({ capture: 'metadata' });
+  });
+
   it.each([
     [['--reader', 'claude-sonnet-4-6'], 'gpt-'],
     [['--reader-router', 'min-cost-best-cat-2026-04-28'], '--reader-router'],
+    // --rerank under the driver takes `none` or a local model at a pinned commit, never a remote provider or a judge.
     [['--rerank', 'cohere'], '--rerank'],
+    [['--rerank', 'llm:gpt-4o'], '--rerank'],
+    [['--rerank', `local:${LOCAL_MODEL}@main`], '--rerank'],
+    // The driver's --rerank opens none of the bench's own rerank options.
+    [['--rerank', 'none', '--rerank-candidate-multiplier', '5'], '--rerank-candidate-multiplier'],
+    [['--rerank', 'none', '--rerank-model', 'rerank-v3.5'], '--rerank-model'],
     [['--hybrid-retrieval'], '--hybrid-retrieval'],
     [['--policy-router'], '--policy-router'],
     [['--hyde'], '--hyde'],
@@ -306,12 +501,13 @@ describe('run --driver gmi', () => {
     [['--budget', 'many'], 'integer'],
     // A budget of 0 tokens would send an empty memory block for every question.
     [['--budget', '0'], 'positive integer'],
+    [['--recall', 'sparse'], "--recall must be 'dense' | 'hybrid'"],
   ])('refuses the value in %j', async (extra, named) => {
     await expect(run(...extra)).rejects.toThrow(named);
     expect(stub.chat).toEqual([]);
   });
 
-  it.each([[['--budget', '800']], [['--gmi-store', 'sqlite']]])('refuses %j without the driver', async (extra) => {
+  it.each([[['--budget', '800']], [['--gmi-store', 'sqlite']], [['--recall', 'hybrid']]])('refuses %j without the driver', async (extra) => {
     const errors = await captureErrors(() =>
       buildCli().parseAsync([
         'node', 'agentos-bench', 'run', 'longmemeval-s', '--data-dir', dataDir, '--results-dir', resultsDir,
@@ -474,6 +670,21 @@ describe('the driver in the case-run cache key', () => {
     }
     expect(a.runKeyParts).not.toEqual(b.runKeyParts);
     expect(a.resultKeyParts).not.toEqual(b.resultKeyParts);
+  });
+
+  it('partitions by the recall mode, the reranker and its revision, in both keys', () => {
+    const local = (revision: string) => ({ kind: 'local' as const, model: LOCAL_MODEL, revision });
+    const keys = [
+      parts({ ...base, driver: 'gmi' } as RunConfig),
+      parts({ ...base, driver: 'gmi', gmiRecall: { retrieval: 'dense' } } as RunConfig),
+      parts({ ...base, driver: 'gmi', gmiRecall: { retrieval: 'hybrid' } } as RunConfig),
+      parts({ ...base, driver: 'gmi', gmiRecall: { rerank: 'none' } } as RunConfig),
+      parts({ ...base, driver: 'gmi', gmiRecall: { rerank: local(LOCAL_REVISION) } } as RunConfig),
+      parts({ ...base, driver: 'gmi', gmiRecall: { rerank: local('b'.repeat(40)) } } as RunConfig),
+    ];
+    for (const which of ['runKeyParts', 'resultKeyParts'] as const) {
+      expect(new Set(keys.map((k) => JSON.stringify(k[which]))).size).toBe(keys.length);
+    }
   });
 
   // The agent answers every driver case, so an answer cached under one release of the library never serves another.

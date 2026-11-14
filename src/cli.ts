@@ -52,17 +52,22 @@ import type { IEmbeddingManager } from '@framers/agentos/core/embeddings/IEmbedd
 import type { MemoryRetrievalProfile } from '@framers/agentos';
 import { SessionSummarizer } from '@framers/agentos/memory';
 import { gmiEmbedderProblem, gmiUpstreamBaseUrl, gmiUpstreamEndpoint, gmiUpstreamProblem } from './drivers/upstream.js';
+import { parseGmiRecallMode, parseGmiRerank, type GmiRerank } from './drivers/recall.js';
 import { readCaseIds } from './core/caseIds.js';
 
 /**
  * The `run` options that act under `--driver gmi`, by commander attribute name: the driver's own, the models, the
  * case selection, where a run reads and writes, and the judge's and the statistics' settings. Every other option
- * of `run` configures the bench's own retrieve-then-read path, which the driver does not use.
+ * of `run` configures the bench's own retrieve-then-read path, which the driver does not use. `rerank` is listed
+ * because the driver reads it in its own form (`none` or `local:<model>@<revision>`); the bench's other rerank
+ * options stay refused.
  */
 const GMI_DRIVER_OPTIONS: ReadonlySet<string> = new Set([
   'driver',
   'budget',
   'gmiStore',
+  'recall',
+  'rerank',
   'caseIds',
   'reader',
   'embedderModel',
@@ -792,7 +797,7 @@ export function buildCli(): Command {
     )
     .option(
       '--rerank <provider>',
-      'Enable neural reranker. Only "cohere" is wired today. Needs COHERE_API_KEY (or --rerank-api-key).'
+      'Enable neural reranker. Only "cohere" is wired today. Needs COHERE_API_KEY (or --rerank-api-key). With --driver gmi: memory.recall.rerank, none | local:<model>@<revision> (a cross-encoder in this process; <revision> a whole commit id of the model\'s Hugging Face repository). Unset: the library default.'
     )
     .option(
       '--rerank-model <id>',
@@ -826,6 +831,11 @@ export function buildCli(): Command {
         }
         return value;
       }
+    )
+    .option(
+      '--recall <mode>',
+      "With --driver gmi: memory.recall.retrieval, 'dense' (by meaning) or 'hybrid' (by meaning, exact words and recency, fused). Unset: the library default.",
+      parseGmiRecallMode
     )
     .option(
       '--case-ids <file>',
@@ -1119,9 +1129,11 @@ export function buildCli(): Command {
       // act on, so one given on the command line is refused by name rather
       // than ignored. The rule is a list of what the driver takes, not of
       // what it refuses: an option added to `run` later is refused under
-      // the driver until it is listed in GMI_DRIVER_OPTIONS.
-      // Checked before the rerank block, so `--rerank cohere` is refused
-      // before a key is read.
+      // the driver until it is listed in GMI_DRIVER_OPTIONS. `--rerank` is
+      // read here in the driver's own form (`none` or
+      // `local:<model>@<revision>`), so `--rerank cohere` is refused before
+      // the Cohere block below reads a key.
+      let gmiRerank: GmiRerank | undefined;
       if (opts.driver === 'gmi') {
         const refuse = (message: string): void => {
           console.error(`[cli] --driver gmi: ${message}`);
@@ -1143,6 +1155,13 @@ export function buildCli(): Command {
             `${clash.join(', ')} cannot be combined with the driver: the agent does its own recall and reading, so an option of the bench's own path has nothing to act on`
           );
         }
+        if (opts.rerank !== undefined) {
+          try {
+            gmiRerank = parseGmiRerank(String(opts.rerank));
+          } catch (error) {
+            return refuse(error instanceof Error ? error.message : String(error));
+          }
+        }
         const embedderProblem = gmiEmbedderProblem(opts.embedderModel as string | undefined);
         if (embedderProblem) return refuse(embedderProblem);
         if (typeof opts.maxUsd === 'number') {
@@ -1155,8 +1174,8 @@ export function buildCli(): Command {
         if (upstreamProblem) return refuse(upstreamProblem);
         opts.memory = 'full-cognitive';
         opts.replay = 'observe';
-      } else if (opts.budget !== undefined || opts.gmiStore !== undefined) {
-        console.error('[cli] --budget and --gmi-store take effect only with --driver gmi.');
+      } else if (opts.budget !== undefined || opts.gmiStore !== undefined || opts.recall !== undefined) {
+        console.error('[cli] --budget, --gmi-store and --recall take effect only with --driver gmi.');
         process.exitCode = 2;
         return;
       }
@@ -1168,9 +1187,10 @@ export function buildCli(): Command {
 
       // Resolve rerank config from CLI flags. Only "cohere" is wired
       // today; any other provider string aborts the run with a clear
-      // error so typos don't silently disable reranking.
+      // error so typos don't silently disable reranking. Under the driver
+      // `--rerank` was read above as the agent's memory reranker.
       let rerank: RunConfig['rerank'];
-      if (opts.rerank) {
+      if (opts.rerank && opts.driver !== 'gmi') {
         const provider = String(opts.rerank).toLowerCase();
         if (provider !== 'cohere') {
            
@@ -1315,6 +1335,8 @@ export function buildCli(): Command {
             ? {
                 ...(typeof opts.budget === 'number' ? { budgetTokens: opts.budget } : {}),
                 ...(opts.gmiStore ? { store: opts.gmiStore as 'memory' | 'sqlite' } : {}),
+                ...(opts.recall ? { retrieval: opts.recall as 'dense' | 'hybrid' } : {}),
+                ...(gmiRerank !== undefined ? { rerank: gmiRerank } : {}),
               }
             : undefined,
         gmiUpstream: opts.driver === 'gmi' ? gmiUpstreamEndpoint() : undefined,
