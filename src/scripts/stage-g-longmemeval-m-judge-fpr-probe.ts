@@ -10,7 +10,7 @@
  * The dataset loader auto-detects the 2.7 GB file and streams via
  * `stream-json` + `stream-chain` (per Stage J Phase A loader fix).
  *
- * Usage: `pnpm exec tsx src/scripts/stage-g-longmemeval-m-judge-fpr-probe.ts [maxProbes]`
+ * Usage: `pnpm build && node dist/scripts/stage-g-longmemeval-m-judge-fpr-probe.js [maxProbes]`
  */
 import path from 'node:path';
 import { promises as fs } from 'node:fs';

@@ -5,7 +5,7 @@
  * computeJudgeAdversarialRate directly (no benchmark re-run), reports
  * the FPR with bootstrap CI per category.
  *
- * Usage: pnpm tsx scripts/stage-g-judge-fpr-probe.ts [maxProbes]
+ * Usage: `pnpm build && node dist/scripts/stage-g-judge-fpr-probe.js [maxProbes]`
  */
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
