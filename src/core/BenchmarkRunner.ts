@@ -1036,7 +1036,10 @@ export class BenchmarkRunner {
         ...aggregate,
         benchmarkId: benchmark.id,
         benchmarkVersion: benchmark.version,
-        config: redactSecretsFromConfig(config),
+        // A named endpoint is recorded as the cache keyed it, in the form the CLI writes.
+        config: redactSecretsFromConfig(
+          config.gmiUpstream !== undefined ? { ...config, gmiUpstream: ctx.config.gmiUpstream } : config,
+        ),
         startedAt,
         completedAt: new Date().toISOString(),
         totalCases: results.length,
