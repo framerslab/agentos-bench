@@ -30,7 +30,7 @@ import { OM_PROMPT_HASH } from '../observational-memory/prompts.js';
 import { Cache, hashKey } from './Cache.js';
 import { CostTracker } from './CostTracker.js';
 import { AGENTOS_VERSION, GMI_DRIVER_VERSION } from '../drivers/constants.js';
-import { gmiUpstreamEndpoint } from '../drivers/upstream.js';
+import { gmiRunRefusal, gmiUpstreamEndpoint } from '../drivers/upstream.js';
 import { PRESET_TABLES } from './policyRouter.js';
 import { ResultStore } from './ResultStore.js';
 import type { IJudge } from '../judges/IJudge.js';
@@ -1013,6 +1013,7 @@ export class BenchmarkRunner {
       const allCases = await benchmark.loadTestCases(ctx);
       const cases = typeof config.sampleN === 'number' ? allCases.slice(0, config.sampleN) : allCases;
 
+      await this.refuseGmiRun(benchmark, cases, ctx);
       const results = await this.runCases(benchmark, cases, ctx);
 
       const aggregate = benchmark.aggregate(results, ctx);
@@ -1126,25 +1127,49 @@ export class BenchmarkRunner {
     return results;
   }
 
+  /**
+   * Throws when the GMI driver would refuse a case of this run that the
+   * case-run cache does not answer. Such a case is refused before it
+   * sends anything and scored zero, and a run of them would still be
+   * saved: its summary row would replace a real driver row with the same
+   * number of cases. A run the cache answers in full sends nothing and
+   * goes ahead, as each of its cases would.
+   */
+  private async refuseGmiRun(benchmark: IBenchmark, cases: BenchCase[], ctx: BenchContext): Promise<void> {
+    if (ctx.config.driver !== 'gmi') return;
+    const refusal = gmiRunRefusal(ctx.config);
+    if (!refusal) return;
+    for (const c of cases) {
+      const { runKeyParts } = this.caseKeyParts(benchmark, c, ctx);
+      const run = await ctx.cache.get<CaseRun>('case-run', ...runKeyParts);
+      if (!run || run.error) throw new Error(refusal);
+    }
+  }
+
+  private caseKeyParts(
+    benchmark: IBenchmark,
+    c: BenchCase,
+    ctx: BenchContext,
+  ): { runKeyParts: unknown[]; resultKeyParts: unknown[] } {
+    // Delegate cache-key construction to the shared helper so test
+    // coverage (tests/readerTopK.spec.ts) can exercise the key-build
+    // path directly, and so conditional-append for readerTopK stays
+    // in one place rather than duplicated here and in tests.
+    return computeCaseRunKeyParts(ctx.config, {
+      benchmarkId: benchmark.id,
+      benchmarkVersion: benchmark.version,
+      caseId: c.id,
+      judgeModel: ctx.judge.model,
+      judgeRubricVersion: ctx.judge.rubricVersion,
+    });
+  }
+
   private async runOneCase(
     benchmark: IBenchmark,
     c: BenchCase,
     ctx: BenchContext,
   ): Promise<CaseResult> {
-    // Delegate cache-key construction to the shared helper so test
-    // coverage (tests/readerTopK.spec.ts) can exercise the key-build
-    // path directly, and so conditional-append for readerTopK stays
-    // in one place rather than duplicated here and in tests.
-    const { runKeyParts, resultKeyParts } = computeCaseRunKeyParts(
-      ctx.config,
-      {
-        benchmarkId: benchmark.id,
-        benchmarkVersion: benchmark.version,
-        caseId: c.id,
-        judgeModel: ctx.judge.model,
-        judgeRubricVersion: ctx.judge.rubricVersion,
-      },
-    );
+    const { runKeyParts, resultKeyParts } = this.caseKeyParts(benchmark, c, ctx);
 
     // Step 1 — produce or recall the answer.
     let run = await ctx.cache.get<CaseRun>('case-run', ...runKeyParts);

@@ -66,6 +66,24 @@ export function gmiUpstreamProblem(baseUrl: string, dryRun: boolean): string | n
 }
 
 /**
+ * Why the driver would refuse every case of a run that needs a request, or null: the checks `runGmiCase` makes before
+ * it sends, which hold for the whole run (the embedder, a named upstream the environment does not give, the key, the
+ * upstream), in that order and with the same messages. The runner checks it once before any case runs, so a run of
+ * refused cases is not saved as a run of zeros.
+ */
+export function gmiRunRefusal(
+  config: { gmiUpstream?: string; embedderModel?: string },
+  env: NodeJS.ProcessEnv = process.env,
+): string | null {
+  const problem =
+    gmiEmbedderProblem(config.embedderModel) ??
+    gmiUpstreamMismatch(config.gmiUpstream, env) ??
+    (env.OPENAI_API_KEY?.trim() ? null : 'OPENAI_API_KEY is not set') ??
+    gmiUpstreamProblem(gmiUpstreamBaseUrl(env), false);
+  return problem ? `--driver gmi: ${problem}` : null;
+}
+
+/**
  * Why the driver cannot embed with `model`, or null. The agent's embedder is OpenAI's, at the same upstream as the
  * question, so the model is an OpenAI embedding model, bare or `openai:`-prefixed. Unset takes the driver's default.
  */
