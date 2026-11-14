@@ -188,7 +188,7 @@ How a case runs:
 - The first user turn of a haystack session is prefixed `(Conversation of <date>)` and the question `(Today is <question date>.)`. An agent files what it hears when it hears it, so the dates travel in the text.
 - The question is the one request the proxy forwards to the provider.
 
-What reaches the provider: an embedding request for every filed line and every turn's query, plus one test embedding as each agent starts; the model list, which the OpenAI provider reads as it starts (the proxy forwards that read); one reader request per case; the judge's request, through the bench's own client as on every run. The agent and its embedder read `OPENAI_API_KEY`. `OPENAI_BASE_URL` may name `api.openai.com` or a stub on this machine (`127.0.0.1`, `localhost`, `::1`), and a dry run takes the stub alone: the question and its memory block go to that host, so any other is refused.
+What reaches the provider: an embedding request for every filed line and every turn's query, plus one test embedding as each agent starts; the model list, which the OpenAI provider reads as it starts (the proxy forwards that read); one reader request per case, which offers the model no tool; the judge's request, through the bench's own client as on every run. The agent and its embedder read `OPENAI_API_KEY`. `OPENAI_BASE_URL` may name `https://api.openai.com` or a stub on this machine (`127.0.0.1`, `localhost`, `::1`), and a dry run takes the stub alone: the key, the question and its memory block go to that host, so any other host, and the provider over plain `http`, is refused.
 
 What a case's `metadata` holds:
 
@@ -196,21 +196,24 @@ What a case's `metadata` holds:
 - `ingest`: haystack sessions, user turns filed, assistant turns replayed, turns skipped, model requests beyond one per filed turn (`extraModelRequests`), and the filing time.
 - `upstreamHost`, `forwardedRequests`, `modelListReads` and the run's `gmiRecall` settings.
 
-The run file's `config` records `gmiUpstreamHost`, and the case-run cache keys a driver run by it, so answers a stub gave never serve a run against the provider. The reader's cost is priced from the provider's usage. The embedding cost is an estimate from the filed text, recorded under the tag `<case id>:gmi-embedding-estimate`.
+The run file's `config` records `gmiUpstreamHost`, and the case-run cache keys a driver run by it, so answers a stub gave never serve a run against the provider. A run built on `BenchmarkRunner` without the CLI that names no host is keyed by the host `OPENAI_BASE_URL` gives when it starts. The reader's cost is priced from the provider's usage. The embedding cost is an estimate from the filed text, recorded under the tag `<case id>:gmi-embedding-estimate`.
 
 | Flag | Effect |
 |---|---|
-| `--driver gmi` | Answer through the agent. Sets `--memory full-cognitive --replay observe` in the run file. |
+| `--driver gmi` | Answer through the agent. The run file records `memoryMode: full-cognitive` and `replayMode: observe`. |
 | `--budget <tokens>` | `memory.recall.budget.totalTokens`, the whole memory block a turn sends. Unset: the library default. |
-| `--gmi-store memory\|sqlite` | Keep memory in the process (the default) or in one SQLite file per case under the run's scratch directory. |
+| `--gmi-store memory\|sqlite` | Keep memory in the process (the default) or in one SQLite file per case under the run's scratch directory, removed when the case ends. |
 | `--case-ids <file>` | Run only the listed cases, in the list's order: a JSON array of `question_id` values, or an object with a `tuning` array. An id the dataset lacks fails the run. Works on any LongMemEval run. |
+
+Beside those four, a driver run takes the options that do not belong to the bench's own retrieval and reading: `--reader`, `--embedder-model`, `--judge-model`, `--sample`, `--sample-per-type`, `--stratified`, `--concurrency`, `--seed`, `--bootstrap-resamples`, `--judge-adversarial` and its two settings, `--data-dir`, `--results-dir` and `--dry-run`.
 
 The driver refuses, by name:
 
-- the flags that configure the bench's own retrieval and reading (`--hybrid-retrieval`, `--hyde`, `--rerank`, `--reader-top-k`, `--two-call-reader`, `--observational-memory`, `--context-summary` and the rest of that family), since the agent does its own recall;
+- every other option of `run` given on the command line (`--hybrid-retrieval`, `--hyde`, `--rerank`, `--reader-top-k`, `--retrieval-k`, `--profile`, `--ablate-mechanism`, `--observational-memory`, `--memory`, `--replay` and the rest), since the agent does its own recall and reading and such an option would have nothing to act on. `--rerank cohere` is among them: a driver run sends memory text to no second vendor;
 - a reader router or a reader other than an OpenAI `gpt-*` model, since a run measures one named model;
 - `--max-usd`, since the driver has no cost projection yet: bound a run with `--case-ids`;
-- a benchmark other than LongMemEval.
+- a benchmark other than LongMemEval;
+- `--budget` and `--gmi-store` without `--driver gmi`.
 
 ## Development
 

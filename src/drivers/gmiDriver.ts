@@ -5,14 +5,15 @@
  * session), the question is asked last, and the turn's recall record goes into the case's metadata.
  * See the README, "The GMI driver".
  */
+import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { agent } from '@framers/agentos/api/agent';
 import type { BenchCase, BenchContext, CaseRun, RunConfig } from '../core/IBenchmark.js';
 import { GMI_DRIVER_INSTRUCTIONS, GMI_DRIVER_VERSION } from './constants.js';
 import { startReplayProxy, type ReplayProxy } from './replayProxy.js';
-import { gmiUpstreamBaseUrl, gmiUpstreamProblem } from './upstream.js';
+import { gmiUpstreamBaseUrl, gmiUpstreamHostname, gmiUpstreamProblem } from './upstream.js';
 
-export { gmiUpstreamBaseUrl, gmiUpstreamProblem };
+export { gmiUpstreamBaseUrl, gmiUpstreamHostname, gmiUpstreamProblem };
 
 type AgentOptions = Parameters<typeof agent>[0];
 type MemoryOption = Exclude<NonNullable<AgentOptions['memory']>, boolean>;
@@ -56,6 +57,17 @@ function embedderModelOf(config: Pick<RunConfig, 'embedderModel'>): string {
 }
 
 const safe = (id: string): string => id.replace(/[^A-Za-z0-9_-]/g, '_');
+
+/**
+ * Removes a case's SQLite file and the journal files SQLite keeps beside it. Nothing reads the file once the case's
+ * agent has closed, and a long run would otherwise hold one per case until it ends. A file that will not go is left
+ * for the runner, which removes the scratch directory with the run.
+ */
+async function removeStore(storePath: string): Promise<void> {
+  await Promise.all(
+    ['', '-wal', '-shm', '-journal'].map((suffix) => fs.rm(`${storePath}${suffix}`, { force: true }).catch(() => undefined)),
+  );
+}
 
 export async function runGmiCase(c: BenchCase, ctx: BenchContext): Promise<CaseRun> {
   const start = Date.now();
@@ -148,7 +160,7 @@ export async function runGmiCase(c: BenchCase, ctx: BenchContext): Promise<CaseR
         questionMs: Date.now() - asked,
         forwardedRequests: script.counts().forwarded,
         modelListReads: script.counts().modelReads,
-        upstreamHost: new URL(gmiUpstreamBaseUrl()).hostname,
+        upstreamHost: gmiUpstreamHostname(),
       },
     };
   } finally {
@@ -156,6 +168,7 @@ export async function runGmiCase(c: BenchCase, ctx: BenchContext): Promise<CaseR
       await a?.close();
     } finally {
       script.done();
+      if (storePath) await removeStore(storePath);
     }
   }
 }

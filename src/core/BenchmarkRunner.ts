@@ -30,6 +30,7 @@ import { OM_PROMPT_HASH } from '../observational-memory/prompts.js';
 import { Cache, hashKey } from './Cache.js';
 import { CostTracker } from './CostTracker.js';
 import { GMI_DRIVER_VERSION } from '../drivers/constants.js';
+import { gmiUpstreamHostname } from '../drivers/upstream.js';
 import { PRESET_TABLES } from './policyRouter.js';
 import { ResultStore } from './ResultStore.js';
 import type { IJudge } from '../judges/IJudge.js';
@@ -200,9 +201,12 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     embedderModel: cfg.embedderModel,
     // The GMI driver and its recall settings (fingerprinted below), and the
     // case-id list. Pinned by tests/resolveRunConfigContract.spec.ts.
+    // A driver run that names no upstream host (one built without the CLI)
+    // takes it from the environment, where the driver itself reads it, so
+    // its cache key still tells a stub's answers from the provider's.
     driver: cfg.driver,
     gmiRecall: cfg.gmiRecall,
-    gmiUpstreamHost: cfg.gmiUpstreamHost,
+    gmiUpstreamHost: cfg.gmiUpstreamHost ?? (cfg.driver === 'gmi' ? gmiUpstreamHostname() : undefined),
     caseIdsFile: cfg.caseIdsFile,
     // Per-category reader-tier router preset. Loadbearing for cache
     // fingerprint partitioning - different reader presets dispatch

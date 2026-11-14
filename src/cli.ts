@@ -51,7 +51,35 @@ import {
 import type { IEmbeddingManager } from '@framers/agentos/core/embeddings/IEmbeddingManager';
 import type { MemoryRetrievalProfile } from '@framers/agentos';
 import { SessionSummarizer } from '@framers/agentos/memory';
-import { gmiUpstreamBaseUrl, gmiUpstreamProblem } from './drivers/upstream.js';
+import { gmiUpstreamBaseUrl, gmiUpstreamHostname, gmiUpstreamProblem } from './drivers/upstream.js';
+
+/**
+ * The `run` options that act under `--driver gmi`, by commander attribute name: the driver's own, the models, the
+ * case selection, where a run reads and writes, and the judge's and the statistics' settings. Every other option
+ * of `run` configures the bench's own retrieve-then-read path, which the driver does not use.
+ */
+const GMI_DRIVER_OPTIONS: ReadonlySet<string> = new Set([
+  'driver',
+  'budget',
+  'gmiStore',
+  'caseIds',
+  'reader',
+  'embedderModel',
+  'judgeModel',
+  'sample',
+  'samplePerType',
+  'stratified',
+  'concurrency',
+  'dataDir',
+  'resultsDir',
+  'dryRun',
+  'maxUsd',
+  'seed',
+  'bootstrapResamples',
+  'judgeAdversarial',
+  'judgeAdversarialMaxProbes',
+  'judgeAdversarialSynthModel',
+]);
 
 interface BenchEntry {
   id: string;
@@ -777,7 +805,7 @@ export function buildCli(): Command {
     )
     .option(
       '--driver <name>',
-      "Answer through an AgentOS agent instead of the bench's own reader path. 'gmi': agent({ runtime: 'gmi' }) with cognitive memory; each haystack is filed through the agent's session and the case keeps the turn's recall record. LongMemEval only; OpenAI readers only; reads OPENAI_API_KEY, and OPENAI_BASE_URL may name only api.openai.com or a stub on this machine.",
+      "Answer through an AgentOS agent instead of the bench's own reader path. 'gmi': agent({ runtime: 'gmi' }) with cognitive memory; each haystack is filed through the agent's session and the case keeps the turn's recall record. LongMemEval only; OpenAI readers only; the options of the bench's own retrieval and reading are refused. Reads OPENAI_API_KEY, and OPENAI_BASE_URL may name only https://api.openai.com or a stub on this machine.",
       (value: string) => {
         if (value !== 'gmi') throw new Error(`--driver must be 'gmi', got '${value}'`);
         return value;
@@ -790,7 +818,7 @@ export function buildCli(): Command {
     )
     .option(
       '--gmi-store <kind>',
-      "With --driver gmi: 'memory' (in process, the default) or 'sqlite' (one file per case under the run's scratch directory).",
+      "With --driver gmi: 'memory' (in process, the default) or 'sqlite' (one file per case under the run's scratch directory, removed when the case ends).",
       (value: string) => {
         if (value !== 'memory' && value !== 'sqlite') {
           throw new Error(`--gmi-store must be 'memory' | 'sqlite', got '${value}'`);
@@ -1053,7 +1081,7 @@ export function buildCli(): Command {
       parseInteger
     )
     .option('--dry-run', 'Use MockReader / mock judge (no API calls)')
-    .action(async (benchmarkId: string, opts) => {
+    .action(async (benchmarkId: string, opts, command: Command) => {
       const entry = BENCHMARKS.find((b) => b.id === benchmarkId);
       if (!entry) {
          
@@ -1075,9 +1103,12 @@ export function buildCli(): Command {
         );
       }
 
-      // --driver gmi answers through an AgentOS agent: the flags that
+      // --driver gmi answers through an AgentOS agent: the options that
       // configure the bench's own retrieve-then-read path have nothing to
-      // act on, so the run refuses them by name rather than ignore them.
+      // act on, so one given on the command line is refused by name rather
+      // than ignored. The rule is a list of what the driver takes, not of
+      // what it refuses: an option added to `run` later is refused under
+      // the driver until it is listed in GMI_DRIVER_OPTIONS.
       // Checked before the rerank block, so `--rerank cohere` is refused
       // before a key is read.
       if (opts.driver === 'gmi') {
@@ -1085,35 +1116,21 @@ export function buildCli(): Command {
           console.error(`[cli] --driver gmi: ${message}`);
           process.exitCode = 2;
         };
-        const benchPathFlags: Array<[flag: string, value: unknown]> = [
-          ['--reader-router', opts.readerRouter],
-          ['--policy-router', opts.policyRouter],
-          ['--retrieval-config-router', opts.retrievalConfigRouter],
-          ['--om-dynamic-router', opts.omDynamicRouter],
-          ['--hybrid-retrieval', opts.hybridRetrieval],
-          ['--hyde', opts.hyde],
-          ['--session-retrieval', opts.sessionRetrieval],
-          ['--fact-supersession', opts.factSupersession],
-          ['--split-ambiguous', opts.splitAmbiguous],
-          ['--observer-reflector', opts.observerReflector],
-          ['--observer-reflector-replace', opts.observerReflectorReplace],
-          ['--fact-graph-ingest', opts.factGraphIngest],
-          ['--graph-activation', opts.graphActivation],
-          ['--entity-linking', opts.entityLinking],
-          ['--typed-network', opts.typedNetwork],
-          ['--reader-top-k', opts.readerTopK],
-          ['--observational-memory', opts.observationalMemory],
-          ['--context-summary', opts.contextSummary],
-          ['--two-call-reader', opts.twoCallReader],
-          ['--rerank', opts.rerank],
-        ];
-        const clash = benchPathFlags.filter(([, value]) => value !== undefined && value !== false).map(([flag]) => flag);
+        const clash = command.options
+          .filter(
+            (option) =>
+              command.getOptionValueSource(option.attributeName()) === 'cli' &&
+              !GMI_DRIVER_OPTIONS.has(option.attributeName())
+          )
+          .map((option) => option.long ?? option.flags);
         if (!entry.id.startsWith('longmemeval-')) return refuse(`runs LongMemEval only, got '${entry.id}'`);
         if (!String(opts.reader).startsWith('gpt-')) {
           return refuse(`the reader must be an OpenAI model (gpt-*), got '${opts.reader}'`);
         }
         if (clash.length > 0) {
-          return refuse(`${clash.join(', ')} configure(s) the bench's own retrieval path and cannot be combined with the driver`);
+          return refuse(
+            `${clash.join(', ')} cannot be combined with the driver: the agent does its own recall and reading, so an option of the bench's own path has nothing to act on`
+          );
         }
         if (typeof opts.maxUsd === 'number') {
           return refuse('--max-usd: the driver has no cost projection yet; bound a run with --case-ids');
@@ -1287,7 +1304,7 @@ export function buildCli(): Command {
                 ...(opts.gmiStore ? { store: opts.gmiStore as 'memory' | 'sqlite' } : {}),
               }
             : undefined,
-        gmiUpstreamHost: opts.driver === 'gmi' ? new URL(gmiUpstreamBaseUrl()).hostname : undefined,
+        gmiUpstreamHost: opts.driver === 'gmi' ? gmiUpstreamHostname() : undefined,
         caseIdsFile: opts.caseIds as string | undefined,
       };
 

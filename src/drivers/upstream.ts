@@ -13,20 +13,35 @@ export function gmiUpstreamBaseUrl(env: NodeJS.ProcessEnv = process.env): string
 }
 
 /**
+ * The host of {@link gmiUpstreamBaseUrl}, as a run records it and as the case-run cache keys it. `invalid` when the
+ * variable holds no URL: {@link gmiUpstreamProblem} refuses such a run before it sends anything.
+ */
+export function gmiUpstreamHostname(env: NodeJS.ProcessEnv = process.env): string {
+  try {
+    return new URL(gmiUpstreamBaseUrl(env)).hostname.toLowerCase();
+  } catch {
+    return 'invalid';
+  }
+}
+
+/**
  * Why the driver will not send to `baseUrl`, or null. A case's question, with its memory block, and every filed
- * line's embedding request go to this address: it is the provider the driver names (api.openai.com) or a stub on
- * this machine, and a dry run takes the stub alone. Any other host is refused, whatever protocol it speaks.
+ * line's embedding request go to this address: it is the provider the driver names (api.openai.com, over https) or
+ * a stub on this machine, and a dry run takes the stub alone. Any other host is refused, whatever protocol it speaks.
  */
 export function gmiUpstreamProblem(baseUrl: string, dryRun: boolean): string | null {
-  let host: string;
+  let url: URL;
   try {
-    host = new URL(baseUrl).hostname.toLowerCase();
+    url = new URL(baseUrl);
   } catch {
     return `OPENAI_BASE_URL '${baseUrl}' is not a URL`;
   }
+  const host = url.hostname.toLowerCase();
   if (LOOPBACK.has(host)) return null;
   if (dryRun) return 'a dry run needs OPENAI_BASE_URL set to a stub on this machine; it never calls a provider';
-  return host === 'api.openai.com'
-    ? null
-    : `OPENAI_BASE_URL points at ${host}: the driver sends only to api.openai.com or to a stub on this machine`;
+  if (host !== 'api.openai.com') {
+    return `OPENAI_BASE_URL points at ${host}: the driver sends only to api.openai.com or to a stub on this machine`;
+  }
+  // The key, the question and every filed line travel to the provider: never in the clear.
+  return url.protocol === 'https:' ? null : `OPENAI_BASE_URL must reach api.openai.com over https, got '${baseUrl}'`;
 }

@@ -259,14 +259,15 @@ export interface RunConfig {
    * takes the library's default. `budgetTokens` is
    * `memory.recall.budget.totalTokens`; `store` keeps memory in the process
    * (`memory`, the default) or in one SQLite file per case under the run's
-   * scratch directory (`sqlite`).
+   * scratch directory, removed when the case ends (`sqlite`).
    */
   gmiRecall?: { budgetTokens?: number; store?: 'memory' | 'sqlite' };
 
   /**
    * `driver: 'gmi'` only: the host the driver's model and embedding
    * requests go to (`api.openai.com`, or a stub on this machine). Set by the
-   * CLI from `OPENAI_BASE_URL`; part of the driver's cache fingerprint, so
+   * CLI from `OPENAI_BASE_URL`; a run that leaves it unset takes it from the
+   * same variable when it starts. Part of the driver's cache fingerprint, so
    * answers a stub gave never serve a run against the provider.
    */
   gmiUpstreamHost?: string;
