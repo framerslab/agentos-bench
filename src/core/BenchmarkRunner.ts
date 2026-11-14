@@ -1036,9 +1036,10 @@ export class BenchmarkRunner {
         ...aggregate,
         benchmarkId: benchmark.id,
         benchmarkVersion: benchmark.version,
-        // A named endpoint is recorded as the cache keyed it, in the form the CLI writes.
+        // A driver run records its endpoint as the cache keyed it, in the form the CLI writes: the one it
+        // names, or else the one OPENAI_BASE_URL gave when it started.
         config: redactSecretsFromConfig(
-          config.gmiUpstream !== undefined ? { ...config, gmiUpstream: ctx.config.gmiUpstream } : config,
+          ctx.config.driver === 'gmi' ? { ...config, gmiUpstream: ctx.config.gmiUpstream } : config,
         ),
         startedAt,
         completedAt: new Date().toISOString(),
