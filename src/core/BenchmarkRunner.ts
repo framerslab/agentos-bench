@@ -939,6 +939,12 @@ export interface RunAdversarialProbeParams {
   cases: BenchCase[];
   /** Benchmark id (for rubric selection by the judge). */
   benchmarkId: string;
+  /**
+   * The benchmark that scored the real answers. Its
+   * {@link IBenchmark.judgeInputFor} gives each distractor the rubric
+   * type and hints its real answer was judged with.
+   */
+  benchmark?: Pick<IBenchmark, 'judgeInputFor'>;
   /** Same judge instance the runner used on real answers. */
   judge: IJudge;
   /** Synthesizer invoker (cheap LLM producing distractors). */
@@ -970,14 +976,22 @@ export async function runAdversarialProbeIfEnabled(
 ): Promise<BenchResult> {
   if (!params.enabled) return params.result;
   const probe = await computeJudgeAdversarialRate({
-    cases: params.cases.map(
-      (c): AdversarialProbeCase => ({
+    cases: params.cases.map((c): AdversarialProbeCase => {
+      const rubric = params.benchmark?.judgeInputFor?.(c);
+      return {
         id: c.id,
         type: c.type,
         question: c.question,
         expected: c.expected,
-      }),
-    ),
+        ...(rubric
+          ? {
+              judgeCaseType: rubric.caseType,
+              ...(rubric.acceptableAnswers !== undefined ? { acceptableAnswers: rubric.acceptableAnswers } : {}),
+              ...(rubric.hints !== undefined ? { hints: rubric.hints } : {}),
+            }
+          : {}),
+      };
+    }),
     benchmarkId: params.benchmarkId,
     judge: params.judge,
     synthesizer: params.synthesizer,
@@ -1106,6 +1120,7 @@ export class BenchmarkRunner {
           ? await runAdversarialProbeIfEnabled({
               result: withCIs,
               cases: allCases,
+              benchmark,
               benchmarkId: benchmark.id,
               judge: this.opts.judge,
               synthesizer,

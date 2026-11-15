@@ -37,6 +37,7 @@ import type {
   CaseResult,
   CaseRun,
   IBenchmark,
+  JudgeRubricInput,
 } from '../../core/IBenchmark.js';
 import { buildHaystackContext, replayViaIngest } from '../../core/ConversationReplay.js';
 import { percentile, stdDev } from '../../core/statsUtil.js';
@@ -201,6 +202,17 @@ export class Beam implements IBenchmark {
     };
   }
 
+  /** BEAM's categories map onto LongMemEval's rubric types; `abstention` cases take the abstention rubric. */
+  judgeInputFor(c: BenchCase): JudgeRubricInput {
+    return {
+      caseType: remapBeamCategoryToRubric(c.type),
+      hints: {
+        abstention: c.type === 'abstention',
+        acceptableAnswers: c.acceptableAnswers,
+      },
+    };
+  }
+
   async scoreCase(c: BenchCase, run: CaseRun, ctx: BenchContext): Promise<CaseResult> {
     const judgment = await ctx.cache.memoize(
       'judge',
@@ -208,14 +220,10 @@ export class Beam implements IBenchmark {
         ctx.judge.judge({
           benchmarkId: this.id,
           caseId: c.id,
-          caseType: remapBeamCategoryToRubric(c.type),
           question: c.question,
           actual: run.actualOutput,
           expected: c.expected,
-          hints: {
-            abstention: c.type === 'abstention',
-            acceptableAnswers: c.acceptableAnswers,
-          },
+          ...this.judgeInputFor(c),
         }),
       this.id,
       this.version,

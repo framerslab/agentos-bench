@@ -36,6 +36,7 @@ import type {
   CaseResult,
   CaseRun,
   IBenchmark,
+  JudgeRubricInput,
   ReaderModel,
 } from '../../core/IBenchmark.js';
 import {
@@ -1120,6 +1121,18 @@ export class LongMemEvalS implements IBenchmark {
     };
   }
 
+  /**
+   * The case's own type picks the rubric; `abstention` (set by the loader
+   * for an id ending in `_abs`) swaps in the abstention rubric.
+   */
+  judgeInputFor(c: BenchCase): JudgeRubricInput {
+    return {
+      caseType: c.type,
+      acceptableAnswers: c.acceptableAnswers,
+      hints: { abstention: Boolean(c.metadata?.abstention) },
+    };
+  }
+
   async scoreCase(c: BenchCase, run: CaseRun, ctx: BenchContext): Promise<CaseResult> {
     const judgment = await ctx.cache.memoize(
       'judge',
@@ -1127,12 +1140,10 @@ export class LongMemEvalS implements IBenchmark {
         ctx.judge.judge({
           benchmarkId: this.id,
           caseId: c.id,
-          caseType: c.type,
           question: c.question,
           actual: run.actualOutput,
           expected: c.expected,
-          acceptableAnswers: c.acceptableAnswers,
-          hints: { abstention: Boolean(c.metadata?.abstention) },
+          ...this.judgeInputFor(c),
         }),
       this.id,
       this.version,

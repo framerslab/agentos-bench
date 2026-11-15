@@ -36,6 +36,7 @@ import type {
   CaseResult,
   CaseRun,
   IBenchmark,
+  JudgeRubricInput,
 } from '../../core/IBenchmark.js';
 import { buildHaystackContext, replayViaIngest } from '../../core/ConversationReplay.js';
 import { percentile, stdDev } from '../../core/statsUtil.js';
@@ -250,6 +251,14 @@ export class Locomo implements IBenchmark {
     };
   }
 
+  /** Adversarial (category 5) cases go through the abstention rubric; the others through LongMemEval's by type. */
+  judgeInputFor(c: BenchCase): JudgeRubricInput {
+    return {
+      caseType: remapCategoryToRubric(c.type),
+      hints: { abstention: Boolean(c.metadata?.abstention) },
+    };
+  }
+
   async scoreCase(c: BenchCase, run: CaseRun, ctx: BenchContext): Promise<CaseResult> {
     const judgment = await ctx.cache.memoize(
       'judge',
@@ -257,12 +266,10 @@ export class Locomo implements IBenchmark {
         ctx.judge.judge({
           benchmarkId: this.id,
           caseId: c.id,
-          // Route adversarial (category 5) cases through the abstention rubric.
-          caseType: remapCategoryToRubric(c.type),
           question: c.question,
           actual: run.actualOutput,
           expected: c.expected,
-          hints: { abstention: Boolean(c.metadata?.abstention) },
+          ...this.judgeInputFor(c),
         }),
       this.id,
       this.version,

@@ -9,9 +9,10 @@
  * says it is one. These tests pin that an `_abs` case loads as an abstention case from every file shape the loader
  * reads, that the judge grades it with the abstention rubric on the bench's own path and under `--driver gmi` (called
  * directly, and from the command line with a `--case-ids` file), and that a grading cached before the rule was read is
- * not reused for it.
+ * not reused for it. The opt-in false-positive probe judges its distractor for an `_abs` case with the abstention rubric
+ * too, as it judges the real answer.
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -157,6 +158,57 @@ describe("a LongMemEval case whose id ends in '_abs'", () => {
     expect(twin).toContain(TEMPORAL_CLAUSE);
     expect(twin).toContain('Correct Answer: 12 days');
     expect(twin).not.toContain(ABSTENTION_QUESTION);
+  });
+
+  it("has its false-positive probe distractor judged with the abstention rubric, as its real answer is", async () => {
+    await writeDataset(JSON.stringify(cases('A')));
+    const DISTRACTOR = 'It was 9 days.';
+    // The probe's synthesizer is an OpenAI reader; answer its one endpoint here.
+    const realFetch = globalThis.fetch;
+    const synthCalls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string | URL | Request, init?: RequestInit) => {
+      if (String(url) !== 'https://api.openai.com/v1/chat/completions') return realFetch(url, init);
+      synthCalls.push(String(init?.body));
+      return new Response(
+        JSON.stringify({ choices: [{ message: { content: DISTRACTOR } }], usage: { prompt_tokens: 1, completion_tokens: 1 } }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    });
+    const savedKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = 'stub-key';
+    try {
+      const { judge, prompts } = recordingJudge();
+      const reader = new MockReader('gpt-4o-mini').on(
+        () => true,
+        () => ({ text: READER_ANSWER, tokensIn: 1, tokensOut: 1, model: 'gpt-4o-mini', latencyMs: 0 }),
+      );
+      const result = await new BenchmarkRunner({ dataDir, resultsDir, judge }).run(new LongMemEvalS({ reader, variant: 's' }), {
+        ...BENCH_CONFIG,
+        judgeAdversarial: true,
+        judgeAdversarialSynthModel: 'gpt-4o-mini',
+        bootstrapResamples: 100,
+        seed: 1,
+      });
+      expect(result.cases.map((c) => c.error)).toEqual([undefined, undefined]);
+      expect(synthCalls).toHaveLength(2);
+      expect(result.judgeAdversarialFPR?.samplesProbed).toBe(2);
+
+      // Two real answers and two distractors reached the judge.
+      expect(prompts).toHaveLength(4);
+      const distractors = prompts.filter((p) => p.includes(`Model Response: ${DISTRACTOR}`));
+      expect(distractors).toHaveLength(2);
+      const abs = promptFor(distractors, ABS_QUESTION);
+      expect(abs).toContain(ABSTENTION_QUESTION);
+      expect(abs).toContain('Explanation: You did not mention a trip to Porto.');
+      expect(abs).not.toContain(TEMPORAL_CLAUSE);
+      const twin = promptFor(distractors, BASE_QUESTION);
+      expect(twin).toContain(TEMPORAL_CLAUSE);
+      expect(twin).not.toContain(ABSTENTION_QUESTION);
+    } finally {
+      vi.unstubAllGlobals();
+      if (savedKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = savedKey;
+    }
   });
 
   describe('under --driver gmi, with the provider stubbed', () => {
