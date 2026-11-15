@@ -101,6 +101,7 @@ import {
   type RetrievalConfigId,
 } from '@framers/agentos/memory-router';
 import { loadLongMemEvalDataset, type LongMemEvalVariant } from './dataset.js';
+import { LONGMEMEVAL_ABS_ID_CACHE_TAG, takesAbsIdCacheTag } from './abstention.js';
 import { pickCases, readCaseIds } from '../../core/caseIds.js';
 import {
   BENCH_SESSION_TAG_PREFIX,
@@ -1142,6 +1143,9 @@ export class LongMemEvalS implements IBenchmark {
       ctx.judge.model,
       ctx.judge.rubricVersion,
       run.actualOutput,
+      // An `_abs` case was judged with its type's rubric before the loader
+      // read the id: a judgment cached under the earlier key is not reused.
+      ...(takesAbsIdCacheTag(this.id, c.id) ? [LONGMEMEVAL_ABS_ID_CACHE_TAG] : []),
     );
 
     ctx.costTracker.record({
