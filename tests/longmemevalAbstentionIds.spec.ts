@@ -7,13 +7,15 @@
  * (https://github.com/xiaowu0162/LongMemEval/blob/d6dc8b50a2d9ac0c99485ea28fa5755c62414c34/src/evaluation/evaluate_qa.py#L101).
  * Such a question keeps its base `question_type` and its answer is an explanation, so neither the type nor the answer
  * says it is one. These tests pin that an `_abs` case loads as an abstention case from every file shape the loader
- * reads, that the judge grades it with the abstention rubric on the bench's own path and under `--driver gmi`, and that
- * a grading cached before the rule was read is not reused for it.
+ * reads, that the judge grades it with the abstention rubric on the bench's own path and under `--driver gmi` (called
+ * directly, and from the command line with a `--case-ids` file), and that a grading cached before the rule was read is
+ * not reused for it.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { buildCli } from '../src/cli.js';
 import { computeCaseRunKeyParts, resolveRunConfig } from '../src/core/BenchmarkRunner.js';
 import { Cache } from '../src/core/Cache.js';
 import type { RunConfig } from '../src/core/IBenchmark.js';
@@ -25,6 +27,7 @@ import {
   MockReader,
   RUBRIC_VERSION,
   loadLongMemEvalDataset,
+  type ReaderRequest,
 } from '../src/index.js';
 import { startOpenAiStub, type OpenAiStub } from './helpers/openaiStub.js';
 
@@ -267,5 +270,98 @@ describe("a LongMemEval case whose id ends in '_abs'", () => {
     // The twin's grading did not change, so its cached result is still read.
     expect(byId.get(BASE_ID)?.passed).toBe(false);
     expect(byId.get(BASE_ID)?.scoreMetadata).toMatchObject({ reasoning: 'stale-result' });
+  });
+
+  describe('in a run started from the command line with a --case-ids file', () => {
+    let stub: OpenAiStub;
+    const saved: Record<string, string | undefined> = {};
+    /** Every request a MockReader answered in the run, with the model it answered as. */
+    let invoked: { model: string; user: string }[];
+    const originalInvoke = MockReader.prototype.invoke;
+
+    beforeEach(async () => {
+      stub = await startOpenAiStub(() => READER_ANSWER);
+      for (const name of ['OPENAI_API_KEY', 'OPENAI_BASE_URL', 'COHERE_API_KEY']) saved[name] = process.env[name];
+      process.env.OPENAI_API_KEY = 'stub-upstream-key';
+      process.env.OPENAI_BASE_URL = stub.url;
+      delete process.env.COHERE_API_KEY;
+      process.exitCode = 0;
+      invoked = [];
+      // `--dry-run` builds its judge on a MockReader; recording what each one is asked shows the prompt the judge sent.
+      MockReader.prototype.invoke = function (this: MockReader, req: ReaderRequest) {
+        invoked.push({ model: this.model, user: req.user });
+        return originalInvoke.call(this, req);
+      };
+    });
+    afterEach(async () => {
+      MockReader.prototype.invoke = originalInvoke;
+      await resetGmiDriver();
+      await stub.close();
+      for (const [name, value] of Object.entries(saved)) {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+      process.exitCode = 0;
+    });
+
+    /** The judge's prompts: what the judge model was asked. The reader runs as `gpt-4o-mini`. */
+    const judgePrompts = () => invoked.filter((r) => r.model === 'gpt-4o').map((r) => r.user);
+    const onlyRun = async () => {
+      const files = await fs.readdir(path.join(resultsDir, 'runs'));
+      expect(files).toHaveLength(1);
+      return JSON.parse(await fs.readFile(path.join(resultsDir, 'runs', files[0]!), 'utf8'));
+    };
+    const expectRubrics = (prompts: string[]) => {
+      expect(prompts).toHaveLength(2);
+      const abs = promptFor(prompts, ABS_QUESTION);
+      expect(abs).toContain(ABSTENTION_QUESTION);
+      expect(abs).toContain('Explanation: You did not mention a trip to Porto.');
+      expect(abs).not.toContain(TEMPORAL_CLAUSE);
+      const twin = promptFor(prompts, BASE_QUESTION);
+      expect(twin).toContain(TEMPORAL_CLAUSE);
+      expect(twin).toContain('Correct Answer: 12 days');
+      expect(twin).not.toContain(ABSTENTION_QUESTION);
+    };
+
+    it("on the bench's own path, from a list of ids", async () => {
+      await writeDataset(JSON.stringify(cases('A')));
+      const ids = path.join(tmp, 'ids.json');
+      await fs.writeFile(ids, JSON.stringify([BASE_ID, ABS_ID]));
+      await buildCli().parseAsync([
+        'node', 'agentos-bench', 'run', 'longmemeval-s', '--reader', 'gpt-4o-mini', '--judge-model', 'gpt-4o',
+        '--concurrency', '1', '--data-dir', dataDir, '--results-dir', resultsDir, '--dry-run', '--case-ids', ids,
+      ]);
+      expect(process.exitCode ?? 0).toBe(0);
+      const result = await onlyRun();
+      expect(result.config.driver).toBeUndefined();
+      expect(result.cases.map((c: { caseId: string }) => c.caseId)).toEqual([BASE_ID, ABS_ID]);
+      expect(result.cases.map((c: { error?: string }) => c.error)).toEqual([undefined, undefined]);
+      expect(stub.chat).toEqual([]);
+      expectRubrics(judgePrompts());
+    });
+
+    it(
+      'under --driver gmi with the provider stubbed, from an object holding the ids',
+      async () => {
+        await writeDataset(JSON.stringify(cases('A')));
+        const ids = path.join(tmp, 'ids.json');
+        await fs.writeFile(ids, JSON.stringify({ tuning: [ABS_ID, BASE_ID] }));
+        await buildCli().parseAsync([
+          'node', 'agentos-bench', 'run', 'longmemeval-s', '--driver', 'gmi', '--reader', 'gpt-4o-mini',
+          '--judge-model', 'gpt-4o', '--embedder-model', 'text-embedding-3-small', '--concurrency', '1',
+          '--data-dir', dataDir, '--results-dir', resultsDir, '--dry-run', '--case-ids', ids,
+        ]);
+        expect(process.exitCode ?? 0).toBe(0);
+        const result = await onlyRun();
+        expect(result.config.driver).toBe('gmi');
+        expect(result.cases.map((c: { caseId: string }) => c.caseId)).toEqual([ABS_ID, BASE_ID]);
+        expect(result.cases.map((c: { error?: string }) => c.error)).toEqual([undefined, undefined]);
+        expect(result.cases.map((c: { actualOutput: string }) => c.actualOutput)).toEqual([READER_ANSWER, READER_ANSWER]);
+        // The agent asked each question of the provider; the judge read each answer.
+        expect(stub.chat).toHaveLength(2);
+        expectRubrics(judgePrompts());
+      },
+      120_000,
+    );
   });
 });
