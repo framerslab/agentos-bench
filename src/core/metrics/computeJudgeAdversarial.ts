@@ -17,7 +17,9 @@
  *      case question + gold answer and asks for a "specifically wrong
  *      but topically adjacent" distractor.
  *   2. Runs that distractor through the same {@link IJudge} that scored
- *      the real answer, using identical rubric and inputs.
+ *      the real answer, with the same rubric type and hints the benchmark
+ *      gave the judge for that case (`judgeCaseType`, `hints`,
+ *      `acceptableAnswers` on {@link AdversarialProbeCase}).
  *   3. Reports the fraction of distractors the judge accepted: the
  *      effective false-positive rate at this judge model and prompt.
  *
@@ -25,9 +27,8 @@
  *
  * Each synthesized distractor is cached to disk under
  * `<cacheDir>/<sha256>.json` keyed by `(caseId, question, goldAnswer,
- * caseType, synthVersion)`. Judge verdicts on distractors go through
- * the existing bench {@link Cache} via `BenchContext.cache` in the
- * caller, so bumping the rubric version invalidates them automatically.
+ * caseType, synthVersion)`. Judge verdicts on distractors are not
+ * cached: each probe judges its distractors again.
  *
  * ## Cost
  *
@@ -203,9 +204,20 @@ export async function synthesizeAdversarialAnswer(
  */
 export interface AdversarialProbeCase {
   id: string;
+  /** The case's own type: the per-type bucket and the synth cache key. */
   type: string;
   question: string;
   expected: string;
+  /**
+   * The case type the judge is given, when the benchmark maps its types
+   * onto rubric types (LoCoMo's `adversarial` to `abstention`). Defaults
+   * to {@link AdversarialProbeCase.type}.
+   */
+  judgeCaseType?: string;
+  /** Alternative acceptable answers, as the benchmark sends its judge. */
+  acceptableAnswers?: string[];
+  /** Judge hints, as the benchmark sends its judge (e.g. `abstention`). */
+  hints?: Record<string, unknown>;
 }
 
 /**
@@ -312,10 +324,12 @@ export async function computeJudgeAdversarialRate(
     const verdict = await input.judge.judge({
       benchmarkId: input.benchmarkId,
       caseId: c.id,
-      caseType: c.type,
+      caseType: c.judgeCaseType ?? c.type,
       question: c.question,
       actual: synth.text,
       expected: c.expected,
+      ...(c.acceptableAnswers !== undefined ? { acceptableAnswers: c.acceptableAnswers } : {}),
+      ...(c.hints !== undefined ? { hints: c.hints } : {}),
     });
     judgeTokensIn += verdict.tokensIn;
     judgeTokensOut += verdict.tokensOut;

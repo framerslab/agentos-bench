@@ -15,7 +15,7 @@
  * @module agentos-bench/core/IBenchmark
  */
 
-import type { IJudge } from '../judges/IJudge.js';
+import type { IJudge, JudgeInput } from '../judges/IJudge.js';
 import type { Cache } from './Cache.js';
 import type { CostTracker } from './CostTracker.js';
 import type { MemoryRetrievalProfile } from '@framers/agentos';
@@ -1256,6 +1256,13 @@ export interface BenchResult {
  * → `aggregate`. The {@link BenchmarkRunner} owns the loop, caching, and
  * parallelism. Benchmarks are pure — they hold no mutable runner state.
  */
+/**
+ * What a benchmark tells its judge about a case beside the ids, the
+ * question and the two answers: the rubric's case type and the hints
+ * (for example `abstention`). See {@link IBenchmark.judgeInputFor}.
+ */
+export type JudgeRubricInput = Pick<JudgeInput, 'caseType' | 'acceptableAnswers' | 'hints'>;
+
 export interface IBenchmark {
   /** Stable benchmark identifier (kebab-case). */
   readonly id: string;
@@ -1290,6 +1297,16 @@ export interface IBenchmark {
    * return a deterministic pass/fail for micro-benchmarks.
    */
   scoreCase(c: BenchCase, run: CaseRun, ctx: BenchContext): Promise<CaseResult>;
+
+  /**
+   * The rubric's case type and the hints this benchmark's judge is given
+   * for a case. A benchmark that scores with `ctx.judge` implements it and
+   * builds its own judge call from it, so the judge false-positive probe
+   * (`--judge-adversarial`) judges a distractor exactly as the benchmark
+   * judges a real answer. Without it the probe sends the case's own type
+   * and no hints.
+   */
+  judgeInputFor?(c: BenchCase): JudgeRubricInput;
 
   /**
    * Aggregate all case results into a single {@link BenchResult}.
