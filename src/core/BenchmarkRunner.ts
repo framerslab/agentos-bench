@@ -32,6 +32,7 @@ import { CostTracker } from './CostTracker.js';
 import { AGENTOS_VERSION, GMI_DRIVER_VERSION } from '../drivers/constants.js';
 import { gmiNamedUpstreamProblem, gmiRunRefusal, gmiUpstreamEndpoint } from '../drivers/upstream.js';
 import { PRESET_TABLES } from './policyRouter.js';
+import { LONGMEMEVAL_ABS_ID_CACHE_TAG, takesAbsIdCacheTag } from '../benchmarks/longmemeval/abstention.js';
 import { ResultStore } from './ResultStore.js';
 import type { IJudge } from '../judges/IJudge.js';
 import type { IReader } from '../readers/IReader.js';
@@ -306,6 +307,9 @@ export interface CaseKeyContext {
  *     layout, so prior cache entries remain valid.
  *   - When `config.readerTopK` is set, a `topk:${N}` element is
  *     appended, producing distinct hashes for K=10 vs K=15.
+ *   - A LongMemEval case whose id ends in `_abs` gets
+ *     `LONGMEMEVAL_ABS_ID_CACHE_TAG` appended to its result key only
+ *     (tests/longmemevalAbstentionIds.spec.ts).
  */
 export function computeCaseRunKeyParts(
   config: BenchContext['config'],
@@ -801,6 +805,13 @@ export function computeCaseRunKeyParts(
     const tag = `stage-e-typed-network:${config.typedNetwork}:v1`;
     runKeyParts.push(tag);
     resultKeyParts.push(tag);
+  }
+  // A LongMemEval case whose id ends in `_abs` is graded with the abstention
+  // rubric; it was graded with its type's rubric before the loader read the
+  // id. Its result key alone changes, so that grading is not reused; the
+  // answer (run key) and every other case's keys stay as they were.
+  if (takesAbsIdCacheTag(keyCtx.benchmarkId, keyCtx.caseId)) {
+    resultKeyParts.push(LONGMEMEVAL_ABS_ID_CACHE_TAG);
   }
 
   return { runKeyParts, resultKeyParts };

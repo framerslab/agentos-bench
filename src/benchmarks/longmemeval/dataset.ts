@@ -26,6 +26,7 @@ import { streamArray } from 'stream-json/streamers/stream-array.js';
 // @ts-ignore - same as above
 import { parser } from 'stream-json/index.js';
 import type { BenchCase, Session, Turn } from '../../core/IBenchmark.js';
+import { isLongMemEvalAbstentionId } from './abstention.js';
 
 /**
  * Files larger than this are stream-parsed instead of buffered into a
@@ -199,7 +200,10 @@ function convertCase(raw: RawLongMemEvalCase, idx: number, variant: LongMemEvalV
     metadata: {
       variant,
       answerSessionIds: raw.answer_session_ids,
+      // LongMemEval marks an abstention question by the `_abs` suffix on its id; the
+      // question keeps its base type (see ./abstention.ts).
       abstention:
+        isLongMemEvalAbstentionId(raw.question_id) ||
         raw.question_type.toLowerCase().includes('abstention') ||
         /unanswerable/i.test(expected),
     },
