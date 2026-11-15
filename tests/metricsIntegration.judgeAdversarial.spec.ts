@@ -6,6 +6,9 @@ import { runAdversarialProbeIfEnabled } from '../src/core/BenchmarkRunner.js';
 import type { IJudge, JudgeInput, JudgeOutput } from '../src/judges/IJudge.js';
 import type { IReader, ReaderRequest, ReaderResponse } from '../src/readers/IReader.js';
 import type { BenchCase, BenchResult } from '../src/core/IBenchmark.js';
+import { Locomo } from '../src/benchmarks/locomo/Locomo.js';
+import { Beam } from '../src/benchmarks/beam/Beam.js';
+import { MockReader } from '../src/readers/MockReader.js';
 
 class QuietSynth implements IReader {
   readonly model = 'fake-synth';
@@ -110,5 +113,62 @@ describe('runAdversarialProbeIfEnabled', () => {
     expect(out.judgeAdversarialFPR).toBeDefined();
     expect(out.judgeAdversarialFPR!.rate).toBe(1);
     expect(out.judgeAdversarialFPR!.samplesProbed).toBe(4);
+  });
+});
+
+/** A judge that accepts everything and keeps each input it is sent. */
+class RecordingJudge extends AcceptAllJudge {
+  readonly inputs: JudgeInput[] = [];
+  override async judge(input: JudgeInput): Promise<JudgeOutput> {
+    this.inputs.push(input);
+    return super.judge(input);
+  }
+}
+
+describe('runAdversarialProbeIfEnabled judges a distractor as the benchmark judges a real answer', () => {
+  let cacheDir: string;
+  beforeEach(async () => {
+    cacheDir = await fs.mkdtemp(path.join(os.tmpdir(), 'adv-rubric-'));
+  });
+
+  const probe = async (benchmark: Locomo | Beam, cases: BenchCase[]): Promise<JudgeInput[]> => {
+    const judge = new RecordingJudge();
+    const params = {
+      result: fakeResult(),
+      cases,
+      benchmark,
+      benchmarkId: benchmark.id,
+      judge,
+      synthesizer: new QuietSynth(),
+      cacheDir,
+      enabled: true,
+      maxProbes: cases.length,
+      resamples: 100,
+      seed: 1,
+    };
+    await runAdversarialProbeIfEnabled(params);
+    return judge.inputs;
+  };
+
+  it("on LoCoMo: a category 5 (adversarial) case gets the abstention rubric, a temporal one LongMemEval's temporal rubric", async () => {
+    const inputs = await probe(new Locomo({ reader: new MockReader('gpt-4o-mini') }), [
+      { ...fakeCase('conv-1-q1', 'adversarial'), metadata: { abstention: true } },
+      { ...fakeCase('conv-1-q2', 'temporal'), metadata: { abstention: false } },
+    ]);
+    expect(inputs.map((i) => [i.caseId, i.caseType, i.hints, i.actual])).toEqual([
+      ['conv-1-q1', 'abstention', { abstention: true }, 'wrong-answer'],
+      ['conv-1-q2', 'temporal-reasoning', { abstention: false }, 'wrong-answer'],
+    ]);
+  });
+
+  it('on BEAM: an abstention case gets the abstention rubric, a knowledge-update one its rubric', async () => {
+    const inputs = await probe(new Beam({ reader: new MockReader('gpt-4o-mini'), tier: '100k' }), [
+      fakeCase('beam-1', 'abstention'),
+      fakeCase('beam-2', 'knowledge_update'),
+    ]);
+    expect(inputs.map((i) => [i.caseId, i.caseType, i.hints?.abstention, i.actual])).toEqual([
+      ['beam-1', 'abstention', true, 'wrong-answer'],
+      ['beam-2', 'knowledge-update', false, 'wrong-answer'],
+    ]);
   });
 });
