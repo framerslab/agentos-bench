@@ -77,6 +77,19 @@ const CASES = [
   },
 ];
 
+/** A chat message's text: a string as it is, text parts one after another a line apart, anything else as JSON. */
+function textOf(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content
+      .map((part: { type?: unknown; text?: unknown }) =>
+        part?.type === 'text' && typeof part.text === 'string' ? part.text : JSON.stringify(part),
+      )
+      .join('\n');
+  }
+  return JSON.stringify(content);
+}
+
 /** Generous: each case builds an agent, probes its embedder and files its haystack turn by turn. */
 const END_TO_END_TIMEOUT_MS = 120_000;
 
@@ -211,9 +224,9 @@ describe('run --driver gmi', () => {
       // reply. Since @framers/agentos 0.18.0 (framerslab/agentos#830) the memory block shows such a reply as the agent's
       // own words, `You said: ...`, never as a fact; 0.17.x showed it as a fact, with no prefix.
       const ferry = stub.chat.find((seen) => JSON.stringify(seen.body.messages).includes('ferry'))!;
-      const sent = ferry.body.messages
-        .map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content)))
-        .join('\n');
+      // A message's text parts are read as text: since @framers/agentos 0.19.0 (framerslab/agentos#834) the question's
+      // message is a note part and a words part, and as JSON the whole note would be one line.
+      const sent = ferry.body.messages.map((m) => textOf(m.content)).join('\n');
       const replyLines = sent.split('\n').filter((line) => line.includes('7:15'));
       expect(replyLines.length).toBeGreaterThan(0);
       for (const line of replyLines) expect(line).toMatch(/You said: .*7:15/);
