@@ -22,7 +22,15 @@ export function isLongMemEvalAbstentionId(questionId: string): boolean {
  */
 export const LONGMEMEVAL_ABS_ID_CACHE_TAG = 'longmemeval-abs-id-is-abstention:v1';
 
-/** True when `caseId` of the benchmark `benchmarkId` takes {@link LONGMEMEVAL_ABS_ID_CACHE_TAG}. */
-export function takesAbsIdCacheTag(benchmarkId: string, caseId: string): boolean {
-  return benchmarkId.startsWith('longmemeval-') && isLongMemEvalAbstentionId(caseId);
+/**
+ * True when `caseId` of the benchmark `benchmarkId` takes {@link LONGMEMEVAL_ABS_ID_CACHE_TAG}. A missing id (a caller
+ * that builds a key from part of its context) takes no tag.
+ */
+export function takesAbsIdCacheTag(benchmarkId: string | undefined, caseId: string | undefined): boolean {
+  return (
+    typeof benchmarkId === 'string' &&
+    typeof caseId === 'string' &&
+    benchmarkId.startsWith('longmemeval-') &&
+    isLongMemEvalAbstentionId(caseId)
+  );
 }

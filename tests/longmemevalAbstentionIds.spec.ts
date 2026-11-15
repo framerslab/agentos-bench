@@ -207,14 +207,16 @@ describe("a LongMemEval case whose id ends in '_abs'", () => {
     const cache = new Cache(path.join(dataDir, 'cache'));
     const resolved = resolveRunConfig(BENCH_CONFIG);
     for (const caseId of [ABS_ID, BASE_ID]) {
-      // The case-result key as it was laid out before this rule: the 14 parts of a default run.
-      const { resultKeyParts } = computeCaseRunKeyParts(resolved, {
+      // The case-result key as it was laid out before this rule: a default run's parts for an id the rule does not
+      // touch, with the case's id in the id's place.
+      const PLACEHOLDER = 'placeholder-case';
+      const resultKeyParts = computeCaseRunKeyParts(resolved, {
         benchmarkId: 'longmemeval-s',
         benchmarkVersion: '1.0.0',
-        caseId,
+        caseId: PLACEHOLDER,
         judgeModel: 'gpt-4o',
         judgeRubricVersion: RUBRIC_VERSION,
-      });
+      }).resultKeyParts.map((part) => (part === PLACEHOLDER ? caseId : part));
       await cache.set(
         'case-result',
         {
@@ -228,7 +230,7 @@ describe("a LongMemEval case whose id ends in '_abs'", () => {
           passed: false,
           scoreMetadata: { judgeModel: 'gpt-4o', rubricVersion: RUBRIC_VERSION, reasoning: 'stale-result' },
         },
-        ...resultKeyParts.slice(0, 14),
+        ...resultKeyParts,
       );
       // The judge's key as it was laid out before this rule.
       await cache.set(
