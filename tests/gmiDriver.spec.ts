@@ -31,6 +31,14 @@ const LOCAL_REVISION = '233902d25c440f23af6f7d6e94d2946bac0bee0a';
  */
 const UNCACHED_REVISION = '0'.repeat(40);
 
+/**
+ * The line that opens the note AgentOS puts in front of the person's words when a turn carries retrieved text (the
+ * memory block first). The library keeps it fixed so a host can find the note in a request it captured; a release that
+ * rewords it changes what the reader sees, so this test names it as written.
+ */
+const APPLICATION_NOTE_FRAME =
+  '[Note from the application, not from the person. It is for this reply only: never quote it or mention it.]';
+
 const CASES = [
   {
     question_id: 'gmi-1',
@@ -68,6 +76,19 @@ const CASES = [
     haystack_session_ids: ['s2'],
   },
 ];
+
+/** A chat message's text: a string as it is, text parts one after another a line apart, anything else as JSON. */
+function textOf(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content
+      .map((part: { type?: unknown; text?: unknown }) =>
+        part?.type === 'text' && typeof part.text === 'string' ? part.text : JSON.stringify(part),
+      )
+      .join('\n');
+  }
+  return JSON.stringify(content);
+}
 
 /** Generous: each case builds an agent, probes its embedder and files its haystack turn by turn. */
 const END_TO_END_TIMEOUT_MS = 120_000;
@@ -203,9 +224,9 @@ describe('run --driver gmi', () => {
       // reply. Since @framers/agentos 0.18.0 (framerslab/agentos#830) the memory block shows such a reply as the agent's
       // own words, `You said: ...`, never as a fact; 0.17.x showed it as a fact, with no prefix.
       const ferry = stub.chat.find((seen) => JSON.stringify(seen.body.messages).includes('ferry'))!;
-      const sent = ferry.body.messages
-        .map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content)))
-        .join('\n');
+      // A message's text parts are read as text: since @framers/agentos 0.19.0 (framerslab/agentos#834) the question's
+      // message is a note part and a words part, and as JSON the whole note would be one line.
+      const sent = ferry.body.messages.map((m) => textOf(m.content)).join('\n');
       const replyLines = sent.split('\n').filter((line) => line.includes('7:15'));
       expect(replyLines.length).toBeGreaterThan(0);
       for (const line of replyLines) expect(line).toMatch(/You said: .*7:15/);
@@ -216,6 +237,45 @@ describe('run --driver gmi', () => {
         expect(c.metadata.memoryRecall.budget).toMatchObject({ requested: 1200, hop: 0 });
         expect(c.metadata.memoryRecall.delivery).toMatchObject({ memoryBlockTokens: expect.any(Number) });
         expect(c.metadata.memoryRecall.delivery.memoryBlockTokens).toBeGreaterThan(0);
+      }
+    },
+    END_TO_END_TIMEOUT_MS,
+  );
+
+  it(
+    'the question reaches the provider exactly as asked, after a note that carries the memory block',
+    async () => {
+      await run('--budget', '1200');
+      const result = await onlyRun();
+      expect(result.cases.map((c: { error?: string }) => c.error)).toEqual([undefined, undefined]);
+      // Since @framers/agentos 0.19.0 (framerslab/agentos#834) the newest user message an OpenAI-compatible provider
+      // receives is two text parts: the application's note (one fixed frame line, then the memory block whole), then
+      // the question byte for byte, its date line included. 0.18.x sent one string, the memory block under `Context:`
+      // and the question after `User Query: `.
+      expect(stub.chat).toHaveLength(2);
+      const recalled = ['oat flat white', '7:15'];
+      stub.chat.forEach((seen, i) => {
+        const asked = CASES[i]!;
+        const newest = seen.body.messages.at(-1)!;
+        expect(newest.role).toBe('user');
+        expect(newest.content).toEqual([
+          { type: 'text', text: expect.any(String) },
+          { type: 'text', text: `(Today is ${asked.question_date}.)\n${asked.question}` },
+        ]);
+        const note = (newest.content as Array<{ text: string }>)[0]!.text;
+        expect(note.startsWith(`${APPLICATION_NOTE_FRAME}\n`)).toBe(true);
+        expect(note).toContain(recalled[i]);
+        const sent = JSON.stringify(seen.body.messages);
+        expect(sent).not.toContain('User Query:');
+        expect(sent).not.toContain('Context:\\n');
+        // The question offers the model no tool.
+        expect(seen.body.tools ?? []).toEqual([]);
+      });
+      // A case keeps the whole recall capture of the call that answered.
+      for (const c of result.cases) {
+        expect(Object.keys(c.metadata.memoryRecall)).toEqual(
+          expect.arrayContaining(['version', 'retrieval', 'budget', 'reranker', 'legs', 'candidates', 'delivery']),
+        );
       }
     },
     END_TO_END_TIMEOUT_MS,
