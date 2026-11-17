@@ -3,6 +3,7 @@
  * @description Regression tests for paired McNemar significance helper.
  * Pins: b/c counts on paired cases, degenerate b+c=0 → p=1 non-significant,
  * unmatched caseId skipping, Yates continuity correction at small b+c,
+ * the correction clipped at zero when b = c (statistic 0, p 1),
  * significance declaration at p<0.05 on obvious disparities.
  */
 
@@ -106,6 +107,35 @@ describe('computePairedMcNemar', () => {
     expect(result.bCount).toBe(2);
     expect(result.cCount).toBe(0);
     expect(result.statistic).toBeCloseTo(0.5, 3);
+  });
+
+  it.each([1, 5])('reports no difference when b = c = %i (correction clipped at zero)', (n) => {
+    // b = c: |b - c| - 1 = -1, so an unclipped correction squares to 1 and
+    // gives a positive statistic. Clipped, the statistic is 0 and p is 1.
+    const aCases = [
+      ...Array.from({ length: n }, (_, i) => ({ caseId: `b${i}`, pass: 1 as const })),
+      ...Array.from({ length: n }, (_, i) => ({ caseId: `c${i}`, pass: 0 as const })),
+    ];
+    const bCases = [
+      ...Array.from({ length: n }, (_, i) => ({ caseId: `b${i}`, pass: 0 as const })),
+      ...Array.from({ length: n }, (_, i) => ({ caseId: `c${i}`, pass: 1 as const })),
+    ];
+    const result = computePairedMcNemar(build(aCases), build(bCases));
+    expect(result.bCount).toBe(n);
+    expect(result.cCount).toBe(n);
+    expect(result.totalPaired).toBe(2 * n);
+    expect(result.statistic).toBe(0);
+    expect(result.pValue).toBe(1);
+    expect(result.significant).toBe(false);
+  });
+
+  it('leaves |b - c| = 1 at statistic 0 and p 1', () => {
+    // b = 1, c = 0: (|1 - 0| - 1)^2 / 1 = 0
+    const a = build([{ caseId: '1', pass: 1 }]);
+    const b = build([{ caseId: '1', pass: 0 }]);
+    const result = computePairedMcNemar(a, b);
+    expect(result.statistic).toBe(0);
+    expect(result.pValue).toBe(1);
   });
 
   it('declares significance at p<0.05 on obvious disparities', () => {
