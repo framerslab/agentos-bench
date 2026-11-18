@@ -18,7 +18,10 @@ export interface McNemarResult {
   cCount: number;
   /** Count of caseIds present in both runs. */
   totalPaired: number;
-  /** Chi-squared statistic with Yates continuity correction. */
+  /**
+   * Chi-squared statistic with Yates continuity correction,
+   * max(0, |b - c| - 1)^2 / (b + c). Zero when |b - c| <= 1.
+   */
   statistic: number;
   /** Two-sided p-value from chi-squared with df=1. */
   pValue: number;
@@ -34,7 +37,11 @@ export interface McNemarResult {
  * pass/fail threshold, matching the `compareRuns` convention.
  *
  * Returns `{ bCount: 0, cCount: 0, statistic: 0, pValue: 1, significant: false }`
- * when no discordant pairs exist (degenerate case).
+ * when no discordant pairs exist (degenerate case). When |b - c| <= 1 the
+ * corrected statistic is 0 and pValue is 1.
+ *
+ * This is the asymptotic chi-squared form, not the exact binomial McNemar
+ * test; at small b + c the exact test is the more accurate one.
  */
 export function computePairedMcNemar(a: BenchResult, b: BenchResult): McNemarResult {
   const aCases = new Map<string, boolean>();
@@ -65,7 +72,10 @@ export function computePairedMcNemar(a: BenchResult, b: BenchResult): McNemarRes
     };
   }
 
-  const statistic = Math.pow(Math.abs(bCount - cCount) - 1, 2) / discordant;
+  // Yates' correction is clipped at zero: when b = c, |b - c| - 1 is -1, and
+  // squaring it unclipped would report a difference where there is none.
+  const corrected = Math.max(0, Math.abs(bCount - cCount) - 1);
+  const statistic = (corrected * corrected) / discordant;
   const pValue = chiSquaredSurvivalDf1(statistic);
   return {
     bCount,
