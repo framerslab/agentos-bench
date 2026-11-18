@@ -3,7 +3,7 @@
  *
  * Mirror of `stage-g-judge-fpr-probe.ts` (which probes LongMemEval-S) but
  * loads from LongMemEval-M (1.5M tokens per case, 500 sessions per
- * haystack). Same synthesizer (gpt-5-mini), same judge (gpt-4o), same
+ * haystack). Same synthesizer (gpt-6-luna), same judge (gpt-4o), same
  * rubric (2026-04-18.1), same seed (42). Closes the per-cell judge-
  * integrity gap for the v1 publication's LongMemEval-M column.
  *
@@ -21,6 +21,7 @@ import {
 import { loadLongMemEvalDataset } from '../benchmarks/longmemeval/dataset.js';
 import { LongMemEvalJudge } from '../judges/LongMemEvalJudge.js';
 import { createReader } from '../readers/createReader.js';
+import { DEFAULT_SMALL_MODEL } from '../core/defaultModels.js';
 import type { BenchCase } from '../core/IBenchmark.js';
 
 function mulberry32(seed: number): () => number {
@@ -57,7 +58,7 @@ async function main(): Promise<void> {
     expected: c.expected,
   }));
 
-  const synthesizer = createReader('gpt-5-mini');
+  const synthesizer = createReader(DEFAULT_SMALL_MODEL);
   const judgeReader = createReader('gpt-4o');
   const judge = new LongMemEvalJudge({ reader: judgeReader });
 

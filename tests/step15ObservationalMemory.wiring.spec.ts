@@ -574,7 +574,7 @@ describe('Step 16c router: RunConfig + fingerprint v2', () => {
     expect(resultKeyParts).toContain('step-16c-classifier:gpt-4o');
   });
 
-  it('fingerprint omits step-16c-classifier tag when classifier is the default gpt-5-mini', () => {
+  it('fingerprint names the default classifier and observer, so no run replays gpt-5-mini buckets', () => {
     const { runKeyParts } = computeCaseRunKeyParts(
       {
         reader: 'gpt-4o',
@@ -582,7 +582,23 @@ describe('Step 16c router: RunConfig + fingerprint v2', () => {
         replayMode: 'ingest',
         observationalMemory: true,
         omDynamicRouter: true,
-        // omClassifierModel omitted — default
+        // omClassifierModel and omObserverModel omitted: defaults
+      } as RunConfig,
+      'case-1',
+    );
+    expect(runKeyParts).toContain('step-16c-classifier:gpt-6-luna');
+    expect(runKeyParts).toContain('step-15-om-observer:gpt-6-luna');
+  });
+
+  it('fingerprint omits step-16c-classifier tag for gpt-5-mini, which owns the untagged buckets', () => {
+    const { runKeyParts } = computeCaseRunKeyParts(
+      {
+        reader: 'gpt-4o',
+        memoryMode: 'full-cognitive',
+        replayMode: 'ingest',
+        observationalMemory: true,
+        omDynamicRouter: true,
+        omClassifierModel: 'gpt-5-mini',
       } as RunConfig,
       'case-1',
     );

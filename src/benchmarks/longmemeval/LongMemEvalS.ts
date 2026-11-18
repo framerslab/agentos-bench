@@ -61,6 +61,7 @@ import {
 } from '../../core/metrics/index.js';
 import type { IReader } from '../../readers/IReader.js';
 import { createReader } from '../../readers/createReader.js';
+import { DEFAULT_SMALL_MODEL } from '../../core/defaultModels.js';
 import type { SessionSummarizer } from '@framers/agentos/memory';
 import { extractEntities } from '@framers/agentos/memory';
 import { twoCallRead, type RetrievedPassage } from '../../readers/twoCallReader.js';
@@ -194,7 +195,7 @@ export interface LongMemEvalAdapterOptions {
   splitAmbiguousThreshold?: number;
   /**
    * Step-7 (Tier 2): enable Observer/Reflector pipeline. Adapter builds
-   * a gpt-5-mini invoker, passes to `createCognitiveManager` as
+   * a gpt-6-luna invoker, passes to `createCognitiveManager` as
    * `observerReflectorLlmInvoker`, and calls `manager.observe(...)` on
    * each conversation turn during `replayForCognitive`. At end of each
    * benchmark case, force-drains buffered notes through compression
@@ -211,7 +212,7 @@ export interface LongMemEvalAdapterOptions {
   observerReflectorReplaceEnabled?: boolean;
   /**
    * Step-9 (Tier 3): when true, the adapter constructs a cost-tracked
-   * gpt-5-mini invoker and wires Mem0-style fact-graph ingest through
+   * gpt-6-luna invoker and wires Mem0-style fact-graph ingest through
    * `createCognitiveManager`. Per-session fact extraction runs at
    * ingest boundaries; synthetic fact-graph traces are prepended to
    * the `HybridRetriever` merged pool. Mutually exclusive with
@@ -346,11 +347,11 @@ export class LongMemEvalS implements IBenchmark {
       // fires (pass routerCategory only for tier_2b, undefined for tier_2a).
       const presetName = ctx.config.policyRouterPreset ?? 'maximize-accuracy';
       const table = PRESET_TABLES[presetName];
-      const classifierModelName = (ctx.config.omClassifierModel ?? 'gpt-5-mini') as ReaderModel;
+      const classifierModelName = (ctx.config.omClassifierModel ?? DEFAULT_SMALL_MODEL) as ReaderModel;
       const classifierReader = createReader(classifierModelName);
       let classifierTokensIn = 0;
       let classifierTokensOut = 0;
-      let classifierModel: string = 'gpt-5-mini';
+      let classifierModel: string = classifierModelName;
       let predictedCategory: QuestionCategory = 'multi-session';
       try {
         const result = await classifyQuestion({
@@ -402,11 +403,11 @@ export class LongMemEvalS implements IBenchmark {
       this.opts.observationalMemoryEnabled && ctx.config.omDynamicRouter,
     );
     if (dynamicRouterOn) {
-      const classifierModelName = (ctx.config.omClassifierModel ?? 'gpt-5-mini') as ReaderModel;
+      const classifierModelName = (ctx.config.omClassifierModel ?? DEFAULT_SMALL_MODEL) as ReaderModel;
       const classifierReader = createReader(classifierModelName);
       let classifierTokensIn = 0;
       let classifierTokensOut = 0;
-      let classifierModel: string = 'gpt-5-mini';
+      let classifierModel: string = classifierModelName;
       try {
         const result = await classifyQuestion({
           reader: classifierReader,
@@ -449,7 +450,7 @@ export class LongMemEvalS implements IBenchmark {
     }
 
     // RetrievalConfigRouter: per-case retrieval-config dispatch on
-    // canonical-hybrid. Classifies the question via gpt-5-mini, looks
+    // canonical-hybrid. Classifies the question via gpt-6-luna, looks
     // up the chosen preset's table, and produces a per-case override
     // spec that supersedes the run-level --hyde / --reader-top-k /
     // --rerank-candidate-multiplier flags for this case only. Reuses
@@ -489,7 +490,7 @@ export class LongMemEvalS implements IBenchmark {
       }
       // Reuse the policy-router classifier when active (predictedCategory
       // populated above). When neither policy nor om-dynamic router fired,
-      // run a fresh classifier call using gpt-5-mini with the same
+      // run a fresh classifier call using gpt-6-luna with the same
       // few-shot prompt variant the existing routers use.
       let predictedCategory: QuestionCategory;
       if (policyRouterOn && policyRouterDecision) {
@@ -498,11 +499,11 @@ export class LongMemEvalS implements IBenchmark {
         predictedCategory = routerCategory;
       } else {
         const classifierModelName = (ctx.config.omClassifierModel ??
-          'gpt-5-mini') as ReaderModel;
+          DEFAULT_SMALL_MODEL) as ReaderModel;
         const classifierReader = createReader(classifierModelName);
         let cTokensIn = 0;
         let cTokensOut = 0;
-        let cModel = 'gpt-5-mini';
+        let cModel: string = classifierModelName;
         try {
           const result = await classifyQuestion({
             reader: classifierReader,
@@ -565,10 +566,10 @@ export class LongMemEvalS implements IBenchmark {
     // reader path. Mastra's published 84.23% at gpt-4o uses this shape.
     if (useOmBranch) {
       // Step 15 v5: Observer/Reflector model selectable. Default
-      // gpt-5-mini (consistent with v1-v4); --om-observer-model upgrades
+      // gpt-6-luna (v1-v4 ran on gpt-5-mini); --om-observer-model upgrades
       // to a stronger model (e.g. gpt-4o) when the caller wants to test
       // the observer-tier hypothesis.
-      const observerModel = (ctx.config.omObserverModel ?? 'gpt-5-mini') as ReaderModel;
+      const observerModel = (ctx.config.omObserverModel ?? DEFAULT_SMALL_MODEL) as ReaderModel;
       const observerReader = createReader(observerModel);
       const sessions: OmSession[] = c.haystack.map((s) => ({
         sessionId: s.sessionId,
@@ -974,7 +975,7 @@ export class LongMemEvalS implements IBenchmark {
     // based on the predicted question category. Reuses the classifier output
     // already produced by policyRouter / omDynamicRouter / retrievalConfigRouter
     // when any of them ran (zero extra LLM calls). When NO other router fired
-    // the classifier (canonical-only run), fall back to a standalone gpt-5-mini
+    // the classifier (canonical-only run), fall back to a standalone gpt-6-luna
     // few-shot classifier call here — the reader-router still needs the
     // predicted category to dispatch. Falls back to `this.opts.reader` when (a)
     // the router is off, (b) the dispatched tier isn't in the auxiliary pool,
@@ -992,10 +993,10 @@ export class LongMemEvalS implements IBenchmark {
           | null);
       // Standalone classifier fallback: when no other router ran, fire a
       // fresh classify call so the reader router can dispatch. Cost is a
-      // single ~$0.000138 gpt-5-mini call per case (default classifier).
+      // single small-model call per case (default classifier).
       if (!dispatchCategory) {
         const classifierModelName = (ctx.config.omClassifierModel ??
-          'gpt-5-mini') as ReaderModel;
+          DEFAULT_SMALL_MODEL) as ReaderModel;
         const classifierReader = createReader(classifierModelName);
         try {
           const result = await classifyQuestion({
@@ -1763,7 +1764,7 @@ export async function runFullCognitiveCase(
     };
   }
 
-  // Step-7 (Tier 2): Observer/Reflector invoker. Uses gpt-5-mini
+  // Step-7 (Tier 2): Observer/Reflector invoker. Uses gpt-6-luna
   // (not the main reader) — summarization doesn't need the reader's
   // quality, and Mastra's OM uses gpt-5-mini too. Cost-tracked per
   // case via the bench's CostTracker.
@@ -1771,7 +1772,7 @@ export async function runFullCognitiveCase(
     | ((systemPrompt: string, userPrompt: string) => Promise<string>)
     | undefined;
   if (observerReflectorEnabled) {
-    const observerReader = createReader('gpt-5-mini');
+    const observerReader = createReader(DEFAULT_SMALL_MODEL);
     observerReflectorLlmInvoker = async (systemPrompt: string, userPrompt: string) => {
       const resp = await observerReader.invoke({
         system: systemPrompt,
@@ -1791,14 +1792,14 @@ export async function runFullCognitiveCase(
   }
 
   // Step-9 (Tier 3): fact-graph extractor invoker. Mirrors the
-  // observer-reflector pattern — gpt-5-mini, cost-tracked per case.
+  // observer-reflector pattern — gpt-6-luna, cost-tracked per case.
   // The handle's FactExtractor + FactStore fields are populated when
   // this is set (see createCognitiveManager Task 14).
   let factExtractorLlmInvoker:
     | ((systemPrompt: string, userPrompt: string) => Promise<string>)
     | undefined;
   if (factGraphIngestEnabled) {
-    const extractorReader = createReader('gpt-5-mini');
+    const extractorReader = createReader(DEFAULT_SMALL_MODEL);
     factExtractorLlmInvoker = async (systemPrompt: string, userPrompt: string) => {
       const resp = await extractorReader.invoke({
         system: systemPrompt,
@@ -1818,7 +1819,7 @@ export async function runFullCognitiveCase(
   }
 
   // Stage E: typed-network observer config. When --typed-network is
-  // set, instantiate the LLM invoker (gpt-5-mini, same cost-tracking
+  // set, instantiate the LLM invoker (gpt-6-luna, same cost-tracking
   // pattern as fact-graph) so the createCognitiveManager factory can
   // wire up the typed-network observer + store.
   let typedNetworkConfig:
@@ -1826,7 +1827,7 @@ export async function runFullCognitiveCase(
     | undefined;
   const typedNetworkVariant = ctx.config.typedNetwork;
   if (typedNetworkVariant) {
-    const observerReader = createReader('gpt-5-mini');
+    const observerReader = createReader(DEFAULT_SMALL_MODEL);
     let observerCallCounter = 0;
     const llmInvoker = async (systemPrompt: string, userPrompt: string) => {
       const callId = ++observerCallCounter;

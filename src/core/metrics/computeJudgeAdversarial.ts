@@ -286,7 +286,7 @@ export interface AdversarialRateOutput {
  *   cases: benchCases,
  *   benchmarkId: 'longmemeval-s',
  *   judge,
- *   synthesizer: createReader('gpt-5-mini'),
+ *   synthesizer: createReader('gpt-6-luna'),
  *   cacheDir: `${dataDir}/.judge-adversarial-cache`,
  *   maxProbes: 50,
  *   seed: 7,

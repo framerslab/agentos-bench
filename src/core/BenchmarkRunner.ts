@@ -29,6 +29,7 @@ import { EXTRACT_PROMPT_HASH } from '../readers/twoCallReader.js';
 import { OM_PROMPT_HASH } from '../observational-memory/prompts.js';
 import { Cache } from './Cache.js';
 import { CostTracker } from './CostTracker.js';
+import { DEFAULT_SMALL_MODEL, UNTAGGED_CACHE_MODEL } from './defaultModels.js';
 import { AGENTOS_VERSION, GMI_DRIVER_VERSION } from '../drivers/constants.js';
 import { gmiNamedUpstreamProblem, gmiRunRefusal, gmiUpstreamEndpoint } from '../drivers/upstream.js';
 import { PRESET_TABLES } from './policyRouter.js';
@@ -149,7 +150,7 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     // Step-15 v4b: synthesis model for hierarchical-mode cross-session
     // synthesis call (typically gpt-4o).
     omSynthesisModel: cfg.omSynthesisModel,
-    // Step-15 v5: observer + reflector LLM model (default gpt-5-mini
+    // Step-15 v5: observer + reflector LLM model (default gpt-6-luna
     // applied at call site). Upgrading to gpt-4o tests observer-tier
     // hypothesis vs Mastra's gemini-2.5-flash observer.
     omObserverModel: cfg.omObserverModel,
@@ -161,9 +162,9 @@ export function resolveRunConfig(cfg: RunConfig): BenchContext['config'] {
     // based on the per-category Phase A best. Empty/false means use
     // whatever static config the rest of these flags describe.
     omDynamicRouter: cfg.omDynamicRouter ?? false,
-    // Step-16c v2: classifier model. Default gpt-5-mini (cheap, fast).
-    // Set to gpt-4o for higher classification accuracy when gpt-5-mini
-    // misroutes too often (~37% category-accuracy observed at Tier A).
+    // Step-16c v2: classifier model. Default gpt-6-luna (cheap, fast).
+    // Set to gpt-4o for higher classification accuracy when the default
+    // misroutes too often (gpt-5-mini measured ~37% at Tier A).
     omClassifierModel: cfg.omClassifierModel,
     // Step-16c v10: use the few-shot variant of the classifier prompt.
     // Adds explicit Question/Category pairs after category definitions
@@ -417,10 +418,16 @@ export function computeCaseRunKeyParts(
     runKeyParts.push(readerRouterTag);
     resultKeyParts.push(readerRouterTag);
 
+    // The presets' `gpt-5-mini` tier answers on the small default model, so
+    // its answers never share a bucket with the calibrated gpt-5-mini runs.
+    const tierModelTag = `reader-router-tier:gpt-5-mini=${DEFAULT_SMALL_MODEL}`;
+    runKeyParts.push(tierModelTag);
+    resultKeyParts.push(tierModelTag);
+
     // Standalone-classifier mode (2026-04-28-v2). When `--reader-router` is
     // on AND no other classifier-firing router is active (no `--policy-router`,
     // no `--om-dynamic-router`, no `--retrieval-config-router`), the bench
-    // now fires its OWN gpt-5-mini classifier call to drive reader dispatch.
+    // now fires its OWN gpt-6-luna classifier call to drive reader dispatch.
     // Prior cache buckets in this configuration were generated WITHOUT
     // dispatch (the classifier never fired and `dispatchedReader` fell
     // through to `--reader`); they are NOT compatible with the new dispatch
@@ -440,15 +447,16 @@ export function computeCaseRunKeyParts(
 
     // Classifier-model fingerprint (2026-04-28). Same rationale as the
     // policy-router classifier-fingerprint: the reader router dispatches the
-    // answer reader from the gpt-5-mini few-shot classifier's predicted
+    // answer reader from the few-shot classifier's predicted
     // category, so different classifier models produce different per-case
-    // dispatch decisions and different cached actualOutputs. Conditional
-    // append so existing reader-router cache buckets stay untouched.
+    // dispatch decisions and different cached actualOutputs. Omitted only
+    // for gpt-5-mini, the model behind the untagged reader-router buckets.
     // Idempotent w.r.t. the policy-router tag: when both are set with the
     // same overridden classifier the same tag is appended twice, hashing the
     // same way (cache keys join with `|`, so duplicates collapse to identity).
-    if (config.omClassifierModel && config.omClassifierModel !== 'gpt-5-mini') {
-      const classifierTag = `om-classifier:${config.omClassifierModel}`;
+    const classifierModel = config.omClassifierModel ?? DEFAULT_SMALL_MODEL;
+    if (classifierModel !== UNTAGGED_CACHE_MODEL) {
+      const classifierTag = `om-classifier:${classifierModel}`;
       runKeyParts.push(classifierTag);
       resultKeyParts.push(classifierTag);
     }
@@ -506,6 +514,11 @@ export function computeCaseRunKeyParts(
       : 'observer-reflector:on';
     runKeyParts.push(tag);
     resultKeyParts.push(tag);
+    // The invoker runs on the small default model; buckets written by
+    // gpt-5-mini stay out of these runs.
+    const observerReflectorModelTag = `observer-reflector-model:${DEFAULT_SMALL_MODEL}`;
+    runKeyParts.push(observerReflectorModelTag);
+    resultKeyParts.push(observerReflectorModelTag);
     // Content-addressed: include the reflector prompt's hash so any
     // prompt edit (Step 11 tuning, future iterations) automatically
     // invalidates cached answers. No manual fingerprint bump needed.
@@ -528,8 +541,9 @@ export function computeCaseRunKeyParts(
   // can bump the fingerprint (`:v1` → `:v2`) without invalidating
   // unrelated runs.
   if (config.factGraphIngest) {
-    runKeyParts.push('fact-graph-ingest:gpt-5-mini:v1');
-    resultKeyParts.push('fact-graph-ingest:gpt-5-mini:v1');
+    const factGraphTag = `fact-graph-ingest:${DEFAULT_SMALL_MODEL}:v1`;
+    runKeyParts.push(factGraphTag);
+    resultKeyParts.push(factGraphTag);
   }
 
   // Step 13 graph-activation fingerprint. Conditional append so Tier 1
@@ -593,12 +607,12 @@ export function computeCaseRunKeyParts(
       resultKeyParts.push(synthesisTag);
     }
 
-    // Step-15 v5: observer + reflector LLM model. Only tagged when the
-    // user explicitly overrides the default gpt-5-mini (so v1-v4 cache
-    // buckets stay untouched). Different observer models produce
-    // materially different observation content.
-    if (config.omObserverModel && config.omObserverModel !== 'gpt-5-mini') {
-      const observerTag = `step-15-om-observer:${config.omObserverModel}`;
+    // Step-15 v5: observer + reflector LLM model. Tagged unless it is
+    // gpt-5-mini, the model behind the untagged v1-v4 buckets. Different
+    // observer models produce materially different observation content.
+    const observerModel = config.omObserverModel ?? DEFAULT_SMALL_MODEL;
+    if (observerModel !== UNTAGGED_CACHE_MODEL) {
+      const observerTag = `step-15-om-observer:${observerModel}`;
       runKeyParts.push(observerTag);
       resultKeyParts.push(observerTag);
     }
@@ -624,12 +638,13 @@ export function computeCaseRunKeyParts(
       runKeyParts.push(routerTag);
       resultKeyParts.push(routerTag);
 
-      // Step-16c v2: classifier model. Only tagged when overridden from
-      // the default gpt-5-mini (so existing 16c cache buckets stay
-      // untouched). Different classifier models produce different routing
-      // decisions for the same question, so cache independently.
-      if (config.omClassifierModel && config.omClassifierModel !== 'gpt-5-mini') {
-        const classifierTag = `step-16c-classifier:${config.omClassifierModel}`;
+      // Step-16c v2: classifier model. Tagged unless it is gpt-5-mini, the
+      // model behind the untagged 16c buckets. Different classifier models
+      // produce different routing decisions for the same question, so cache
+      // independently.
+      const classifierModel = config.omClassifierModel ?? DEFAULT_SMALL_MODEL;
+      if (classifierModel !== UNTAGGED_CACHE_MODEL) {
+        const classifierTag = `step-16c-classifier:${classifierModel}`;
         runKeyParts.push(classifierTag);
         resultKeyParts.push(classifierTag);
       }
@@ -738,14 +753,14 @@ export function computeCaseRunKeyParts(
     resultKeyParts.push(tag);
 
     // Classifier-model fingerprint (2026-04-28 fix). The policy router
-    // dispatches per-question backend selection from the gpt-5-mini few-shot
+    // dispatches per-question backend selection from the few-shot
     // classifier's predicted category. Different classifier models produce
     // different per-case dispatch decisions and therefore different cached
-    // actualOutputs. Conditional append: omit when the classifier is the
-    // default gpt-5-mini so existing policy-router cache buckets stay
-    // untouched.
-    if (config.omClassifierModel && config.omClassifierModel !== 'gpt-5-mini') {
-      const classifierTag = `om-classifier:${config.omClassifierModel}`;
+    // actualOutputs. Omitted only for gpt-5-mini, the model behind the
+    // untagged policy-router buckets.
+    const classifierModel = config.omClassifierModel ?? DEFAULT_SMALL_MODEL;
+    if (classifierModel !== UNTAGGED_CACHE_MODEL) {
+      const classifierTag = `om-classifier:${classifierModel}`;
       runKeyParts.push(classifierTag);
       resultKeyParts.push(classifierTag);
     }
@@ -762,7 +777,7 @@ export function computeCaseRunKeyParts(
   // different per-case dispatch decisions and must cache independently.
   if (config.retrievalConfigRouter) {
     const fewshot = config.omClassifierFewshot ? 'fs' : 'base';
-    const classifierModel = config.omClassifierModel ?? 'gpt-5-mini';
+    const classifierModel = config.omClassifierModel ?? DEFAULT_SMALL_MODEL;
     const tag = `stage-rcr:${config.retrievalConfigRouter}:${classifierModel}:${fewshot}:v1`;
     runKeyParts.push(tag);
     resultKeyParts.push(tag);
@@ -805,6 +820,9 @@ export function computeCaseRunKeyParts(
     const tag = `stage-e-typed-network:${config.typedNetwork}:v1`;
     runKeyParts.push(tag);
     resultKeyParts.push(tag);
+    const observerModelTag = `stage-e-typed-network-observer:${DEFAULT_SMALL_MODEL}`;
+    runKeyParts.push(observerModelTag);
+    resultKeyParts.push(observerModelTag);
   }
   // A LongMemEval case whose id ends in `_abs` is graded with the abstention
   // rubric; it was graded with its type's rubric before the loader read the
@@ -1111,7 +1129,7 @@ export class BenchmarkRunner {
       // don't need the probe do not require OPENAI_API_KEY for a
       // non-GPT reader.
       const synthModel =
-        ctx.config.judgeAdversarialSynthModel ?? 'gpt-5-mini';
+        ctx.config.judgeAdversarialSynthModel ?? DEFAULT_SMALL_MODEL;
       const synthesizer = ctx.config.judgeAdversarial
         ? createReader(synthModel as ReaderModel)
         : undefined;

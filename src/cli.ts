@@ -48,6 +48,7 @@ import {
   type ReplayMode,
   type RunConfig,
 } from './index.js';
+import { DEFAULT_SMALL_MODEL } from './core/defaultModels.js';
 import type { IEmbeddingManager } from '@framers/agentos/core/embeddings/IEmbeddingManager';
 import type { MemoryRetrievalProfile } from '@framers/agentos';
 import { SessionSummarizer } from '@framers/agentos/memory';
@@ -104,7 +105,7 @@ interface BenchEntry {
     /**
      * Optional auxiliary reader pool for the per-category reader-tier
      * router (`--reader-router`). When set, the bench dispatches the
-     * answer reader per case based on the gpt-5-mini classifier's
+     * answer reader per case based on the gpt-6-luna classifier's
      * predicted category. Falls back to {@link reader} when the
      * dispatched tier isn't in the pool.
      */
@@ -157,7 +158,7 @@ interface BenchEntry {
     splitAmbiguousThreshold?: number;
     /**
      * Step-7 (Tier 2): when true, the adapter constructs a cost-tracked
-     * gpt-5-mini invoker and wires Observer/Reflector through
+     * gpt-6-luna invoker and wires Observer/Reflector through
      * `createCognitiveManager`, then routes each conversation turn
      * through `manager.observe()` in addition to `manager.encode()`.
      */
@@ -171,7 +172,7 @@ interface BenchEntry {
     observerReflectorReplaceEnabled?: boolean;
     /**
      * Step-9 (Tier 3): when true, the adapter constructs a cost-tracked
-     * gpt-5-mini invoker and wires a Mem0-style fact-graph through
+     * gpt-6-luna invoker and wires a Mem0-style fact-graph through
      * `createCognitiveManager`. Per-session fact extraction runs at
      * ingest; synthetic fact-graph traces (retrievalScore: 1.0,
      * sourceType: 'fact_graph') are prepended to the HybridRetriever
@@ -766,7 +767,7 @@ export function buildCli(): Command {
     )
     .option(
       '--reader-router <preset>',
-      "Per-category reader-tier router: dispatch the answer reader per case based on the gpt-5-mini classifier's predicted category. Presets: min-cost-best-cat-2026-04-28 (gpt-4o for TR/SSU, gpt-5-mini for SSP/SSA/KU/MS; oracle 87.0% on S Phase B); min-cost-best-cat-gpt5-tr-2026-04-29 (replaces gpt-4o with gpt-5 for TR/SSU; Phase A small-sample signal of +4 pp on TR). When unset the bench uses the single --reader for every case.",
+      "Per-category reader-tier router: dispatch the answer reader per case based on the classifier's predicted category. Presets: min-cost-best-cat-2026-04-28 (gpt-4o for TR/SSU, gpt-5-mini for SSP/SSA/KU/MS; oracle 87.0% on S Phase B); min-cost-best-cat-gpt5-tr-2026-04-29 (replaces gpt-4o with gpt-5 for TR/SSU; Phase A small-sample signal of +4 pp on TR). The gpt-5-mini tier answers on gpt-6-luna because gpt-5-mini ends 2026-12-11; the tables stay as calibrated. When unset the bench uses the single --reader for every case.",
       (value: string) => {
         const allowed = ['min-cost-best-cat-2026-04-28', 'min-cost-best-cat-gpt5-tr-2026-04-29'];
         if (!allowed.includes(value)) {
@@ -848,7 +849,7 @@ export function buildCli(): Command {
     )
     .option(
       '--context-summary <model>',
-      'Enable session-level contextual retrieval (Anthropic Sep 2024). An LLM generates a dense per-session summary that is prepended to every chunk before embedding. Value is the model id used to generate summaries (e.g. "gpt-5-mini", "claude-haiku-4-5"). Cached on disk under <dataDir>/.session-summary-cache/.'
+      'Enable session-level contextual retrieval (Anthropic Sep 2024). An LLM generates a dense per-session summary that is prepended to every chunk before embedding. Value is the model id used to generate summaries (e.g. "gpt-6-luna", "claude-haiku-4-5"). Cached on disk under <dataDir>/.session-summary-cache/.'
     )
     .option(
       '--judge-adversarial',
@@ -862,8 +863,8 @@ export function buildCli(): Command {
     )
     .option(
       '--judge-adversarial-synth-model <model>',
-      'Cheap LLM for synthesizing adversarial distractors. Default: gpt-5-mini.',
-      'gpt-5-mini'
+      'Cheap LLM for synthesizing adversarial distractors. Default: gpt-6-luna.',
+      DEFAULT_SMALL_MODEL
     )
     .option(
       '--bootstrap-resamples <n>',
@@ -897,7 +898,7 @@ export function buildCli(): Command {
     )
     .option(
       '--fact-supersession',
-      'Enable Step-5 FactSupersession post-retrieval filter. One gpt-5-mini LLM call per query identifies superseded traces (contradictory claims about the same subject) and drops them before the reader sees them. Targets the knowledge-update ceiling. Orthogonal to other retrieval flags.'
+      'Enable Step-5 FactSupersession post-retrieval filter. One LLM call per query through the main reader identifies superseded traces (contradictory claims about the same subject) and drops them before the reader sees them. Targets the knowledge-update ceiling. Orthogonal to other retrieval flags.'
     )
     .option(
       '--split-ambiguous <n>',
@@ -906,7 +907,7 @@ export function buildCli(): Command {
     )
     .option(
       '--observer-reflector',
-      'Enable Step-7 Observer/Reflector pipeline (Tier 2 progressive enhancement). Adds personality-biased observation-note extraction at 30k-token intervals, compression at 50-note intervals, and reflector-driven trace consolidation + supersession. Matches Mastra "Observational Memory" pattern. Uses gpt-5-mini as the observer/reflector invoker by default.'
+      'Enable Step-7 Observer/Reflector pipeline (Tier 2 progressive enhancement). Adds personality-biased observation-note extraction at 30k-token intervals, compression at 50-note intervals, and reflector-driven trace consolidation + supersession. Matches Mastra "Observational Memory" pattern. Uses gpt-6-luna as the observer/reflector invoker by default.'
     )
     .option(
       '--observer-reflector-replace',
@@ -914,7 +915,7 @@ export function buildCli(): Command {
     )
     .option(
       '--fact-graph-ingest',
-      'Enable Step-9 Mem0-style fact-graph ingest (Tier 3). Per-session gpt-5-mini extractor emits closed-schema (subject, predicate, object, timestamp) tuples; synthetic fact-graph traces with retrievalScore:1.0 are prepended to the HybridRetriever merged pool BEFORE rerank. Preserves literal object tokens where Steps 5/7/8 paraphrased them away. Mutually exclusive with --observer-reflector / --observer-reflector-replace.'
+      'Enable Step-9 Mem0-style fact-graph ingest (Tier 3). Per-session gpt-6-luna extractor emits closed-schema (subject, predicate, object, timestamp) tuples; synthetic fact-graph traces with retrievalScore:1.0 are prepended to the HybridRetriever merged pool BEFORE rerank. Preserves literal object tokens where Steps 5/7/8 paraphrased them away. Mutually exclusive with --observer-reflector / --observer-reflector-replace.'
     )
     .option(
       '--graph-activation',
@@ -926,7 +927,7 @@ export function buildCli(): Command {
     )
     .option(
       '--observational-memory',
-      'Enable Step-15 Mastra-style Observational Memory. DISABLES the retrieval pipeline (no HybridRetriever, no rerank, no top-K). Observer LLM extracts dated priority-tagged observations over token-bounded batches of sessions (Step 15 v2 default: 24k-token batches); Reflector consolidates when the log exceeds 40k tokens. Reader sees the full observation log + question in a single call. Verbatim port of Mastra OM prompts (Apache-2.0). Observer model: gpt-5-mini (substituted for Mastra\u2019s gemini-2.5-flash because the bench ships with OpenAI keys only). Default: off.'
+      'Enable Step-15 Mastra-style Observational Memory. DISABLES the retrieval pipeline (no HybridRetriever, no rerank, no top-K). Observer LLM extracts dated priority-tagged observations over token-bounded batches of sessions (Step 15 v2 default: 24k-token batches); Reflector consolidates when the log exceeds 40k tokens. Reader sees the full observation log + question in a single call. Verbatim port of Mastra OM prompts (Apache-2.0). Observer model: gpt-6-luna (substituted for Mastra\u2019s gemini-2.5-flash because the bench ships with OpenAI keys only). Default: off.'
     )
     .option(
       '--om-batch-tokens <n>',
@@ -952,11 +953,11 @@ export function buildCli(): Command {
     )
     .option(
       '--om-synthesis-model <model>',
-      'Step 15 v4b: model identifier for the hierarchical-mode synthesis call over the per-session observation log. Typically a stronger reasoning model (e.g. gpt-4o) than the observer model. Only consulted when --om-mode is hierarchical. Default: same as the observer model (gpt-5-mini).'
+      'Step 15 v4b: model identifier for the hierarchical-mode synthesis call over the per-session observation log. Typically a stronger reasoning model (e.g. gpt-4o) than the observer model. Only consulted when --om-mode is hierarchical. Default: same as the observer model (gpt-6-luna).'
     )
     .option(
       '--om-observer-model <model>',
-      'Step 15 v5: model identifier for the Observer and Reflector LLM calls in OM ingest. Default gpt-5-mini. Provider-agnostic via prefix routing in createReader: gpt-* (OpenAI), claude-* (Anthropic), gemini-* (Google AI Studio). Setting --om-observer-model gemini-2.5-flash reproduces Mastra\u2019s published 94.9% LongMemEval-S stack (gpt-5-mini reader + gemini-2.5-flash observer). Only effective with --observational-memory.'
+      'Step 15 v5: model identifier for the Observer and Reflector LLM calls in OM ingest. Default gpt-6-luna. Provider-agnostic via prefix routing in createReader: gpt-* (OpenAI), claude-* (Anthropic), gemini-* (Google AI Studio). Setting --om-observer-model gemini-2.5-flash reproduces Mastra\u2019s published 94.9% LongMemEval-S stack (gpt-5-mini reader + gemini-2.5-flash observer). Only effective with --observational-memory.'
     )
     .option(
       '--om-with-retrieval',
@@ -964,11 +965,11 @@ export function buildCli(): Command {
     )
     .option(
       '--om-dynamic-router',
-      'Step 16c v2: classify each question via gpt-5-mini, then route to either canonical Step 3 HybridRetriever (no OM) or v5 OM (gpt-4o observer + scaffold + dual-path) based on the per-category Phase A best (SSU/SSA/SSP/TR \u2192 canonical; KU/MS \u2192 v5 OM). Overrides --om-reader-scaffold and --om-with-retrieval per-case based on classification. Only effective with --observational-memory.'
+      'Step 16c v2: classify each question via gpt-6-luna, then route to either canonical Step 3 HybridRetriever (no OM) or v5 OM (gpt-4o observer + scaffold + dual-path) based on the per-category Phase A best (SSU/SSA/SSP/TR \u2192 canonical; KU/MS \u2192 v5 OM). Overrides --om-reader-scaffold and --om-with-retrieval per-case based on classification. Only effective with --observational-memory.'
     )
     .option(
       '--om-classifier-model <model>',
-      "Step 16c v2: model identifier for the dynamic router's classification call. Default `gpt-5-mini` (cheap, fast). Set to `gpt-4o` when classifier accuracy at gpt-5-mini is too low (initial Tier A measured 37.5%). Only effective with --om-dynamic-router."
+      "Step 16c v2: model identifier for the dynamic router's classification call. Default `gpt-6-luna` (cheap, fast). Set to `gpt-4o` when classifier accuracy is too low (gpt-5-mini measured 37.5% at initial Tier A). Only effective with --om-dynamic-router."
     )
     .option(
       '--om-classifier-fewshot',
@@ -1041,7 +1042,7 @@ export function buildCli(): Command {
     )
     .option(
       '--retrieval-config-router <preset>',
-      "RetrievalConfigRouter: per-case retrieval-config dispatch on canonical-hybrid. Classifies each query via gpt-5-mini, looks up the chosen preset's table, and overrides the run-level --hyde / --reader-top-k / --rerank-candidate-multiplier flags for that case. Presets: minimize-cost-augmented (2026-04-26 v2 calibration; LongMemEval-M Phase A N=54 ablation matrix; orthogonal to --policy-router); s-best-cat-hyde-ms-2026-04-28 (S Pareto-win pre-validation: canonical everywhere except multi-session → HyDE; refuted at Phase A); s-best-cat-topk50-mult5-ms-2026-04-29 (follow-up: canonical everywhere except multi-session → topk50-mult5 wider rerank pool). Cache fingerprint: stage-rcr:<preset>:v1.",
+      "RetrievalConfigRouter: per-case retrieval-config dispatch on canonical-hybrid. Classifies each query via gpt-6-luna, looks up the chosen preset's table, and overrides the run-level --hyde / --reader-top-k / --rerank-candidate-multiplier flags for that case. Presets: minimize-cost-augmented (2026-04-26 v2 calibration; LongMemEval-M Phase A N=54 ablation matrix; orthogonal to --policy-router); s-best-cat-hyde-ms-2026-04-28 (S Pareto-win pre-validation: canonical everywhere except multi-session → HyDE; refuted at Phase A); s-best-cat-topk50-mult5-ms-2026-04-29 (follow-up: canonical everywhere except multi-session → topk50-mult5 wider rerank pool). Cache fingerprint: stage-rcr:<preset>:v1.",
       (value: string) => {
         const allowed = [
           'minimize-cost-augmented',
@@ -1244,7 +1245,7 @@ export function buildCli(): Command {
         readerTopK: opts.readerTopK as number | undefined,
         // Step-1 infra: flag-gated judge-adversarial probe + CI knobs.
         // Defaults match the umbrella spec: probe off, max 50 probes,
-        // gpt-5-mini synth, 10k bootstrap resamples.
+        // gpt-6-luna synth, 10k bootstrap resamples.
         judgeAdversarial: Boolean(opts.judgeAdversarial),
         judgeAdversarialMaxProbes: opts.judgeAdversarialMaxProbes as number | undefined,
         judgeAdversarialSynthModel: opts.judgeAdversarialSynthModel as string | undefined,
@@ -1454,7 +1455,8 @@ export function buildCli(): Command {
           : createReader(opts.reader as ReaderModel);
 
       // Reader-router auxiliary pool. When `--reader-router <preset>` is set,
-      // build BOTH gpt-4o and gpt-5-mini reader instances up front and pass
+      // build BOTH tier readers up front (gpt-4o, and gpt-6-luna for the
+      // presets' `gpt-5-mini` tier, which ends 2026-12-11) and pass
       // them via `readerByTier` to the bench so per-case dispatch has both
       // tiers available. The default `--reader` instance above stays the
       // fallback for cases where the dispatched tier isn't in the pool or
@@ -1465,7 +1467,9 @@ export function buildCli(): Command {
         readerByTier = {
           'gpt-4o': (opts.reader as ReaderModel) === 'gpt-4o' ? reader : createReader('gpt-4o'),
           'gpt-5-mini':
-            (opts.reader as ReaderModel) === 'gpt-5-mini' ? reader : createReader('gpt-5-mini'),
+            (opts.reader as ReaderModel) === DEFAULT_SMALL_MODEL
+              ? reader
+              : createReader(DEFAULT_SMALL_MODEL),
         };
       }
 
@@ -1488,7 +1492,7 @@ export function buildCli(): Command {
       // LLM call per session produces a dense summary that is
       // prepended to every chunk before embedding. Disk-cached so
       // re-runs cost ~0. The summarizer reader is an independent
-      // gpt-5-mini / claude HTTP client so summarization cost doesn't
+      // gpt-6-luna / claude HTTP client so summarization cost doesn't
       // inflate the main reader's token budget tracking.
       let sessionSummarizer: SessionSummarizer | undefined;
       if (opts.contextSummary && !opts.dryRun && !runConfig.memoryMode.startsWith('none')) {

@@ -14,7 +14,7 @@
  * silently dispatching every reader to the OpenAI client.
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   AnthropicHttpReader,
   GeminiHttpReader,
@@ -91,5 +91,51 @@ describe('createReader factory routing', () => {
       expect(reader).toBeInstanceOf(GeminiHttpReader);
       expect(reader.model).toBe(m);
     }
+  });
+});
+
+describe('OpenAIHttpReader request fields', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  async function sentBody(model: string): Promise<Record<string, unknown>> {
+    const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => ({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: 'ok' } }],
+        usage: { prompt_tokens: 1, completion_tokens: 1 },
+        model,
+      }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    await new OpenAIHttpReader(model, 'test-key').invoke({
+      user: 'question',
+      maxTokens: 16,
+      temperature: 0,
+    });
+    return JSON.parse(String(fetchMock.mock.calls[0]![1].body)) as Record<string, unknown>;
+  }
+
+  it('calls gpt-6-luna at effort none with max_completion_tokens and no temperature', async () => {
+    const body = await sentBody('gpt-6-luna');
+    expect(body.reasoning_effort).toBe('none');
+    expect(body.max_completion_tokens).toBe(2048);
+    expect(body).not.toHaveProperty('max_tokens');
+    expect(body).not.toHaveProperty('temperature');
+  });
+
+  it('calls gpt-6.2-sol at effort low, the lowest it accepts', async () => {
+    const body = await sentBody('gpt-6.2-sol');
+    expect(body.reasoning_effort).toBe('low');
+    expect(body).not.toHaveProperty('max_tokens');
+    expect(body).not.toHaveProperty('temperature');
+  });
+
+  it('keeps max_tokens and temperature for gpt-4o', async () => {
+    const body = await sentBody('gpt-4o');
+    expect(body.max_tokens).toBe(16);
+    expect(body.temperature).toBe(0);
+    expect(body).not.toHaveProperty('reasoning_effort');
   });
 });

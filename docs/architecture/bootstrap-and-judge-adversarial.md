@@ -35,7 +35,7 @@ Seedable PRNG (Mulberry32) for determinism. Percentile method over BCa because o
 
 ### `computeJudgeAdversarialRate`
 
-For each case, synthesize a topically-adjacent wrong answer with a cheap LLM (gpt-5-mini by default), score it with the SAME judge configuration that scored the real answer, and report the fraction accepted as the judge's false-positive rate. The benchmark's `judgeInputFor` gives each distractor the rubric type and hints its real answer was judged with: a LongMemEval question whose id ends in `_abs`, a LoCoMo category 5 question and a BEAM abstention question all have their distractor judged with the abstention rubric.
+For each case, synthesize a topically-adjacent wrong answer with a cheap LLM (gpt-6-luna by default), score it with the SAME judge configuration that scored the real answer, and report the fraction accepted as the judge's false-positive rate. The benchmark's `judgeInputFor` gives each distractor the rubric type and hints its real answer was judged with: a LongMemEval question whose id ends in `_abs`, a LoCoMo category 5 question and a BEAM abstention question all have their distractor judged with the abstention rubric.
 
 **Cost:** one synth call (~$0.001 at gpt-5-mini) plus one judge call per probed case, capped by `maxProbes` (default 50). Warm cache drops synth cost to zero.
 

@@ -22,6 +22,7 @@
  */
 
 import { promises as fs } from 'node:fs';
+import { DEFAULT_SMALL_MODEL } from '../core/defaultModels.js';
 import {
   CognitiveMemoryManager,
   Brain,
@@ -130,7 +131,7 @@ export interface CreateCognitiveManagerOptions {
    * Step-7 (Tier 2): LLM invoker for Observer/Reflector pipeline. When
    * set, `manager.initialize` receives `observer: { llmInvoker }` and
    * `reflector: { llmInvoker }` so the three-tier pipeline activates.
-   * Typically wraps a cheap reader (gpt-5-mini) with cost tracking.
+   * Typically wraps a cheap reader (gpt-6-luna) with cost tracking.
    *
    * Leave undefined to keep the Observer/Reflector pipeline dormant
    * (bench default pre-Step-7).
@@ -146,7 +147,7 @@ export interface CreateCognitiveManagerOptions {
    * store into `HybridRetriever` so synthetic fact-graph traces are
    * prepended to the merged pool before rerank.
    *
-   * Typically wraps a cheap reader (gpt-5-mini). Leave undefined to
+   * Typically wraps a cheap reader (gpt-6-luna). Leave undefined to
    * keep the fact-graph path dormant (bench default pre-Step-9).
    */
   factExtractorLlmInvoker?: (systemPrompt: string, userPrompt: string) => Promise<string>;
@@ -179,7 +180,7 @@ export interface CreateCognitiveManagerOptions {
    */
   typedNetwork?: {
     variant: 'minimal' | 'full' | 'production';
-    /** LLM invoker for the 6-step extraction prompt. Typically gpt-5-mini. */
+    /** LLM invoker for the 6-step extraction prompt. Typically gpt-6-luna. */
     llmInvoker: (systemPrompt: string, userPrompt: string) => Promise<string>;
   };
 }
@@ -377,7 +378,7 @@ export async function createCognitiveManager(
   const factExtractor = opts.factExtractorLlmInvoker
     ? new FactExtractor({
         llmInvoker: opts.factExtractorLlmInvoker,
-        cacheFingerprint: 'fact-graph-ingest:gpt-5-mini:v1',
+        cacheFingerprint: `fact-graph-ingest:${DEFAULT_SMALL_MODEL}:v1`,
       })
     : undefined;
 

@@ -109,6 +109,18 @@ export function createReader(model: ReaderModel): IReader {
 // ---------------------------------------------------------------------------
 
 /**
+ * Lowest reasoning effort each family accepts on Chat Completions.
+ * `gpt-6-luna` takes `none`, which bills no reasoning tokens. The other GPT-6
+ * models refuse `none` and `minimal`, so `low` is their floor. The GPT-5
+ * family keeps `minimal`.
+ */
+function reasoningEffortFor(model: string): 'none' | 'low' | 'minimal' {
+  if (/^gpt-6-luna/.test(model)) return 'none';
+  if (/^gpt-6/.test(model)) return 'low';
+  return 'minimal';
+}
+
+/**
  * Minimal OpenAI chat-completions client. Uses global `fetch`
  * (Node 18+). Non-streaming; benchmarks don't need token streaming.
  */
@@ -128,23 +140,23 @@ export class OpenAIHttpReader implements IReader {
     if (req.system) messages.push({ role: 'system', content: req.system });
     messages.push({ role: 'user', content: req.user });
 
-    // GPT-5 family rejects `max_tokens` — they require `max_completion_tokens`
-    // and refuse non-default temperatures. The older chat-completions path
-    // keeps using `max_tokens` for GPT-4o / GPT-4 / GPT-3.5 compatibility.
-    const isGpt5 = /^gpt-5/.test(this.model);
+    // The GPT-5 and GPT-6 families reject `max_tokens`: they require
+    // `max_completion_tokens` and refuse non-default temperatures. The older
+    // chat-completions path keeps using `max_tokens` for GPT-4o and GPT-4.1.
+    const isReasoningFamily = /^gpt-[56]/.test(this.model);
     const requestBody: Record<string, unknown> = {
       model: this.model,
       messages,
     };
-    if (isGpt5) {
-      // GPT-5 models use `max_completion_tokens` AND consume some of that
+    if (isReasoningFamily) {
+      // These models use `max_completion_tokens` AND consume some of that
       // budget on internal reasoning tokens before producing visible
       // output. A 256-token budget often gets fully spent on reasoning,
       // leaving empty `message.content`. Scale up so there's room for
-      // both, and ask for minimal reasoning where the API supports it.
+      // both, and ask for the lowest reasoning the model accepts.
       requestBody.max_completion_tokens = Math.max(req.maxTokens ?? 512, 2048);
-      requestBody.reasoning_effort = 'minimal';
-      // GPT-5 only accepts temperature=1 (the default). Omit to avoid 400.
+      requestBody.reasoning_effort = reasoningEffortFor(this.model);
+      // They accept only temperature=1 (the default). Omit to avoid 400.
     } else {
       // GPT-4-class models (gpt-4o, gpt-4o-mini, etc.) cap completion
       // tokens at 16384 — the API rejects requests with max_tokens
