@@ -117,10 +117,10 @@ describe('OpenAIHttpReader request fields', () => {
     return JSON.parse(String(fetchMock.mock.calls[0]![1].body)) as Record<string, unknown>;
   }
 
-  it('calls gpt-6-luna at effort none with max_completion_tokens and no temperature', async () => {
+  it('calls gpt-6-luna at effort none with the caller\'s cap and no temperature', async () => {
     const body = await sentBody('gpt-6-luna');
     expect(body.reasoning_effort).toBe('none');
-    expect(body.max_completion_tokens).toBe(2048);
+    expect(body.max_completion_tokens).toBe(16);
     expect(body).not.toHaveProperty('max_tokens');
     expect(body).not.toHaveProperty('temperature');
   });
@@ -128,6 +128,7 @@ describe('OpenAIHttpReader request fields', () => {
   it('calls gpt-6.2-sol at effort low, the lowest it accepts', async () => {
     const body = await sentBody('gpt-6.2-sol');
     expect(body.reasoning_effort).toBe('low');
+    expect(body.max_completion_tokens).toBe(2048);
     expect(body).not.toHaveProperty('max_tokens');
     expect(body).not.toHaveProperty('temperature');
   });

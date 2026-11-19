@@ -154,8 +154,12 @@ export class OpenAIHttpReader implements IReader {
       // output. A 256-token budget often gets fully spent on reasoning,
       // leaving empty `message.content`. Scale up so there's room for
       // both, and ask for the lowest reasoning the model accepts.
-      requestBody.max_completion_tokens = Math.max(req.maxTokens ?? 512, 2048);
-      requestBody.reasoning_effort = reasoningEffortFor(this.model);
+      // gpt-6-luna at effort none spends nothing on reasoning, so it keeps
+      // the caller's cap (a 16-token classifier call stays at 16).
+      const effort = reasoningEffortFor(this.model);
+      requestBody.max_completion_tokens =
+        effort === 'none' ? req.maxTokens ?? 512 : Math.max(req.maxTokens ?? 512, 2048);
+      requestBody.reasoning_effort = effort;
       // They accept only temperature=1 (the default). Omit to avoid 400.
     } else {
       // GPT-4-class models (gpt-4o, gpt-4o-mini, etc.) cap completion
