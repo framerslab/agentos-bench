@@ -764,6 +764,17 @@ export function computeCaseRunKeyParts(
       runKeyParts.push(classifierTag);
       resultKeyParts.push(classifierTag);
     }
+
+    // The router can dispatch a case to the observational-memory backend
+    // without --observational-memory, and that backend runs the observer
+    // model. The step-15 block tags it only when the flag is on, so tag it
+    // here otherwise; gpt-5-mini stays untagged like the step-15 buckets.
+    const routedObserverModel = config.omObserverModel ?? DEFAULT_SMALL_MODEL;
+    if (!config.observationalMemory && routedObserverModel !== UNTAGGED_CACHE_MODEL) {
+      const observerTag = `policy-router-om-observer:${routedObserverModel}`;
+      runKeyParts.push(observerTag);
+      resultKeyParts.push(observerTag);
+    }
   }
 
   // RetrievalConfigRouter (2026-04-26 v2) fingerprint. Conditional so

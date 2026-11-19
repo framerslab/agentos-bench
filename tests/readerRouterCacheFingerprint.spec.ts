@@ -139,3 +139,32 @@ describe('classifier-model cache fingerprint (readerRouter)', () => {
     ).toBe(true);
   });
 });
+
+describe('policy router observer fingerprint', () => {
+  const routed = { ...baseConfig, policyRouter: true } as RunConfig;
+  const tagged = (parts: unknown[]) =>
+    parts.filter((p) => typeof p === 'string' && p.startsWith('policy-router-om-observer:'));
+
+  it('tags the default observer when the router can run observational memory without the flag', () => {
+    const { runKeyParts, resultKeyParts } = computeCaseRunKeyParts(routed, 'case-1');
+    expect(tagged(runKeyParts)).toEqual(['policy-router-om-observer:gpt-6-luna']);
+    expect(tagged(resultKeyParts)).toEqual(['policy-router-om-observer:gpt-6-luna']);
+  });
+
+  it('keeps the untagged bucket for a gpt-5-mini observer', () => {
+    const { runKeyParts } = computeCaseRunKeyParts(
+      { ...routed, omObserverModel: 'gpt-5-mini' } as RunConfig,
+      'case-1',
+    );
+    expect(tagged(runKeyParts)).toEqual([]);
+  });
+
+  it('leaves the observer to the step-15 tag when observational memory is on', () => {
+    const { runKeyParts } = computeCaseRunKeyParts(
+      { ...routed, observationalMemory: true } as RunConfig,
+      'case-1',
+    );
+    expect(tagged(runKeyParts)).toEqual([]);
+    expect(runKeyParts).toContain('step-15-om-observer:gpt-6-luna');
+  });
+});

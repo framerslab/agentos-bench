@@ -111,6 +111,19 @@ describe('synthesizeAdversarialAnswer', () => {
     expect(synth.calls).toBe(2);
   });
 
+  it('re-synthesizes when the synthesizer model changes, and hits for the same model', async () => {
+    const luna = Object.assign(new FakeSynth(), { model: 'gpt-6-luna' });
+    const mini = Object.assign(new FakeSynth(), { model: 'gpt-5-mini' });
+    const input = { caseId: 'c-1', question: 'Q', goldAnswer: 'A', caseType: 't', cacheDir };
+    await synthesizeAdversarialAnswer({ ...input, invoker: mini });
+    const fromLuna = await synthesizeAdversarialAnswer({ ...input, invoker: luna });
+    expect(fromLuna.cached).toBe(false);
+    expect(luna.calls).toBe(1);
+    const againLuna = await synthesizeAdversarialAnswer({ ...input, invoker: luna });
+    expect(againLuna.cached).toBe(true);
+    expect(luna.calls).toBe(1);
+  });
+
   it('bakes the version into the cache key', () => {
     expect(typeof ADVERSARIAL_SYNTH_VERSION).toBe('string');
     expect(ADVERSARIAL_SYNTH_VERSION.length).toBeGreaterThan(0);

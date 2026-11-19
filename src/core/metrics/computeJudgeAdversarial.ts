@@ -44,6 +44,7 @@ import { promises as fs } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import type { IReader } from '../../readers/IReader.js';
+import { UNTAGGED_CACHE_MODEL } from '../defaultModels.js';
 import type { IJudge } from '../../judges/IJudge.js';
 import { computeBootstrapCI } from './computeBootstrapCI.js';
 
@@ -109,7 +110,7 @@ export interface AdversarialSynthOutput {
  * Compute the content-addressed cache key for a synth call.
  */
 function synthCacheKey(input: AdversarialSynthInput): string {
-  return createHash('sha256')
+  const hash = createHash('sha256')
     .update(ADVERSARIAL_SYNTH_VERSION)
     .update('\n')
     .update(input.caseId)
@@ -118,8 +119,13 @@ function synthCacheKey(input: AdversarialSynthInput): string {
     .update('\n')
     .update(input.goldAnswer)
     .update('\n')
-    .update(input.caseType)
-    .digest('hex');
+    .update(input.caseType);
+  // The synthesizer model is part of the key, except gpt-5-mini, the model
+  // behind the existing untagged entries, so those stay valid for it.
+  if (input.invoker.model !== UNTAGGED_CACHE_MODEL) {
+    hash.update('\n').update(`synth-model:${input.invoker.model}`);
+  }
+  return hash.digest('hex');
 }
 
 /**
