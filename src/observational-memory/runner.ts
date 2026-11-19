@@ -17,7 +17,8 @@
  *        OBSERVATION_CONTEXT_INSTRUCTIONS
  *      and answer in a single reader call. NO retrieval, NO top-K, NO rerank.
  *
- * Observer + Reflector model: substituted gpt-5-mini for Mastra's
+ * Observer + Reflector model: substituted a small OpenAI model (gpt-6-luna by
+ * default, gpt-5-mini in the published runs) for Mastra's
  * gemini-2.5-flash because the bench infrastructure ships with OpenAI keys
  * only. Documented in findings.
  *
@@ -224,7 +225,7 @@ export function extractObservationsBlock(raw: string): string | null {
 // ---------------------------------------------------------------------------
 
 export interface RunObserverArgs {
-  /** Reader instance used for the observer LLM call. Typically gpt-5-mini. */
+  /** Reader instance used for the observer LLM call. Typically gpt-6-luna. */
   reader: IReader;
   session: OmSession;
   systemPrompt?: string;

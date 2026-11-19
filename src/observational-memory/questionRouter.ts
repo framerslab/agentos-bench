@@ -4,7 +4,7 @@
  * Observational Memory + canonical retrieval architectures.
  *
  * The router classifies each LongMemEval-style question into one of six
- * categories via a cheap gpt-5-mini call, then returns a {@link RouterConfig}
+ * categories via a cheap gpt-6-luna call, then returns a {@link RouterConfig}
  * indicating which architecture to run for that case.
  *
  * Routing table is grounded in v5 Phase A N=102 results (2026-04-22):
@@ -125,7 +125,7 @@ Category: temporal-reasoning`;
  * Arguments for {@link classifyQuestion}.
  */
 export interface ClassifyQuestionArgs {
-  /** Reader to invoke (typically gpt-5-mini for this cheap classification call). */
+  /** Reader to invoke (typically gpt-6-luna for this cheap classification call). */
   reader: IReader;
   /** The user question text to classify. */
   question: string;

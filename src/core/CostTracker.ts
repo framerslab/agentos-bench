@@ -25,9 +25,15 @@ export const MODEL_PRICES: Record<string, { promptPer1k: number; completionPer1k
   // OpenAI — https://openai.com/api/pricing/
   'gpt-4o': { promptPer1k: 0.0025, completionPer1k: 0.01 },
   'gpt-4o-mini': { promptPer1k: 0.00015, completionPer1k: 0.0006 },
+  // gpt-5, gpt-5-mini and gpt-5-nano end 2026-12-11; their rows keep pricing
+  // recorded runs.
   'gpt-5': { promptPer1k: 0.00125, completionPer1k: 0.01 },
   'gpt-5-mini': { promptPer1k: 0.00025, completionPer1k: 0.002 },
   'gpt-5-nano': { promptPer1k: 0.00005, completionPer1k: 0.0004 },
+  // Standard tier, read 2026-11-17. Reasoning tokens bill as completion tokens.
+  'gpt-6-luna': { promptPer1k: 0.0001, completionPer1k: 0.0005 },
+  'gpt-6.2-sol': { promptPer1k: 0.002, completionPer1k: 0.01 },
+  'gpt-6.2-astra': { promptPer1k: 0.008, completionPer1k: 0.04 },
 
   // Google AI Studio — https://ai.google.dev/pricing (sub-200K-context tier).
   // Gemini 2.5 Flash: tuned for high-throughput observer/reflector loops.

@@ -55,6 +55,9 @@ export type ReaderModel =
   | 'gpt-5'
   | 'gpt-5-mini'
   | 'gpt-5-nano'
+  | 'gpt-6-luna'
+  | 'gpt-6.2-sol'
+  | 'gpt-6.2-astra'
   | 'gemini-2.5-flash'
   | 'gemini-2.5-pro'
   | 'gemini-1.5-flash'
@@ -346,7 +349,7 @@ export interface RunConfig {
   /**
    * Synthesizer model used to generate adversarial distractors. A
    * cheap model suffices (the probe is about judge behavior, not
-   * synthesizer behavior). Default: `'gpt-5-mini'`.
+   * synthesizer behavior). Default: `'gpt-6-luna'`.
    */
   judgeAdversarialSynthModel?: string;
 
@@ -439,7 +442,7 @@ export interface RunConfig {
    * encoded into the same MemoryStore the HybridRetriever queries.
    *
    * Default: false. Opt-in behind `--observer-reflector` CLI flag.
-   * Observer/reflector LLM invoker defaults to gpt-5-mini (summarization
+   * Observer/reflector LLM invoker defaults to gpt-6-luna (summarization
    * doesn't need the reader's quality; Mastra uses gpt-5-mini too).
    */
   observerReflector?: boolean;
@@ -459,7 +462,7 @@ export interface RunConfig {
   /**
    * Step-9 (Tier 3): Mem0-style fact-graph ingest. When true, the bench
    * adapter builds a per-case `FactStore` at session-ingest time using a
-   * gpt-5-mini extractor, extracts `(subject, predicate, object, timestamp)`
+   * gpt-6-luna extractor, extracts `(subject, predicate, object, timestamp)`
    * tuples with a closed 25-predicate schema, and threads the store into
    * the `HybridRetriever`. At query time, synthetic fact-graph traces
    * (retrievalScore: 1.0, sourceType: 'fact_graph') are prepended to the
@@ -543,7 +546,7 @@ export interface RunConfig {
 
   /**
    * Step 15 v5: model identifier for the Observer and Reflector LLM
-   * calls in OM ingest. Default 'gpt-5-mini' (applied at call site).
+   * calls in OM ingest. Default 'gpt-6-luna' (applied at call site).
    * Upgrading to 'gpt-4o' tests whether observer-model tier closes the
    * ~10pp gap to Mastra's published 84.23% gpt-4o result, which uses
    * gemini-2.5-flash as their observer. Only effective when
@@ -564,7 +567,7 @@ export interface RunConfig {
 
   /**
    * Step 16c v2: when true, classify each question via a cheap
-   * gpt-5-mini call ({@link classifyQuestion}) and route to either
+   * gpt-6-luna call ({@link classifyQuestion}) and route to either
    * canonical (Step 3 HybridRetriever, no OM) or v5 OM (gpt-4o
    * observer + scaffold + dual-path) based on the per-category
    * Phase A best. Routing table is grounded in v5 Phase A N=102
@@ -581,9 +584,9 @@ export interface RunConfig {
 
   /**
    * Step 16c v2: classifier LLM model used by the dynamic router. Default
-   * `'gpt-5-mini'` (cheap and fast). Override to `'gpt-4o'` if the
-   * gpt-5-mini classifier misroutes too often (initial Tier A measured
-   * 37.5% category accuracy at gpt-5-mini); gpt-4o is more reliable at
+   * `'gpt-6-luna'` (cheap and fast). Override to `'gpt-4o'` if the
+   * classifier misroutes too often (initial Tier A measured 37.5%
+   * category accuracy at gpt-5-mini); gpt-4o is more reliable at
    * following the bare-token output instruction.
    *
    * Only effective when `omDynamicRouter` is true.
@@ -771,9 +774,10 @@ export interface RunConfig {
 
   /**
    * Per-category reader-tier router preset id. When set, the bench builds an
-   * auxiliary reader pool (gpt-4o + gpt-5-mini) up front and dispatches the
+   * auxiliary reader pool (gpt-4o, plus gpt-6-luna for the presets'
+   * `gpt-5-mini` tier) up front and dispatches the
    * answer reader per case based on the {@link ./readerRouter.ts | calibrated
-   * mapping} of {predicted-category → reader-tier}. The same gpt-5-mini
+   * mapping} of {predicted-category → reader-tier}. The same gpt-6-luna
    * classifier already running for the policy router (or
    * `retrievalConfigRouter`) supplies the predicted category, so adding
    * `readerRouter` costs zero extra LLM calls per case.
