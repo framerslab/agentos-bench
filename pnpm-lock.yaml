@@ -25,8 +25,8 @@ importers:
         version: 4.6.7
     devDependencies:
       '@framers/agentos':
-        specifier: ^0.19.0
-        version: 0.19.0(better-sqlite3@12.11.1)(express@5.3.0)(react@19.3.1)(typescript@5.9.3)
+        specifier: ^0.19.3
+        version: 0.19.3(better-sqlite3@12.11.1)(express@5.3.0)(react@19.3.1)(typescript@5.9.3)
       '@types/node':
         specifier: ^20.12.12
         version: 20.19.43
@@ -193,8 +193,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@framers/agentos@0.19.0':
-    resolution: {integrity: sha512-Po+JAaWNCYQiK1IAozHnnBucTCdmcvhDMj0J9MBMhLi3KMU4sEiGZzLUKdpLr0Xs6rIGGnMZlhfWO9M3ydzSAg==}
+  '@framers/agentos@0.19.3':
+    resolution: {integrity: sha512-UnTXVbBvo7kfx8960w0vPl50rYnBa3HKfsJIX2tv4i8cdQDH+mQHfVY2Hzi73rSvdHHWbvmO2tN9NBhv+gaFNw==}
     engines: {node: '>=22'}
     peerDependencies:
       '@jitl/quickjs-wasmfile-release-sync': 0.32.0
@@ -2254,7 +2254,7 @@ snapshots:
   '@esbuild/win32-x64@0.21.5':
     optional: true
 
-  '@framers/agentos@0.19.0(better-sqlite3@12.11.1)(express@5.3.0)(react@19.3.1)(typescript@5.9.3)':
+  '@framers/agentos@0.19.3(better-sqlite3@12.11.1)(express@5.3.0)(react@19.3.1)(typescript@5.9.3)':
     dependencies:
       '@framers/sql-storage-adapter': 0.9.6(better-sqlite3@12.11.1)
       '@opentelemetry/api': 1.10.0
