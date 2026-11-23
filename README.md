@@ -2,6 +2,12 @@
 
 Open benchmark harness for [`@framers/agentos`](https://github.com/framerslab/agentos) memory primitives. Source-only repository, clone and run via the local CLI; not published to npm.
 
+> **85.6% on LongMemEval-S** with a per-category reader router (84.2% with `gpt-4o` alone) and **70.2% on LongMemEval-M**, the 1.5M-token variant.
+>
+> **[Read the write-up: AgentOS on LongMemEval →](https://agentos.sh/blog/agentos-memory-sota-longmemeval/)**
+
+[Leaderboard](results/LEADERBOARD.md) · [Methodology and negative findings](results/eval-matrix-v1/) · [Run it yourself](#quickstart--rerun-the-856-headline-configuration) · [Benchmark docs](https://docs.agentos.sh/benchmarks) · [Why memory benchmark numbers don't compare](https://agentos.sh/blog/memory-benchmark-transparency-audit/)
+
 Covers [LongMemEval](https://github.com/xiaowu0162/LongMemEval) (S, M, Oracle variants), [LOCOMO](https://github.com/snap-research/locomo), [BEAM](https://github.com/vectorize-io/agent-memory-benchmark), and a suite of cognitive-mechanism micro-benchmarks. Every published number ships with a per-cell run JSON at fixed seed, a 95% confidence interval, judge false-positive rate probed per benchmark, and explicit methodology disclosures for every cross-vendor comparison.
 
 ## Latest headlines (full N=500; `gpt-4o` and `gpt-5-mini` readers routed per question type)
@@ -24,26 +30,13 @@ Covers [LongMemEval](https://github.com/xiaowu0162/LongMemEval) (S, M, Oracle va
 | Same config at top-K=50 (prior, superseded) | 57.6% | $0.0505 | 265 sec |
 | M-tuned (CharHash baseline) | 45.4% | $0.1348 | 40 sec |
 
-**Competitive with the strongest published M results in the LongMemEval paper.** Table 3 of [Wu et al., ICLR 2025](https://arxiv.org/abs/2410.10813) reports several GPT-4o configurations: round-level Top-5 at 65.7%, session-level Top-5 at 71.4%, round-level Top-10 at 72.0% (the paper's strongest). AgentOS at 70.2% with reader-Top-K=5 (its reader router sends four of the six question types to `gpt-5-mini`, so this is not a reader-matched comparison) sits between the matched-Top-5 round (65.7%) and session (71.4%) numbers and 1.8 below the paper's overall best (72.0%, Top-10). The closest published external number is AgentBrain's 71.7% from their closed-source SaaS. Among open-source memory libraries with publicly reproducible runs (per-case run JSONs at fixed seed, single-CLI reproduction), AgentOS is the only one on the public record above 65% on M. Every other memory-library vendor (Mem0 94.4% on its managed platform at a top_200 retrieval budget, answerer model and LongMemEval variant not named, per [Mem0's docs](https://docs.mem0.ai/core-concepts/memory-evaluation); Mem0's open-source harness runs S by default; Mastra OM 84.2-94.9%, Hindsight 91.4%, Zep 71.2%, EmergenceMem 86%, Supermemory 81.6-85.2%, MemMachine 93%, Memoria 88.78%, agentmemory 96.2%, Backboard 93.4%, ByteRover 92.8%) publishes only the easier S variant. M's 1.5M-token haystacks exceed every production LLM context window, so vendors with prompt-stuffing or compression-based architectures avoid the variant.
+**Competitive with the strongest published M results in the LongMemEval paper.** Table 3 of [Wu et al., ICLR 2025](https://arxiv.org/abs/2410.10813) reports several GPT-4o configurations: round-level Top-5 at 65.7%, session-level Top-5 at 71.4%, round-level Top-10 at 72.0% (the paper's strongest). AgentOS at 70.2% with reader-Top-K=5 (its reader router sends four of the six question types to `gpt-5-mini`, so this is not a reader-matched comparison) sits between the matched-Top-5 round (65.7%) and session (71.4%) numbers and 1.8 below the paper's overall best (72.0%, Top-10).
 
-Methodology, per-category breakdowns, and all documented negative architecture findings (stress-tests of adjacent configs that regress) are at [`results/eval-matrix-v1/`](results/eval-matrix-v1/). The validated consumer default classifier is `gpt-5-mini`; two independent Phase B runs confirmed that upgrading to `gpt-4o` classifier costs 12× more per query without lifting accuracy on this benchmark's category mix.
+The closest published external number is AgentBrain's 71.7% from their closed-source SaaS.
 
-**Abstention questions.** LongMemEval marks 30 of its 500 questions as abstention questions by an id ending in `_abs` ([its README](https://github.com/xiaowu0162/LongMemEval/blob/d6dc8b50a2d9ac0c99485ea28fa5755c62414c34/README.md?plain=1#L71), [the count](https://github.com/xiaowu0162/LongMemEval/blob/d6dc8b50a2d9ac0c99485ea28fa5755c62414c34/README.md?plain=1#L196)); such a question keeps its base question type. The abstention questions in runs recorded before [#17](https://github.com/framerslab/agentos-bench/pull/17) were graded with their type's rubric, not the abstention rubric, and every LongMemEval figure above comes from such a run. The loader now reads the id ([`src/benchmarks/longmemeval/abstention.ts`](src/benchmarks/longmemeval/abstention.ts)), so the judge grades an `_abs` question with the abstention rubric, as LongMemEval's own evaluator does ([evaluate_qa.py](https://github.com/xiaowu0162/LongMemEval/blob/d6dc8b50a2d9ac0c99485ea28fa5755c62414c34/src/evaluation/evaluate_qa.py#L101)), and a grading cached before the change is not reused for it.
+Among open-source memory libraries with publicly reproducible runs (per-case run JSONs at fixed seed, single-CLI reproduction), AgentOS is the only one on the public record above 65% on M. Every other memory-library vendor (Mem0 94.4% on its managed platform at a top_200 retrieval budget, answerer model and LongMemEval variant not named, per [Mem0's docs](https://docs.mem0.ai/core-concepts/memory-evaluation); Mem0's open-source harness runs S by default; Mastra OM 84.2-94.9%, Hindsight 91.4%, Zep 71.2%, EmergenceMem 86%, Supermemory 81.6-85.2%, MemMachine 93%, Memoria 88.78%, agentmemory 96.2%, Backboard 93.4%, ByteRover 92.8%) publishes only the easier S variant. M's 1.5M-token haystacks exceed every production LLM context window, so vendors with prompt-stuffing or compression-based architectures avoid the variant.
 
-**Judge prompts.** The LongMemEval judge prompts in [`src/judges/rubrics/longmemeval.ts`](src/judges/rubrics/longmemeval.ts) match `get_anscheck_prompt` in LongMemEval's evaluator character for character ([evaluate_qa.py at d6dc8b5](https://github.com/xiaowu0162/LongMemEval/blob/d6dc8b50a2d9ac0c99485ea28fa5755c62414c34/src/evaluation/evaluate_qa.py#L24-L45)), and [`tests/longmemevalRubricUpstream.spec.ts`](tests/longmemevalRubricUpstream.spec.ts) holds them to it. Runs recorded before [#19](https://github.com/framerslab/agentos-bench/pull/19), every figure above among them, used rubric version `2026-04-18.1`, whose prompts differed: the knowledge-update prompt carried two extra sentences from the base prompt, the preference prompt opened with the base prompt instead of upstream's rubric wording, the abstention prompt ended "is not available" where upstream ends "is not", and the base and temporal prompts lacked upstream's space before the question. The version is now `2026-11-15.1`, so no judgment cached under the old prompts is read back. LoCoMo and BEAM judge through the same prompts, so their judgments are graded again too.
-
-## What ships in agentos
-
-The bench's routing primitives ship in [`@framers/agentos`](https://github.com/framerslab/agentos) under `@framers/agentos/memory-router`: the `MemoryRouter` class, which picks a recall backend per query, and `selectReader`, which maps a question category to a reader tier through a preset table.
-
-```ts
-import { selectReader } from '@framers/agentos/memory-router';
-
-selectReader('temporal-reasoning', 'min-cost-best-cat-2026-04-28'); // 'gpt-4o'
-selectReader('multi-session', 'min-cost-best-cat-2026-04-28');      // 'gpt-5-mini'
-```
-
-## Quickstart — reproduce the 85.6% headline
+## Quickstart — rerun the 85.6% headline configuration
 
 ```bash
 git clone https://github.com/framerslab/agentos-bench
@@ -68,6 +61,29 @@ NODE_OPTIONS="--max-old-space-size=8192" pnpm bench run longmemeval-s \
 ```
 
 Expected wall-clock: ~10-15 min at concurrency 5. Expected cost: ~$3.84 in OpenAI reader and judge fees, plus OpenAI embedding charges and Cohere rerank charges, which the bench does not price.
+
+These commands rerun the headline configuration on this version's defaults, which differ from the recorded 85.6% run in three ways (see [Methodology](#methodology)): the classifier, observer, extractor and distractor calls and the presets' `gpt-5-mini` tier run on `gpt-6-luna`; abstention questions are graded with the abstention rubric; and the judge prompts are rubric version `2026-11-15.1`. A rerun can score differently from 85.6%. The recorded run itself is under [Run files](#run-files).
+
+## What ships in agentos
+
+The bench's routing primitives ship in [`@framers/agentos`](https://github.com/framerslab/agentos) under `@framers/agentos/memory-router`: the `MemoryRouter` class, which picks a recall backend per query, and `selectReader`, which maps a question category to a reader tier through a preset table.
+
+```ts
+import { selectReader } from '@framers/agentos/memory-router';
+
+selectReader('temporal-reasoning', 'min-cost-best-cat-2026-04-28'); // 'gpt-4o'
+selectReader('multi-session', 'min-cost-best-cat-2026-04-28');      // 'gpt-5-mini'
+```
+
+## Methodology
+
+Methodology, per-category breakdowns, and all documented negative architecture findings (stress-tests of adjacent configs that regress) are at [`results/eval-matrix-v1/`](results/eval-matrix-v1/). The validated consumer default classifier is `gpt-5-mini`; two independent Phase B runs confirmed that upgrading to `gpt-4o` classifier costs 12× more per query without lifting accuracy on this benchmark's category mix. These numbers were measured on `gpt-5-mini`, which ends on 11 Dec 2026; runs from this version use `gpt-6-luna` for the classifier, observer, extractor and distractor calls and for the presets' `gpt-5-mini` tier.
+
+**Abstention questions.** LongMemEval marks 30 of its 500 questions as abstention questions by an id ending in `_abs` ([its README](https://github.com/xiaowu0162/LongMemEval/blob/d6dc8b50a2d9ac0c99485ea28fa5755c62414c34/README.md?plain=1#L71), [the count](https://github.com/xiaowu0162/LongMemEval/blob/d6dc8b50a2d9ac0c99485ea28fa5755c62414c34/README.md?plain=1#L196)); such a question keeps its base question type. The abstention questions in runs recorded before [#17](https://github.com/framerslab/agentos-bench/pull/17) were graded with their type's rubric, not the abstention rubric, and every LongMemEval figure above comes from such a run. The loader now reads the id ([`src/benchmarks/longmemeval/abstention.ts`](src/benchmarks/longmemeval/abstention.ts)), so the judge grades an `_abs` question with the abstention rubric, as LongMemEval's own evaluator does ([evaluate_qa.py](https://github.com/xiaowu0162/LongMemEval/blob/d6dc8b50a2d9ac0c99485ea28fa5755c62414c34/src/evaluation/evaluate_qa.py#L101)), and a grading cached before the change is not reused for it.
+
+**Judge prompts.** The LongMemEval judge prompts in [`src/judges/rubrics/longmemeval.ts`](src/judges/rubrics/longmemeval.ts) match `get_anscheck_prompt` in LongMemEval's evaluator character for character ([evaluate_qa.py at d6dc8b5](https://github.com/xiaowu0162/LongMemEval/blob/d6dc8b50a2d9ac0c99485ea28fa5755c62414c34/src/evaluation/evaluate_qa.py#L24-L45)), and [`tests/longmemevalRubricUpstream.spec.ts`](tests/longmemevalRubricUpstream.spec.ts) holds them to it. Runs recorded before [#19](https://github.com/framerslab/agentos-bench/pull/19), every figure above among them, used rubric version `2026-04-18.1`, whose prompts differed: the knowledge-update prompt carried two extra sentences from the base prompt, the preference prompt opened with the base prompt instead of upstream's rubric wording, the abstention prompt ended "is not available" where upstream ends "is not", and the base and temporal prompts lacked upstream's space before the question. The version is now `2026-11-15.1`, so no judgment cached under the old prompts is read back. LoCoMo and BEAM judge through the same prompts, so their judgments are graded again too.
+
+The full write-up, with the per-category results and the cross-vendor comparison, is [AgentOS on LongMemEval: 85.6% on S, 70.2% on M](https://agentos.sh/blog/agentos-memory-sota-longmemeval/).
 
 ## Vendor reproduction adapters
 
@@ -153,8 +169,8 @@ Every public entrypoint has TSDoc; type-checked via `pnpm exec tsc --noEmit -p t
 
 ## Examples
 
-- Reproduce the LongMemEval-S 85.6% headline: see Quickstart above.
-- Reproduce the LongMemEval-M 70.2% headline:
+- Rerun the LongMemEval-S 85.6% headline configuration: see Quickstart above.
+- Rerun the LongMemEval-M 70.2% headline configuration (on this version's defaults, as the Quickstart note describes):
 
   ```bash
   # Download the LongMemEval-M dataset into data/longmemeval/longmemeval_m.json

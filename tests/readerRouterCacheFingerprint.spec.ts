@@ -20,9 +20,9 @@
  *    hit on incompatible cached answers).
  *
  * The fix: include `om-classifier:<model>` in the cache fingerprint
- * whenever (policyRouter || readerRouter) AND omClassifierModel is
- * non-default. Conditional append so existing cache buckets stay
- * untouched.
+ * whenever (policyRouter || readerRouter) AND the classifier is not
+ * gpt-5-mini, the model behind the untagged buckets. The default classifier
+ * is gpt-6-luna, so a default run carries the tag too.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -66,7 +66,7 @@ describe('classifier-model cache fingerprint (policyRouter)', () => {
   } as RunConfig;
 
   it('partitions cache by classifier model when policyRouter is on AND classifier is overridden to gpt-4o', () => {
-    const { runKeyParts: gpt5miniParts } = computeCaseRunKeyParts(
+    const { runKeyParts: defaultParts } = computeCaseRunKeyParts(
       policyConfig,
       'case-1',
     );
@@ -78,7 +78,7 @@ describe('classifier-model cache fingerprint (policyRouter)', () => {
     // The two configs MUST produce different cache keys, otherwise a
     // gpt-4o-classifier run silently cache-hits on a gpt-5-mini-classifier
     // run's stale dispatch decisions.
-    expect(gpt4oParts).not.toEqual(gpt5miniParts);
+    expect(gpt4oParts).not.toEqual(defaultParts);
 
     // The gpt-4o variant's fingerprint must explicitly tag the classifier.
     expect(
@@ -88,8 +88,16 @@ describe('classifier-model cache fingerprint (policyRouter)', () => {
     ).toBe(true);
   });
 
-  it('omits the classifier tag when policyRouter is on but classifier is the default gpt-5-mini (baseline preserved)', () => {
+  it('tags the default classifier so its runs never replay gpt-5-mini buckets', () => {
     const { runKeyParts } = computeCaseRunKeyParts(policyConfig, 'case-1');
+    expect(runKeyParts).toContain('om-classifier:gpt-6-luna');
+  });
+
+  it('omits the classifier tag for gpt-5-mini, which owns the untagged buckets', () => {
+    const { runKeyParts } = computeCaseRunKeyParts(
+      { ...policyConfig, omClassifierModel: 'gpt-5-mini' } as RunConfig,
+      'case-1',
+    );
     expect(
       runKeyParts.some(
         (p) => typeof p === 'string' && p.startsWith('om-classifier:'),
@@ -104,8 +112,17 @@ describe('classifier-model cache fingerprint (readerRouter)', () => {
     readerRouter: 'min-cost-best-cat-2026-04-28',
   } as RunConfig;
 
+  it("names the model behind the presets' gpt-5-mini tier", () => {
+    const { runKeyParts, resultKeyParts } = computeCaseRunKeyParts(
+      readerRouterConfig,
+      'case-1',
+    );
+    expect(runKeyParts).toContain('reader-router-tier:gpt-5-mini=gpt-6-luna');
+    expect(resultKeyParts).toContain('reader-router-tier:gpt-5-mini=gpt-6-luna');
+  });
+
   it('partitions cache by classifier model when readerRouter is on AND classifier is overridden', () => {
-    const { runKeyParts: gpt5miniParts } = computeCaseRunKeyParts(
+    const { runKeyParts: defaultParts } = computeCaseRunKeyParts(
       readerRouterConfig,
       'case-1',
     );
@@ -114,11 +131,40 @@ describe('classifier-model cache fingerprint (readerRouter)', () => {
       'case-1',
     );
 
-    expect(gpt4oParts).not.toEqual(gpt5miniParts);
+    expect(gpt4oParts).not.toEqual(defaultParts);
     expect(
       gpt4oParts.some(
         (p) => typeof p === 'string' && p.includes('om-classifier:gpt-4o'),
       ),
     ).toBe(true);
+  });
+});
+
+describe('policy router observer fingerprint', () => {
+  const routed = { ...baseConfig, policyRouter: true } as RunConfig;
+  const tagged = (parts: unknown[]) =>
+    parts.filter((p) => typeof p === 'string' && p.startsWith('policy-router-om-observer:'));
+
+  it('tags the default observer when the router can run observational memory without the flag', () => {
+    const { runKeyParts, resultKeyParts } = computeCaseRunKeyParts(routed, 'case-1');
+    expect(tagged(runKeyParts)).toEqual(['policy-router-om-observer:gpt-6-luna']);
+    expect(tagged(resultKeyParts)).toEqual(['policy-router-om-observer:gpt-6-luna']);
+  });
+
+  it('keeps the untagged bucket for a gpt-5-mini observer', () => {
+    const { runKeyParts } = computeCaseRunKeyParts(
+      { ...routed, omObserverModel: 'gpt-5-mini' } as RunConfig,
+      'case-1',
+    );
+    expect(tagged(runKeyParts)).toEqual([]);
+  });
+
+  it('leaves the observer to the step-15 tag when observational memory is on', () => {
+    const { runKeyParts } = computeCaseRunKeyParts(
+      { ...routed, observationalMemory: true } as RunConfig,
+      'case-1',
+    );
+    expect(tagged(runKeyParts)).toEqual([]);
+    expect(runKeyParts).toContain('step-15-om-observer:gpt-6-luna');
   });
 });

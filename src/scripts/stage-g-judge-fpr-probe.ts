@@ -16,6 +16,7 @@ import {
 import { loadLongMemEvalDataset } from '../benchmarks/longmemeval/dataset.js';
 import { LongMemEvalJudge } from '../judges/LongMemEvalJudge.js';
 import { createReader } from '../readers/createReader.js';
+import { DEFAULT_SMALL_MODEL } from '../core/defaultModels.js';
 import type { BenchCase } from '../core/IBenchmark.js';
 
 function mulberry32(seed: number): () => number {
@@ -52,7 +53,7 @@ async function main(): Promise<void> {
     expected: c.expected,
   }));
 
-  const synthesizer = createReader('gpt-5-mini');
+  const synthesizer = createReader(DEFAULT_SMALL_MODEL);
   const judgeReader = createReader('gpt-4o');
   const judge = new LongMemEvalJudge({ reader: judgeReader });
 
