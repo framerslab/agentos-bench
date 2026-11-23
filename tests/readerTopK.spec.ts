@@ -20,6 +20,7 @@ import {
 } from '../src/core/BenchmarkRunner.js';
 import type { RunConfig } from '../src/core/IBenchmark.js';
 import { hashKey } from '../src/core/Cache.js';
+import { AGENTOS_VERSION } from '../src/drivers/constants.js';
 
 const baseConfig: RunConfig = {
   reader: 'gpt-5-mini',
@@ -34,6 +35,16 @@ const fixture = {
   judgeModel: 'gpt-4o',
   judgeRubricVersion: '2026-04-18.1',
 };
+
+it('keys both case caches on the installed AgentOS version without a driver', () => {
+  const config = resolveRunConfig(baseConfig);
+  expect(config.driver).toBeUndefined();
+
+  const { runKeyParts, resultKeyParts } = computeCaseRunKeyParts(config, fixture);
+  const agentosTag = `agentos@${AGENTOS_VERSION}`;
+  expect(runKeyParts).toContain(agentosTag);
+  expect(resultKeyParts).toContain(agentosTag);
+});
 
 describe('readerTopK propagation + cache-key invariants', () => {
   it('(a) RunConfig.readerTopK survives resolveRunConfig', () => {
