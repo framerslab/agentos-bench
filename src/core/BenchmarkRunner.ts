@@ -302,9 +302,8 @@ export interface CaseKeyContext {
  * benchmark run.
  *
  * Invariants pinned by tests:
- *   - When `config.readerTopK` is undefined, arrays are exactly 12
- *     (run) and 14 (result) elements — matching the pre-readerTopK
- *     layout, so prior cache entries remain valid.
+ *   - When `config.readerTopK` is undefined, the key omits the top-k
+ *     fingerprint.
  *   - When `config.readerTopK` is set, a `topk:${N}` element is
  *     appended, producing distinct hashes for K=10 vs K=15.
  *   - A LongMemEval case whose id ends in `_abs` gets
@@ -369,9 +368,7 @@ export function computeCaseRunKeyParts(
   // Conditional append (see spec §2): add the readerTopK fingerprint
   // ONLY when explicitly set. `hashKey` joins all parts with `\x1f`
   // separators — appending even an empty-string part would change
-  // the canonical serialization and invalidate every prior cache
-  // entry. Leaving the array at 12 / 14 elements when readerTopK is
-  // undefined preserves pre-change hashes exactly.
+  // the canonical serialization and invalidate default cache entries.
   if (config.readerTopK) {
     const topKTag = `topk:${config.readerTopK}`;
     runKeyParts.push(topKTag);
@@ -392,17 +389,16 @@ export function computeCaseRunKeyParts(
     resultKeyParts.push(embedderTag);
   }
 
-  // GMI driver fingerprint: the driver answers through an agent, so its
-  // answers never share a bucket with the bench's own path. The installed
-  // agentos release keeps one release's answers out of another's (the
-  // library's defaults move between releases); the upstream (scheme, host,
-  // port, path) keeps a stub's answers out of a live run's bucket and out of
-  // another stub's; the recall settings partition it further. Conditional
-  // append: runs on the bench's own path keep their cache hashes.
+  // AgentOS defaults can change between releases on either path.
+  // Driver keys also partition by driver version, upstream, and recall.
   if (config.driver) {
     const driverTag = `driver:${config.driver}:${GMI_DRIVER_VERSION}:agentos@${AGENTOS_VERSION}:${config.gmiUpstream ?? ''}:${JSON.stringify(config.gmiRecall ?? {})}`;
     runKeyParts.push(driverTag);
     resultKeyParts.push(driverTag);
+  } else {
+    const agentosTag = `agentos@${AGENTOS_VERSION}`;
+    runKeyParts.push(agentosTag);
+    resultKeyParts.push(agentosTag);
   }
 
   // Reader-router fingerprint (2026-04-28) — load-bearing because the

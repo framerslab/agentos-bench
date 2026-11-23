@@ -8,9 +8,7 @@
  *       and lands on BenchContext.config.readerTopK.
  *   (b) Cache-key divergence: distinct readerTopK values produce
  *       distinct case-run cache keys for the same case.
- *   (c) Backwards-compat: readerTopK=undefined produces the exact
- *       same cache key it produced before this change (conditional-
- *       append, not empty-string fill).
+ *   (c) An unset readerTopK adds no part to the cache key.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -78,7 +76,7 @@ describe('readerTopK propagation + cache-key invariants', () => {
     expect(hashKey(...resParts10)).not.toBe(hashKey(...resParts15));
   });
 
-  it('(c) readerTopK=undefined produces the pre-change cache key (conditional append)', () => {
+  it('(c) an unset readerTopK adds no part to either cache key', () => {
     const ctxNone = resolveRunConfig(baseConfig);
     const { runKeyParts, resultKeyParts } = computeCaseRunKeyParts(ctxNone, fixture);
 
@@ -88,13 +86,8 @@ describe('readerTopK propagation + cache-key invariants', () => {
     const joinedResult = resultKeyParts.map(String).join('|');
     expect(joinedResult).not.toContain('topk:');
 
-    // Length pin: the pre-change cache-key layout had exactly 12
-    // parts for runKeyParts and 14 for resultKeyParts. Step 18 added
-    // one always-on `retention-instrumentation:v1` tag to BOTH key
-    // sets (so future refactors that switch to always-append-even-
-    // when-undefined will bump these counters and surface as a
-    // regression here, exactly the original guard's intent).
-    expect(runKeyParts).toHaveLength(13);
-    expect(resultKeyParts).toHaveLength(15);
+    // An empty placeholder would also change the cache hash.
+    expect(runKeyParts).toHaveLength(14);
+    expect(resultKeyParts).toHaveLength(16);
   });
 });
