@@ -6,7 +6,7 @@ Open benchmark harness for [`@framers/agentos`](https://github.com/framerslab/ag
 >
 > **[Read the write-up: AgentOS on LongMemEval →](https://agentos.sh/blog/agentos-memory-sota-longmemeval/)**
 
-[Leaderboard](results/LEADERBOARD.md) · [Methodology and negative findings](results/eval-matrix-v1/) · [Reproduce the 85.6%](#quickstart--reproduce-the-856-headline) · [Benchmark docs](https://docs.agentos.sh/benchmarks) · [Why memory benchmark numbers don't compare](https://agentos.sh/blog/memory-benchmark-transparency-audit/)
+[Leaderboard](results/LEADERBOARD.md) · [Methodology and negative findings](results/eval-matrix-v1/) · [Run it yourself](#quickstart--rerun-the-856-headline-configuration) · [Benchmark docs](https://docs.agentos.sh/benchmarks) · [Why memory benchmark numbers don't compare](https://agentos.sh/blog/memory-benchmark-transparency-audit/)
 
 Covers [LongMemEval](https://github.com/xiaowu0162/LongMemEval) (S, M, Oracle variants), [LOCOMO](https://github.com/snap-research/locomo), [BEAM](https://github.com/vectorize-io/agent-memory-benchmark), and a suite of cognitive-mechanism micro-benchmarks. Every published number ships with a per-cell run JSON at fixed seed, a 95% confidence interval, judge false-positive rate probed per benchmark, and explicit methodology disclosures for every cross-vendor comparison.
 
@@ -36,7 +36,7 @@ The closest published external number is AgentBrain's 71.7% from their closed-so
 
 Among open-source memory libraries with publicly reproducible runs (per-case run JSONs at fixed seed, single-CLI reproduction), AgentOS is the only one on the public record above 65% on M. Every other memory-library vendor (Mem0 94.4% on its managed platform at a top_200 retrieval budget, answerer model and LongMemEval variant not named, per [Mem0's docs](https://docs.mem0.ai/core-concepts/memory-evaluation); Mem0's open-source harness runs S by default; Mastra OM 84.2-94.9%, Hindsight 91.4%, Zep 71.2%, EmergenceMem 86%, Supermemory 81.6-85.2%, MemMachine 93%, Memoria 88.78%, agentmemory 96.2%, Backboard 93.4%, ByteRover 92.8%) publishes only the easier S variant. M's 1.5M-token haystacks exceed every production LLM context window, so vendors with prompt-stuffing or compression-based architectures avoid the variant.
 
-## Quickstart — reproduce the 85.6% headline
+## Quickstart — rerun the 85.6% headline configuration
 
 ```bash
 git clone https://github.com/framerslab/agentos-bench
@@ -61,6 +61,8 @@ NODE_OPTIONS="--max-old-space-size=8192" pnpm bench run longmemeval-s \
 ```
 
 Expected wall-clock: ~10-15 min at concurrency 5. Expected cost: ~$3.84 in OpenAI reader and judge fees, plus OpenAI embedding charges and Cohere rerank charges, which the bench does not price.
+
+These commands rerun the headline configuration on this version's defaults, which differ from the recorded 85.6% run in three ways (see [Methodology](#methodology)): the classifier, observer, extractor and distractor calls and the presets' `gpt-5-mini` tier run on `gpt-6-luna`; abstention questions are graded with the abstention rubric; and the judge prompts are rubric version `2026-11-15.1`. A rerun can score differently from 85.6%. The recorded run itself is under [Run files](#run-files).
 
 ## What ships in agentos
 
@@ -167,8 +169,8 @@ Every public entrypoint has TSDoc; type-checked via `pnpm exec tsc --noEmit -p t
 
 ## Examples
 
-- Reproduce the LongMemEval-S 85.6% headline: see Quickstart above.
-- Reproduce the LongMemEval-M 70.2% headline:
+- Rerun the LongMemEval-S 85.6% headline configuration: see Quickstart above.
+- Rerun the LongMemEval-M 70.2% headline configuration (on this version's defaults, as the Quickstart note describes):
 
   ```bash
   # Download the LongMemEval-M dataset into data/longmemeval/longmemeval_m.json
