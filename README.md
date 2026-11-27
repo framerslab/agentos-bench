@@ -8,7 +8,7 @@ Open benchmark harness for [`@framers/agentos`](https://github.com/framerslab/ag
 
 [Leaderboard](results/LEADERBOARD.md) · [Methodology and negative findings](results/eval-matrix-v1/) · [Run it yourself](#quickstart--rerun-the-856-headline-configuration) · [Benchmark docs](https://docs.agentos.sh/benchmarks) · [Why memory benchmark numbers don't compare](https://agentos.sh/blog/memory-benchmark-transparency-audit/)
 
-Covers [LongMemEval](https://github.com/xiaowu0162/LongMemEval) (S, M, Oracle variants), [LOCOMO](https://github.com/snap-research/locomo), [BEAM](https://github.com/vectorize-io/agent-memory-benchmark), and a suite of cognitive-mechanism micro-benchmarks. Every published number ships with a per-cell run JSON at fixed seed, a 95% confidence interval, judge false-positive rate probed per benchmark, and explicit methodology disclosures for every cross-vendor comparison.
+Covers [LongMemEval](https://github.com/xiaowu0162/LongMemEval) (S, M, Oracle variants), [LOCOMO](https://github.com/snap-research/locomo), [BEAM](https://github.com/mohammadtavakoli78/BEAM) ([dataset card](https://huggingface.co/datasets/Mohammadta/BEAM)), and a suite of cognitive-mechanism micro-benchmarks. Every published number ships with a per-cell run JSON at fixed seed, a 95% confidence interval, judge false-positive rate probed per benchmark, and explicit methodology disclosures for every cross-vendor comparison.
 
 ## Latest headlines (full N=500; `gpt-4o` and `gpt-5-mini` readers routed per question type)
 
@@ -263,7 +263,7 @@ A run built on `BenchmarkRunner` without the CLI gets the same checks that hold 
 
 ## Development
 
-CI runs the type check, the suite, the build and the built CLI on every ready pull request (`.github/workflows/ci.yml`), against the published `@framers/agentos` named in `package.json`. The lockfile is resolved by the `Lockfile` workflow and committed from its artifact; `package.json` and `pnpm-lock.yaml` change together. The suite needs the BEAM 100k files `queries.json.gz` and `documents.json.gz` under `data/beam/100k/`. CI fetches them from a pinned upstream commit, verifies their sizes and SHA-256 checksums, and caches them. To get the same files locally, run the following from the repository root (the CLI's `setup` command does not yet register BEAM):
+CI runs the type check, the suite, the build and the built CLI on every ready pull request (`.github/workflows/ci.yml`), against the published `@framers/agentos` named in `package.json`. The lockfile is resolved by the `Lockfile` workflow and committed from its artifact; `package.json` and `pnpm-lock.yaml` change together. The suite needs the BEAM 100k files `queries.json.gz` and `documents.json.gz` under `data/beam/100k/`. CI fetches them from a pinned commit of the [vectorize-io/agent-memory-benchmark](https://github.com/vectorize-io/agent-memory-benchmark) mirror, the source the CLI and the BEAM loader name in their setup messages, and verifies their sizes and SHA-256 checksums, and caches them. To get the same files locally, run the following from the repository root (the CLI's `setup` command does not yet register BEAM):
 
 ```sh
 mkdir -p data/beam/100k
